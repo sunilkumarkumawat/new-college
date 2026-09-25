@@ -547,9 +547,9 @@
                     <div class="d-flex align-items-start">
                         <i class="fa fa-exclamation-triangle text-danger mr-2 mt-1" style="font-size: 18px;"></i>
                         <div>
-                            <strong class="text-danger" style="font-size: 14px;">Fee Revert / Refund Required First!</strong>
+                            <strong class="text-danger" style="font-size: 14px;">Fee Revert / Refund Required First</strong>
                             <p class="mb-0 text-dark mt-1" style="font-size: 12.5px; line-height: 1.5;">
-                                Is student ke dwara fees deposit / collect ho chuki hai. Jab tak aap collect ki gayi fees ko <b>Revert (Refund)</b> nahi karenge, tab tak fee heads ko <b>Clear All</b> ya unassign nahi kiya ja sakta.
+                                Fee payments have already been collected for this student. You must first <b>revert/refund</b> the collected payments before clearing or unassigning fee heads.
                             </p>
                         </div>
                     </div>
