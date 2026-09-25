@@ -25,8 +25,8 @@
         <div class="col-md-3 col-sm-6 mb-1">
             <div class="p-2 border rounded bg-white shadow-xs">
                 <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Total Assigned</small>
-                <span class="font-weight-bold text-primary" style="font-size: 13.5px;" id="modal_summary_total">
-                    ₹{{ number_format($feesAssign->total_amount ?? 0, 2) }}
+                <span class="font-weight-bold text-primary" style="font-size: 13.5px;" id="modal_summary_total" data-total-assigned="{{ floatval($feesAssign->total_amount ?? 0) }}">
+                    ₹{{ ($feesAssign->total_amount == floor($feesAssign->total_amount ?? 0)) ? number_format($feesAssign->total_amount ?? 0, 0) : number_format($feesAssign->total_amount ?? 0, 2) }}
                 </span>
             </div>
         </div>
@@ -34,66 +34,97 @@
             <div class="p-2 border rounded bg-white shadow-xs">
                 <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Net Payable</small>
                 <span class="font-weight-bold text-success" style="font-size: 13.5px;" id="modal_summary_net">
-                    ₹{{ number_format($feesAssign->net_amount ?? 0, 2) }}
+                    ₹{{ ($feesAssign->net_amount == floor($feesAssign->net_amount ?? 0)) ? number_format($feesAssign->net_amount ?? 0, 0) : number_format($feesAssign->net_amount ?? 0, 2) }}
                 </span>
             </div>
         </div>
     </div>
 
     @if(!empty($assignedDetails) && count($assignedDetails) > 0)
-        <!-- Total Discount & Auto Allocation Panel -->
+        <!-- Total Discount & Auto Allocation Panel (Horizontally Aligned Controls) -->
         <div class="card mb-3 border-0 shadow-sm" style="background: linear-gradient(135deg, #eef4f9 0%, #e2edf8 100%); border: 1px solid #cbd5e1 !important; border-radius: 8px;">
             <div class="card-body p-2">
-                <div class="row align-items-center">
-                    <div class="col-md-3 col-12 mb-1">
-                        <label class="font-weight-bold text-dark mb-0 small" style="font-size: 11.5px;">
+                <div class="row align-items-end g-2">
+                    <!-- 1. Discount Type -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="font-weight-bold text-dark mb-1 small d-block" style="font-size: 11px; white-space: nowrap;">
                             <i class="fa fa-sliders text-primary mr-1"></i> Discount Type
                         </label>
-                        <select id="modal_discount_type" class="form-control form-control-sm mt-1" style="height: 32px; font-weight: 600; border-radius: 5px;">
-                            <option value="fixed">Fixed Amount (₹)</option>
+                        <select id="modal_discount_type" class="form-control form-control-sm" style="height: 34px; font-weight: 600; border-radius: 6px;">
                             <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Amount (₹)</option>
                         </select>
                     </div>
 
-                    <div class="col-md-3 col-12 mb-1">
-                        <label class="font-weight-bold text-dark mb-0 small" id="lbl_discount_input" style="font-size: 11.5px;">
-                            <i class="fa fa-tag text-primary mr-1"></i> Total Discount Value
+                    <!-- 2. Calculate On Basis -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="font-weight-bold text-dark mb-1 small d-block" style="font-size: 11px; white-space: nowrap;">
+                            <i class="fa fa-calculator text-primary mr-1"></i> Calculate On
                         </label>
-                        <div class="input-group input-group-sm mt-1">
+                        <select id="modal_discount_basis" class="form-control form-control-sm" style="height: 34px; font-weight: 600; border-radius: 6px;">
+                            <option value="checked">Checked Heads</option>
+                            <option value="total_assigned">Total Assigned Fees</option>
+                        </select>
+                    </div>
+
+                    <!-- 3. Discount Input -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="font-weight-bold text-dark mb-1 small d-block" id="lbl_discount_input" style="font-size: 11px; white-space: nowrap;">
+                            <i class="fa fa-tag text-primary mr-1"></i> Discount Value
+                        </label>
+                        <div class="input-group input-group-sm">
                             <div class="input-group-prepend">
-                                <span class="input-group-text font-weight-bold bg-white text-primary" id="modal_discount_addon" style="height: 32px; border-radius: 5px 0 0 5px;">₹</span>
+                                <span class="input-group-text font-weight-bold bg-white text-primary" id="modal_discount_addon" style="height: 34px; border-radius: 6px 0 0 6px;">%</span>
                             </div>
                             <input type="number" 
                                    id="modal_total_discount_value" 
                                    class="form-control form-control-sm" 
-                                   placeholder="Enter amount..." 
+                                   placeholder="e.g. 10" 
                                    min="0" 
-                                   step="any" 
-                                   style="height: 32px; font-weight: 600; border-radius: 0 5px 5px 0;">
+                                   step="1" 
+                                   style="height: 34px; font-weight: 600; border-radius: 0 6px 6px 0;">
                         </div>
                     </div>
 
-                    <div class="col-md-3 col-12 mb-1 d-flex align-items-end">
+                    <!-- 4. Auto Allocate Button -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Action</label>
                         <button type="button" 
                                 id="btn_auto_allocate_discount" 
-                                class="btn btn-sm btn-primary w-100 font-weight-bold shadow-sm" 
-                                style="height: 32px; border-radius: 5px;">
+                                class="btn btn-sm btn-primary w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center" 
+                                style="height: 34px; border-radius: 6px;">
                             <i class="fa fa-magic mr-1"></i> Auto Allocate
                         </button>
                     </div>
 
-                    <div class="col-md-3 col-12 mb-1 d-flex align-items-end">
+                    <!-- 5. Clear Discounts Button -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Reset</label>
                         <button type="button" 
                                 id="btn_reset_discount" 
-                                class="btn btn-sm btn-outline-secondary w-100 font-weight-bold shadow-sm" 
-                                style="height: 32px; border-radius: 5px;">
-                            <i class="fa fa-eraser mr-1"></i> Clear Discounts
+                                class="btn btn-sm btn-outline-secondary w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center" 
+                                style="height: 34px; border-radius: 6px;">
+                            <i class="fa fa-eraser mr-1"></i> Clear Disc.
+                        </button>
+                    </div>
+
+                    <!-- 6. Save All Changes Button (Top Quick Action) -->
+                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Save</label>
+                        <button type="button" 
+                                class="btn btn-sm btn-success w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center btn-save-all-batch" 
+                                data-admission-id="{{ $student->id }}"
+                                style="height: 34px; border-radius: 6px;">
+                            <i class="fa fa-check-circle mr-1"></i> Save All
                         </button>
                     </div>
                 </div>
 
                 <div class="mt-1 d-flex justify-content-between align-items-center text-muted px-1" style="font-size: 11.5px;">
-                    <span><i class="fa fa-info-circle text-info mr-1"></i> Discount will be equally distributed among all selected fee heads.</span>
+                    <span>
+                        <i class="fa fa-info-circle text-info mr-1"></i> 
+                        <span id="discount_explanation_text">Discount will be calculated on <b>Checked Heads</b> and distributed equally among them.</span>
+                    </span>
                     <span id="modal_selected_heads_count" class="badge badge-primary px-2 py-1" style="font-size: 11px;">
                         {{ count($assignedDetails) }} Heads Selected
                     </span>
@@ -182,7 +213,7 @@
                                         class="btn btn-sm btn-primary btn-save-detail-row px-2 py-0" 
                                         data-detail-id="{{ $detail->id }}" 
                                         data-admission-id="{{ $student->id }}"
-                                        title="Save this row"
+                                        title="Save this row individually"
                                         style="font-size: 11px; height: 26px; line-height: 24px;">
                                     <i class="fa fa-save"></i> Save
                                 </button>
@@ -205,7 +236,7 @@
     <div>
         @if(!empty($assignedDetails) && count($assignedDetails) > 0)
             <button type="button" 
-                    class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm" 
+                    class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm btn-save-all-batch" 
                     id="btn_save_all_modal_details" 
                     data-admission-id="{{ $student->id }}">
                 <i class="fa fa-check-circle mr-1"></i> Save All Changes
