@@ -423,8 +423,8 @@
                                             <th style="text-align: left; vertical-align: middle; min-width: 120px;">Father's Name</th>
                                             <th style="width: 100px; text-align: center; vertical-align: middle;">Mobile No.</th>
                                             <th style="text-align: left; vertical-align: middle; min-width: 270px;">Course Fee Heads (Click to Toggle / Auto-Save)</th>
-                                            <th style="width: 110px; text-align: center; vertical-align: middle;">Total Fee</th>
-                                            <th style="width: 80px; text-align: center; vertical-align: middle;">Action</th>
+                                            <th style="min-width: 125px; text-align: center; vertical-align: middle;">Fee Summary</th>
+                                            <th style="width: 120px; text-align: center; vertical-align: middle;">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbody_students_list">
@@ -527,6 +527,47 @@
 
 <script>
 var searchTimer = null;
+
+function renderStudentFeeSummaryHtml(admissionId, gross, discount, net) {
+    gross = parseFloat(gross) || 0;
+    discount = parseFloat(discount) || 0;
+    net = (net !== undefined && net !== null) ? parseFloat(net) : Math.max(0, gross - discount);
+    
+    var grossFormatted = '₹' + (gross % 1 === 0 ? gross.toLocaleString('en-IN') : gross.toLocaleString('en-IN', {minimumFractionDigits: 2}));
+    var discFormatted = '₹' + (discount % 1 === 0 ? discount.toLocaleString('en-IN') : discount.toLocaleString('en-IN', {minimumFractionDigits: 2}));
+    var netFormatted = '₹' + (net % 1 === 0 ? net.toLocaleString('en-IN') : net.toLocaleString('en-IN', {minimumFractionDigits: 2}));
+    
+    var html = '<div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_' + admissionId + '">' +
+        '<div class="text-dark font-weight-bold" style="font-size: 11.5px; line-height: 1.2;" title="Total Gross Assigned Fee">' +
+            '<span class="text-muted" style="font-size: 10px; font-weight: normal;">Total:</span> ' + grossFormatted +
+        '</div>';
+    
+    if (discount > 0) {
+        html += '<div class="badge badge-warning text-dark px-1 py-0 my-0.5" style="font-size: 10px; font-weight: 600;" title="Total Discount Given">' +
+            '<i class="fa fa-tag text-danger mr-0.5"></i> Disc: -' + discFormatted +
+        '</div>';
+    } else {
+        html += '<div class="text-muted" style="font-size: 10px; line-height: 1.2;">' +
+            'Disc: ₹0' +
+        '</div>';
+    }
+    
+    html += '<div class="badge badge-success px-2 py-0.5 mt-0.5 font-weight-bold shadow-xs" style="font-size: 11.5px;" title="Net Payable Fee" id="student_net_' + admissionId + '">' +
+        'Net: ' + netFormatted +
+    '</div>' +
+    '</div>';
+    
+    return html;
+}
+
+function updateStudentFeeSummary(admissionId, gross, discount, net) {
+    var $td = $('#student_summary_td_' + admissionId);
+    if ($td.length > 0) {
+        $td.html(renderStudentFeeSummaryHtml(admissionId, gross, discount, net));
+    } else {
+        $('#student_total_' + admissionId).text('₹' + parseFloat(gross || 0).toLocaleString('en-IN'));
+    }
+}
 
 function showFeeToast(msg, type = 'success') {
     var bgClass = type === 'success' ? 'alert-success' : 'alert-danger';
@@ -850,7 +891,7 @@ $(document).ready(function() {
                     }
                     
                     if (res.total_amount !== undefined) {
-                        $('#student_total_' + admissionId).text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN'));
+                        updateStudentFeeSummary(admissionId, res.total_amount, res.total_discount, res.net_amount);
                     }
                     showFeeToast(res.message, 'success');
                 } else {
@@ -1123,9 +1164,12 @@ $(document).ready(function() {
                         $row.find('[id^="icon_' + admissionId + '_"]').removeClass('d-none');
                         
                         if (res.updated_totals && res.updated_totals[admissionId] !== undefined) {
-                            $('#student_total_' + admissionId).text('₹' + parseFloat(res.updated_totals[admissionId]).toLocaleString('en-IN'));
+                            var g = res.updated_totals[admissionId];
+                            var d = res.updated_discounts ? res.updated_discounts[admissionId] : 0;
+                            var n = res.updated_nets ? res.updated_nets[admissionId] : (g - d);
+                            updateStudentFeeSummary(admissionId, g, d, n);
                         } else if (res.total_amount !== undefined && res.total_amount > 0) {
-                            $('#student_total_' + admissionId).text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN'));
+                            updateStudentFeeSummary(admissionId, res.total_amount, res.total_discount, res.net_amount);
                         }
                         showFeeToast(pendingFeeAction.studentName + ': All course fee heads assigned successfully!', 'success');
                     } else {
@@ -1156,8 +1200,10 @@ $(document).ready(function() {
                         $row.find('.fee-head-chip').removeClass('chip-assigned').addClass('chip-unassigned');
                         $row.find('[id^="icon_' + admissionId + '_"]').addClass('d-none');
                         
-                        var newTotal = (res.updated_totals && res.updated_totals[admissionId] !== undefined) ? res.updated_totals[admissionId] : (res.total_amount || 0);
-                        $('#student_total_' + admissionId).text('₹' + parseFloat(newTotal).toLocaleString('en-IN'));
+                        var g = (res.updated_totals && res.updated_totals[admissionId] !== undefined) ? res.updated_totals[admissionId] : (res.total_amount || 0);
+                        var d = (res.updated_discounts && res.updated_discounts[admissionId] !== undefined) ? res.updated_discounts[admissionId] : (res.total_discount || 0);
+                        var n = (res.updated_nets && res.updated_nets[admissionId] !== undefined) ? res.updated_nets[admissionId] : (res.net_amount || (g - d));
+                        updateStudentFeeSummary(admissionId, g, d, n);
                         
                         showFeeToast(pendingFeeAction.studentName + ': Unpaid fee heads cleared successfully!', 'success');
                     } else {
@@ -1201,7 +1247,10 @@ $(document).ready(function() {
                             }
 
                             if (res.updated_totals && res.updated_totals[admId] !== undefined) {
-                                $('#student_total_' + admId).text('₹' + parseFloat(res.updated_totals[admId]).toLocaleString('en-IN'));
+                                var g = res.updated_totals[admId];
+                                var d = res.updated_discounts ? res.updated_discounts[admId] : 0;
+                                var n = res.updated_nets ? res.updated_nets[admId] : (g - d);
+                                updateStudentFeeSummary(admId, g, d, n);
                             }
                         });
                         showFeeToast(res.message || 'Bulk fee assignment completed successfully!', 'success');
@@ -1254,8 +1303,10 @@ $(document).ready(function() {
         });
         var netPayable = Math.max(0, total - discount);
         var totalText = (total % 1 === 0) ? '₹' + total.toLocaleString('en-IN') : '₹' + total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        var discText = (discount % 1 === 0) ? '₹' + discount.toLocaleString('en-IN') : '₹' + discount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         var netText = (netPayable % 1 === 0) ? '₹' + netPayable.toLocaleString('en-IN') : '₹' + netPayable.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         $('#modal_summary_total').text(totalText);
+        $('#modal_summary_discount').text(discText);
         $('#modal_summary_net').text(netText);
     }
 
@@ -1423,11 +1474,14 @@ $(document).ready(function() {
                 if (res.status === 'success') {
                     if (res.total_amount !== undefined) {
                         $('#modal_summary_total').text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#student_total_' + admissionId).text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN'));
+                    }
+                    if (res.total_discount !== undefined) {
+                        $('#modal_summary_discount').text('₹' + parseFloat(res.total_discount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     }
                     if (res.net_amount !== undefined) {
                         $('#modal_summary_net').text('₹' + parseFloat(res.net_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     }
+                    updateStudentFeeSummary(admissionId, res.total_amount, res.total_discount, res.net_amount);
                     showFeeToast(res.message || 'Fee updated successfully', 'success');
                 } else {
                     showFeeToast(res.message || 'Error updating fee', 'error');
@@ -1485,12 +1539,16 @@ $(document).ready(function() {
                     if (res.total_amount !== undefined) {
                         var tot = parseFloat(res.total_amount);
                         $('#modal_summary_total').text('₹' + (tot % 1 === 0 ? tot.toLocaleString('en-IN') : tot.toLocaleString('en-IN', {minimumFractionDigits: 2})));
-                        $('#student_total_' + admissionId).text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN'));
+                    }
+                    if (res.total_discount !== undefined) {
+                        var disc = parseFloat(res.total_discount);
+                        $('#modal_summary_discount').text('₹' + (disc % 1 === 0 ? disc.toLocaleString('en-IN') : disc.toLocaleString('en-IN', {minimumFractionDigits: 2})));
                     }
                     if (res.net_amount !== undefined) {
                         var net = parseFloat(res.net_amount);
                         $('#modal_summary_net').text('₹' + (net % 1 === 0 ? net.toLocaleString('en-IN') : net.toLocaleString('en-IN', {minimumFractionDigits: 2})));
                     }
+                    updateStudentFeeSummary(admissionId, res.total_amount, res.total_discount, res.net_amount);
                     showFeeToast('All student fee changes saved successfully!', 'success');
                 } else {
                     showFeeToast(res.message || 'Error updating fees', 'error');

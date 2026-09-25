@@ -1,40 +1,54 @@
 <div class="modal-header py-2 bg-primary text-white" style="background-color: #002c54 !important;">
     <h5 class="modal-title font-weight-bold" style="font-size: 15px; color: #ffffff !important;">
-        <i class="fa fa-user-circle mr-1"></i> Fee Modification: {{ $student->first_name ?? '' }} {{ $student->last_name ?? '' }} ({{ $student->admissionNo ?? '-' }})
+        <i class="fa fa-sliders mr-1"></i> Fee & Discount Modification: {{ $student->first_name ?? '' }} {{ $student->last_name ?? '' }} ({{ $student->admissionNo ?? '-' }})
     </h5>
     <button type="button" class="close text-white btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; color: #fff; outline: none;">
         <span aria-hidden="true" style="font-size: 22px;">&times;</span>
     </button>
 </div>
 
+@php
+    $modalTotalDiscount = !empty($assignedDetails) ? $assignedDetails->sum('discount') : 0;
+    $modalTotalAssigned = floatval($feesAssign->total_amount ?? 0);
+    $modalNetPayable = floatval($feesAssign->net_amount ?? ($modalTotalAssigned - $modalTotalDiscount));
+@endphp
+
 <div class="modal-body p-3" style="background-color: #f8fafc;" data-admission-id="{{ $student->id }}">
     <!-- Student Summary Ribbon -->
     <div class="row mb-3">
-        <div class="col-md-3 col-sm-6 mb-1">
+        <div class="col-xl-3 col-lg-3 col-md-3 col-sm-6 col-6 mb-1">
             <div class="p-2 border rounded bg-white shadow-xs">
                 <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Class / Semester</small>
                 <span class="font-weight-bold text-dark" style="font-size: 13px;">{{ $student->ClassTypes->name ?? '-' }}</span>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6 mb-1">
+        <div class="col-xl-2 col-lg-2 col-md-2 col-sm-6 col-6 mb-1">
             <div class="p-2 border rounded bg-white shadow-xs">
                 <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Student Type</small>
                 <span class="badge badge-info px-2 py-1" style="font-size: 11.5px;">{{ $student->student_type ?? 'General' }}</span>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6 mb-1">
+        <div class="col-xl-2 col-lg-2 col-md-2 col-sm-4 col-4 mb-1">
             <div class="p-2 border rounded bg-white shadow-xs">
                 <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Total Assigned</small>
-                <span class="font-weight-bold text-primary" style="font-size: 13.5px;" id="modal_summary_total" data-total-assigned="{{ floatval($feesAssign->total_amount ?? 0) }}">
-                    ₹{{ ($feesAssign->total_amount == floor($feesAssign->total_amount ?? 0)) ? number_format($feesAssign->total_amount ?? 0, 0) : number_format($feesAssign->total_amount ?? 0, 2) }}
+                <span class="font-weight-bold text-primary" style="font-size: 13.5px;" id="modal_summary_total" data-total-assigned="{{ $modalTotalAssigned }}">
+                    ₹{{ ($modalTotalAssigned == floor($modalTotalAssigned)) ? number_format($modalTotalAssigned, 0) : number_format($modalTotalAssigned, 2) }}
                 </span>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6 mb-1">
+        <div class="col-xl-2 col-lg-2 col-md-2 col-sm-4 col-4 mb-1">
             <div class="p-2 border rounded bg-white shadow-xs">
-                <small class="text-muted d-block font-weight-bold" style="font-size: 11px; text-transform: uppercase;">Net Payable</small>
+                <small class="text-muted d-block font-weight-bold text-danger" style="font-size: 11px; text-transform: uppercase;">Total Discount</small>
+                <span class="font-weight-bold text-danger" style="font-size: 13.5px;" id="modal_summary_discount">
+                    ₹{{ ($modalTotalDiscount == floor($modalTotalDiscount)) ? number_format($modalTotalDiscount, 0) : number_format($modalTotalDiscount, 2) }}
+                </span>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-3 col-md-3 col-sm-4 col-4 mb-1">
+            <div class="p-2 border rounded bg-white shadow-xs">
+                <small class="text-muted d-block font-weight-bold text-success" style="font-size: 11px; text-transform: uppercase;">Net Payable</small>
                 <span class="font-weight-bold text-success" style="font-size: 13.5px;" id="modal_summary_net">
-                    ₹{{ ($feesAssign->net_amount == floor($feesAssign->net_amount ?? 0)) ? number_format($feesAssign->net_amount ?? 0, 0) : number_format($feesAssign->net_amount ?? 0, 2) }}
+                    ₹{{ ($modalNetPayable == floor($modalNetPayable)) ? number_format($modalNetPayable, 0) : number_format($modalNetPayable, 2) }}
                 </span>
             </div>
         </div>

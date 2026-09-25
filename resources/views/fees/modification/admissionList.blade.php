@@ -1,13 +1,28 @@
 @if(!empty($data) && count($data) > 0)
     @php
         $studentIds = $data->pluck('id')->toArray();
-        $feesAssigns = DB::table('fees_assigns')->whereNull('deleted_at')->whereIn('admission_id', $studentIds)->pluck('total_amount', 'admission_id')->toArray();
+        $feesAssigns = DB::table('fees_assigns')
+            ->whereNull('deleted_at')
+            ->whereIn('admission_id', $studentIds)
+            ->get()
+            ->keyBy('admission_id');
+
+        $studentDiscounts = DB::table('fees_assign_details')
+            ->whereNull('deleted_at')
+            ->whereIn('admission_id', $studentIds)
+            ->groupBy('admission_id')
+            ->select('admission_id', DB::raw('SUM(discount) as total_discount'), DB::raw('SUM(fees_group_amount) as total_gross'))
+            ->get()
+            ->keyBy('admission_id');
     @endphp
 
     @foreach($data as $key => $item)
         @php
             $studentMasters = $courseFeesMasters;
-            $studentTotal = isset($feesAssigns[$item->id]) ? floatval($feesAssigns[$item->id]) : 0;
+            $assign = $feesAssigns[$item->id] ?? null;
+            $grossTotal = $assign->total_amount ?? ($studentDiscounts[$item->id]->total_gross ?? 0);
+            $discountTotal = $studentDiscounts[$item->id]->total_discount ?? 0;
+            $netTotal = $assign->net_amount ?? ($grossTotal - $discountTotal);
         @endphp
         <tr id="student_row_{{ $item->id }}">
             <td class="text-center align-middle" style="width: 40px;">
@@ -114,18 +129,32 @@
                     <span class="text-muted small font-italic">No Fee Heads Configured for this Course</span>
                 @endif
             </td>
-            <td class="text-center align-middle text-nowrap" style="width: 110px;">
-                <span class="badge badge-success px-2 py-1 font-weight-bold" style="font-size: 12.5px;" id="student_total_{{ $item->id }}">
-                    ₹{{ number_format($studentTotal, 0) }}
-                </span>
+            <td class="text-center align-middle text-nowrap" style="min-width: 125px;" id="student_summary_td_{{ $item->id }}">
+                <div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_{{ $item->id }}">
+                    <div class="text-dark font-weight-bold" style="font-size: 11.5px; line-height: 1.2;" title="Total Gross Assigned Fee">
+                        <span class="text-muted" style="font-size: 10px; font-weight: normal;">Total:</span> ₹{{ number_format($grossTotal, 0) }}
+                    </div>
+                    @if($discountTotal > 0)
+                        <div class="badge badge-warning text-dark px-1 py-0 my-0.5" style="font-size: 10px; font-weight: 600;" title="Total Discount Given">
+                            <i class="fa fa-tag text-danger mr-0.5"></i> Disc: -₹{{ number_format($discountTotal, 0) }}
+                        </div>
+                    @else
+                        <div class="text-muted" style="font-size: 10px; line-height: 1.2;">
+                            Disc: ₹0
+                        </div>
+                    @endif
+                    <div class="badge badge-success px-2 py-0.5 mt-0.5 font-weight-bold shadow-xs" style="font-size: 11.5px;" title="Net Payable Fee" id="student_net_{{ $item->id }}">
+                        Net: ₹{{ number_format($netTotal, 0) }}
+                    </div>
+                </div>
             </td>
-            <td class="text-center align-middle text-nowrap" style="width: 80px;">
+            <td class="text-center align-middle text-nowrap" style="width: 120px;">
                 <button type="button" 
-                        class="btn btn-xs btn-outline-primary btn-edit-student-fees font-weight-bold" 
+                        class="btn btn-xs btn-outline-primary btn-edit-student-fees font-weight-bold shadow-xs" 
                         data-admission-id="{{ $item->id }}"
-                        style="font-size: 11.5px; padding: 2px 8px;"
-                        title="Edit Fee Details, Discounts & Due Dates">
-                    <i class="fa fa-pencil mr-1"></i> Edit
+                        style="font-size: 11px; padding: 3px 8px; border-radius: 4px;"
+                        title="Modify Fees, Allocate Discounts & Adjust Due Dates">
+                    <i class="fa fa-sliders mr-1"></i> Modify / Disc.
                 </button>
             </td>
         </tr>

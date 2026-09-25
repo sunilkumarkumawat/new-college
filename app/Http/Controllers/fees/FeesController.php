@@ -1938,6 +1938,7 @@ class FeesController extends Controller
                         'head_name' => $fees_groups->name ?? 'Fee Head',
                         'amount' => $amount,
                         'total_amount' => $total_assign_detail,
+                        'total_discount' => $discount_assign_detail,
                         'net_amount' => ($total_assign_detail - $discount_assign_detail),
                         'message' => ($fees_groups->name ?? 'Fee Head') . ' assigned successfully'
                     ]);
@@ -1967,9 +1968,11 @@ class FeesController extends Controller
                         $feesAssign->net_amount = ($total_assign_detail - $discount_assign_detail);
                         $feesAssign->save();
                         $newTotal = $total_assign_detail;
+                        $newDiscount = $discount_assign_detail;
                         $newNet = ($total_assign_detail - $discount_assign_detail);
                     } else {
                         $newTotal = 0;
+                        $newDiscount = 0;
                         $newNet = 0;
                     }
                     
@@ -1978,6 +1981,7 @@ class FeesController extends Controller
                         'action' => 'unassigned',
                         'head_name' => $fees_groups->name ?? 'Fee Head',
                         'total_amount' => $newTotal,
+                        'total_discount' => $newDiscount,
                         'net_amount' => $newNet,
                         'message' => ($fees_groups->name ?? 'Fee Head') . ' unassigned successfully'
                     ]);
@@ -1994,6 +1998,8 @@ class FeesController extends Controller
                 
                 $assignedCount = 0;
                 $updatedTotals = [];
+                $updatedDiscounts = [];
+                $updatedNets = [];
                 foreach($admissionIds as $admission){
                     $admis = Admission::select('id', 'student_type', 'class_type_id')->find($admission);
                     if(!$admis) continue;
@@ -2082,6 +2088,8 @@ class FeesController extends Controller
                         $feesAssign->save();
                         
                         $updatedTotals[$admission] = $total_assign_detail;
+                        $updatedDiscounts[$admission] = $discount_assign_detail;
+                        $updatedNets[$admission] = ($total_assign_detail - $discount_assign_detail);
                     }
                 }
                 
@@ -2089,7 +2097,11 @@ class FeesController extends Controller
                     'status' => 'success',
                     'count' => $assignedCount,
                     'total_amount' => count($updatedTotals) === 1 ? reset($updatedTotals) : 0,
+                    'total_discount' => count($updatedDiscounts) === 1 ? reset($updatedDiscounts) : 0,
+                    'net_amount' => count($updatedNets) === 1 ? reset($updatedNets) : 0,
                     'updated_totals' => $updatedTotals,
+                    'updated_discounts' => $updatedDiscounts,
+                    'updated_nets' => $updatedNets,
                     'message' => 'Fees Structure assigned successfully in real-time!'
                 ]);
             }
@@ -2108,6 +2120,8 @@ class FeesController extends Controller
                 
                 $clearedCount = 0;
                 $updatedTotals = [];
+                $updatedDiscounts = [];
+                $updatedNets = [];
                 
                 foreach($admissionIds as $admId){
                     $admis = Admission::find($admId);
@@ -2135,8 +2149,12 @@ class FeesController extends Controller
                         $feesAssign->net_amount = ($total - $discount);
                         $feesAssign->save();
                         $updatedTotals[$admId] = $total;
+                        $updatedDiscounts[$admId] = $discount;
+                        $updatedNets[$admId] = ($total - $discount);
                     } else {
                         $updatedTotals[$admId] = 0;
+                        $updatedDiscounts[$admId] = 0;
+                        $updatedNets[$admId] = 0;
                     }
                     $clearedCount++;
                 }
@@ -2145,7 +2163,11 @@ class FeesController extends Controller
                     'status' => 'success',
                     'count' => $clearedCount,
                     'total_amount' => count($updatedTotals) === 1 ? reset($updatedTotals) : 0,
+                    'total_discount' => count($updatedDiscounts) === 1 ? reset($updatedDiscounts) : 0,
+                    'net_amount' => count($updatedNets) === 1 ? reset($updatedNets) : 0,
                     'updated_totals' => $updatedTotals,
+                    'updated_discounts' => $updatedDiscounts,
+                    'updated_nets' => $updatedNets,
                     'message' => 'Unpaid fee heads cleared successfully in real-time!'
                 ]);
             }
@@ -2200,12 +2222,14 @@ class FeesController extends Controller
                     $net = $total - $discount;
                 } else {
                     $total = $detail->fees_group_amount;
-                    $net = $detail->fees_group_amount;
+                    $discount = $detail->discount ?? 0;
+                    $net = $total - $discount;
                 }
                 
                 return response()->json([
                     'status' => 'success',
                     'total_amount' => $total,
+                    'total_discount' => $discount,
                     'net_amount' => $net,
                     'message' => 'Fee detail updated successfully'
                 ]);
