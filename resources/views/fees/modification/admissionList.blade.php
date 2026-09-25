@@ -129,21 +129,21 @@
                     <span class="text-muted small font-italic">No Fee Heads Configured for this Course</span>
                 @endif
             </td>
-            <td class="text-center align-middle text-nowrap" style="min-width: 125px;" id="student_summary_td_{{ $item->id }}">
-                <div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_{{ $item->id }}">
-                    <div class="text-dark font-weight-bold" style="font-size: 11.5px; line-height: 1.2;" title="Total Gross Assigned Fee">
-                        <span class="text-muted" style="font-size: 10px; font-weight: normal;">Total:</span> ₹{{ number_format($grossTotal, 0) }}
+            <td class="text-center align-middle text-nowrap" style="min-width: 140px; padding: 6px 10px !important;" id="student_summary_td_{{ $item->id }}">
+                <div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_{{ $item->id }}" style="gap: 2px;">
+                    <div class="text-dark font-weight-bold" style="font-size: 13.5px; line-height: 1.2;" title="Total Gross Assigned Fee">
+                        <span class="text-muted" style="font-size: 11.5px; font-weight: 600;">Total:</span> ₹{{ number_format($grossTotal, 0) }}
                     </div>
                     @if($discountTotal > 0)
-                        <div class="badge badge-warning text-dark px-1 py-0 my-0.5" style="font-size: 10px; font-weight: 600;" title="Total Discount Given">
-                            <i class="fa fa-tag text-danger mr-0.5"></i> Disc: -₹{{ number_format($discountTotal, 0) }}
+                        <div class="badge badge-warning text-dark px-2 py-1" style="font-size: 12px; font-weight: 700; border-radius: 4px;" title="Total Discount Given">
+                            <i class="fa fa-tag text-danger mr-1"></i> Disc: -₹{{ number_format($discountTotal, 0) }}
                         </div>
                     @else
-                        <div class="text-muted" style="font-size: 10px; line-height: 1.2;">
+                        <div class="text-muted font-weight-bold" style="font-size: 11.5px; line-height: 1.2;">
                             Disc: ₹0
                         </div>
                     @endif
-                    <div class="badge badge-success px-2 py-0.5 mt-0.5 font-weight-bold shadow-xs" style="font-size: 11.5px;" title="Net Payable Fee" id="student_net_{{ $item->id }}">
+                    <div class="badge badge-success px-2 py-1 font-weight-bold shadow-xs" style="font-size: 13.5px; letter-spacing: 0.3px; border-radius: 4px;" title="Net Payable Fee" id="student_net_{{ $item->id }}">
                         Net: ₹{{ number_format($netTotal, 0) }}
                     </div>
                 </div>

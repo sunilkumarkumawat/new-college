@@ -525,6 +525,94 @@
     </div>
 </div>
 
+<!-- Custom Alert Modal: Cannot Clear Fee Heads (Fees Already Collected) -->
+<div class="modal fade" id="feeCollectedWarningModal" tabindex="-1" role="dialog" aria-labelledby="feeCollectedWarningModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document" style="max-width: 680px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <!-- Modal Header -->
+            <div class="modal-header py-3 px-4 text-white" style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-bottom: 3px solid #ef4444;">
+                <h5 class="modal-title font-weight-bold d-flex align-items-center" style="font-size: 16px; letter-spacing: 0.3px; margin: 0; color: #ffffff !important;">
+                    <i class="fa fa-ban mr-2 text-warning" style="font-size: 20px;"></i>
+                    <span>Cannot Clear Fee Heads: Fees Already Collected</span>
+                </h5>
+                <button type="button" class="close text-white btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; text-shadow: none; outline: none; cursor: pointer;">
+                    <span aria-hidden="true" style="font-size: 22px;">&times;</span>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body p-4">
+                <!-- Important Revert Note Alert -->
+                <div class="alert alert-danger mb-3 p-3 shadow-xs" style="border-left: 4px solid #dc2626; border-radius: 8px; background-color: #fef2f2;">
+                    <div class="d-flex align-items-start">
+                        <i class="fa fa-exclamation-triangle text-danger mr-2 mt-1" style="font-size: 18px;"></i>
+                        <div>
+                            <strong class="text-danger" style="font-size: 14px;">Fee Revert / Refund Required First!</strong>
+                            <p class="mb-0 text-dark mt-1" style="font-size: 12.5px; line-height: 1.5;">
+                                Is student ke dwara fees deposit / collect ho chuki hai. Jab tak aap collect ki gayi fees ko <b>Revert (Refund)</b> nahi karenge, tab tak fee heads ko <b>Clear All</b> ya unassign nahi kiya ja sakta.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Information Card -->
+                <div class="p-3 mb-3 rounded shadow-xs" style="background: #f8fafc; border: 1.5px solid #e2e8f0; font-size: 13px;">
+                    <div class="row align-items-center">
+                        <div class="col-sm-6 mb-1">
+                            <span class="text-muted"><i class="fa fa-user mr-1 text-primary"></i> Student:</span>
+                            <strong class="text-dark ml-1" id="collected_warn_student_name">-</strong>
+                        </div>
+                        <div class="col-sm-6 mb-1 text-sm-right">
+                            <span class="text-muted"><i class="fa fa-id-card mr-1 text-secondary"></i> Admission No:</span>
+                            <strong class="badge badge-secondary px-2 py-1 ml-1" id="collected_warn_admission_no">-</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted"><i class="fa fa-graduation-cap mr-1 text-info"></i> Class / Batch:</span>
+                            <span class="font-weight-bold text-dark ml-1" id="collected_warn_class_batch">-</span>
+                        </div>
+                        <div class="col-sm-6 text-sm-right">
+                            <span class="text-muted"><i class="fa fa-money mr-1 text-success"></i> Total Collected:</span>
+                            <span class="badge badge-success px-2 py-1 font-weight-bold ml-1" style="font-size: 13px;" id="collected_warn_total_paid">₹0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collected Receipts / Invoices Table -->
+                <h6 class="font-weight-bold text-dark mb-2" style="font-size: 13px;">
+                    <i class="fa fa-file-text-o text-primary mr-1"></i> Collected Fee Receipts & Invoices:
+                </h6>
+                <div class="table-responsive border rounded" style="max-height: 220px; overflow-y: auto;">
+                    <table class="table table-bordered table-sm table-striped mb-0 text-center" style="font-size: 12px;">
+                        <thead class="bg-light font-weight-bold" style="position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Invoice No.</th>
+                                <th class="text-left">Fee Head(s)</th>
+                                <th>Paid Amount</th>
+                                <th>Date & Mode</th>
+                                <th style="width: 110px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="collected_warn_invoices_tbody">
+                            <!-- Invoices loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer py-2 px-4 bg-light d-flex justify-content-between border-top">
+                <a href="{{ url('Fees/add') }}" id="btn_goto_fee_collect" target="_blank" class="btn btn-sm btn-outline-danger font-weight-bold px-3 py-1.5" style="border-radius: 6px;">
+                    <i class="fa fa-undo mr-1"></i> Go to Fee Revert / Collect Form
+                </a>
+                <button type="button" class="btn btn-sm btn-secondary font-weight-bold px-4 py-1.5 btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" style="border-radius: 6px;">
+                    <i class="fa fa-times mr-1"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 var searchTimer = null;
 
@@ -537,22 +625,22 @@ function renderStudentFeeSummaryHtml(admissionId, gross, discount, net) {
     var discFormatted = '₹' + (discount % 1 === 0 ? discount.toLocaleString('en-IN') : discount.toLocaleString('en-IN', {minimumFractionDigits: 2}));
     var netFormatted = '₹' + (net % 1 === 0 ? net.toLocaleString('en-IN') : net.toLocaleString('en-IN', {minimumFractionDigits: 2}));
     
-    var html = '<div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_' + admissionId + '">' +
-        '<div class="text-dark font-weight-bold" style="font-size: 11.5px; line-height: 1.2;" title="Total Gross Assigned Fee">' +
-            '<span class="text-muted" style="font-size: 10px; font-weight: normal;">Total:</span> ' + grossFormatted +
+    var html = '<div class="fee-summary-cell d-flex flex-column align-items-center justify-content-center" id="student_fee_summary_' + admissionId + '" style="gap: 2px;">' +
+        '<div class="text-dark font-weight-bold" style="font-size: 13.5px; line-height: 1.2;" title="Total Gross Assigned Fee">' +
+            '<span class="text-muted" style="font-size: 11.5px; font-weight: 600;">Total:</span> ' + grossFormatted +
         '</div>';
     
     if (discount > 0) {
-        html += '<div class="badge badge-warning text-dark px-1 py-0 my-0.5" style="font-size: 10px; font-weight: 600;" title="Total Discount Given">' +
-            '<i class="fa fa-tag text-danger mr-0.5"></i> Disc: -' + discFormatted +
+        html += '<div class="badge badge-warning text-dark px-2 py-1" style="font-size: 12px; font-weight: 700; border-radius: 4px;" title="Total Discount Given">' +
+            '<i class="fa fa-tag text-danger mr-1"></i> Disc: -' + discFormatted +
         '</div>';
     } else {
-        html += '<div class="text-muted" style="font-size: 10px; line-height: 1.2;">' +
+        html += '<div class="text-muted font-weight-bold" style="font-size: 11.5px; line-height: 1.2;">' +
             'Disc: ₹0' +
         '</div>';
     }
     
-    html += '<div class="badge badge-success px-2 py-0.5 mt-0.5 font-weight-bold shadow-xs" style="font-size: 11.5px;" title="Net Payable Fee" id="student_net_' + admissionId + '">' +
+    html += '<div class="badge badge-success px-2 py-1 font-weight-bold shadow-xs" style="font-size: 13.5px; letter-spacing: 0.3px; border-radius: 4px;" title="Net Payable Fee" id="student_net_' + admissionId + '">' +
         'Net: ' + netFormatted +
     '</div>' +
     '</div>';
@@ -963,7 +1051,7 @@ $(document).ready(function() {
         $('#feeAssignConfirmModal').modal('show');
     });
 
-    // TRIGGER MODAL: CLEAR ALL UNPAID HEADS FOR SINGLE STUDENT
+    // TRIGGER MODAL: CLEAR ALL UNPAID HEADS FOR SINGLE STUDENT (WITH PAYMENT CHECK)
     $(document).on('click', '.btn-student-unassign-all-heads', function(e) {
         e.preventDefault();
         var admissionId = $(this).data('admission-id');
@@ -977,41 +1065,107 @@ $(document).ready(function() {
             return;
         }
 
-        pendingFeeAction = {
-            type: 'clear_all_student',
-            admissionId: admissionId,
-            admissionIds: [admissionId],
-            studentName: studentName,
-            admissionNo: admissionNo,
-            totalHeads: assignedCheckboxes.length,
-            masterIds: []
-        };
+        var $btn = $(this);
+        var originalBtnHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
 
-        // Configure Modal for Clear All
-        $('#feeConfirmModalHeader').css('border-bottom', '2px solid #dc3545');
-        $('#feeConfirmIcon').attr('class', 'fa fa-trash mr-2 text-danger');
-        $('#feeConfirmTitle').text('Clear All Assigned Fee Heads');
-        $('#feeConfirmBigIcon').attr('class', 'fa fa-trash fa-2x text-danger');
-        $('#feeConfirmIconWrapper').css('background', 'rgba(220, 53, 69, 0.12)');
-        $('#feeConfirmHeadline').text('Clear All Fee Heads for Student?');
-        
-        $('#feeConfirmStudentInfoBox').show();
-        $('#feeConfirmStudentNameRow').show();
-        $('#feeConfirmStudentAdmRow').show();
-        $('#feeConfirmStudentName').text(studentName);
-        $('#feeConfirmStudentAdmNo').text(admissionNo);
-        $('#feeConfirmExtraDetails').html('<span class="text-danger font-weight-bold">Clear (' + assignedCheckboxes.length + ') assigned heads</span>');
-        
-        $('#feeConfirmMessage').text('Are you sure you want to unassign all fee heads for ' + studentName + '?');
-        $('#feeConfirmPaidWarning').removeClass('d-none');
-        
-        $('#btn_confirm_fee_modal_action')
-            .removeClass('btn-success btn-primary btn-warning')
-            .addClass('btn-danger')
-            .prop('disabled', false)
-            .html('<i class="fa fa-trash mr-1"></i> <span id="btn_confirm_fee_modal_text">Yes, Clear All</span>');
+        // First check if any payment has been collected for this student
+        $.ajax({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            url: "{{ url('checkStudentCollectedFees') }}",
+            method: 'POST',
+            data: { admission_id: admissionId },
+            success: function(res) {
+                $btn.prop('disabled', false).html(originalBtnHtml);
+                
+                if (res.status === 'success' && res.has_paid && res.total_paid > 0) {
+                    // Populate and show the custom warning modal
+                    $('#collected_warn_student_name').text(res.student.name);
+                    $('#collected_warn_admission_no').text(res.student.admissionNo);
+                    $('#collected_warn_class_batch').text(res.student.class_name + ' (' + res.student.batch + ')');
+                    $('#collected_warn_total_paid').text('₹' + parseFloat(res.total_paid).toLocaleString('en-IN'));
+                    $('#btn_goto_fee_collect').attr('href', "{{ url('Fees/add') }}?admission_id=" + res.student.id);
 
-        $('#feeAssignConfirmModal').modal('show');
+                    var tbodyHtml = [];
+                    if (res.invoices && res.invoices.length > 0) {
+                        res.invoices.forEach(function(inv, idx) {
+                            tbodyHtml.push(
+                                '<tr>' +
+                                    '<td class="align-middle font-weight-bold text-muted">' + (idx + 1) + '</td>' +
+                                    '<td class="align-middle font-weight-bold text-primary">' + inv.invoice_no + '</td>' +
+                                    '<td class="align-middle text-left"><span class="font-weight-bold text-dark">' + inv.heads + '</span></td>' +
+                                    '<td class="align-middle font-weight-bold text-success">₹' + inv.amount.toLocaleString('en-IN') + '</td>' +
+                                    '<td class="align-middle text-muted"><span class="d-block">' + inv.payment_date + '</span><small class="badge badge-light border">' + inv.payment_mode + '</small></td>' +
+                                    '<td class="align-middle">' +
+                                        '<a href="' + inv.receipt_url + '" target="_blank" class="btn btn-xs btn-primary font-weight-bold px-2 py-1 shadow-xs" title="Preview / Print Receipt">' +
+                                            '<i class="fa fa-eye mr-1"></i> Preview' +
+                                        '</a>' +
+                                    '</td>' +
+                                '</tr>'
+                            );
+                        });
+                    } else if (res.paid_details && res.paid_details.length > 0) {
+                        res.paid_details.forEach(function(pd, idx) {
+                            tbodyHtml.push(
+                                '<tr>' +
+                                    '<td class="align-middle font-weight-bold text-muted">' + (idx + 1) + '</td>' +
+                                    '<td class="align-middle font-weight-bold text-secondary">' + (pd.receipt_no || '-') + '</td>' +
+                                    '<td class="align-middle text-left"><span class="font-weight-bold text-dark">' + pd.head_name + '</span></td>' +
+                                    '<td class="align-middle font-weight-bold text-success">₹' + pd.amount.toLocaleString('en-IN') + '</td>' +
+                                    '<td class="align-middle text-muted"><span class="d-block">' + pd.date + '</span><small class="badge badge-light border">' + pd.payment_mode + '</small></td>' +
+                                    '<td class="align-middle">' +
+                                        '<span class="badge badge-warning text-dark px-2 py-1">Collected</span>' +
+                                    '</td>' +
+                                '</tr>'
+                            );
+                        });
+                    }
+
+                    $('#collected_warn_invoices_tbody').html(tbodyHtml.join(''));
+                    $('#feeCollectedWarningModal').modal('show');
+                } else {
+                    // No collected fees, proceed with standard confirmation modal
+                    pendingFeeAction = {
+                        type: 'clear_all_student',
+                        admissionId: admissionId,
+                        admissionIds: [admissionId],
+                        studentName: studentName,
+                        admissionNo: admissionNo,
+                        totalHeads: assignedCheckboxes.length,
+                        masterIds: []
+                    };
+
+                    $('#feeConfirmModalHeader').css('border-bottom', '2px solid #dc3545');
+                    $('#feeConfirmIcon').attr('class', 'fa fa-trash mr-2 text-danger');
+                    $('#feeConfirmTitle').text('Clear All Assigned Fee Heads');
+                    $('#feeConfirmBigIcon').attr('class', 'fa fa-trash fa-2x text-danger');
+                    $('#feeConfirmIconWrapper').css('background', 'rgba(220, 53, 69, 0.12)');
+                    $('#feeConfirmHeadline').text('Clear All Fee Heads for Student?');
+                    
+                    $('#feeConfirmStudentInfoBox').show();
+                    $('#feeConfirmStudentNameRow').show();
+                    $('#feeConfirmStudentAdmRow').show();
+                    $('#feeConfirmStudentName').text(studentName);
+                    $('#feeConfirmStudentAdmNo').text(admissionNo);
+                    $('#feeConfirmExtraDetails').html('<span class="text-danger font-weight-bold">Clear (' + assignedCheckboxes.length + ') assigned heads</span>');
+                    
+                    $('#feeConfirmMessage').text('Are you sure you want to unassign all fee heads for ' + studentName + '?');
+                    $('#feeConfirmPaidWarning').addClass('d-none');
+                    
+                    $('#btn_confirm_fee_modal_action')
+                        .removeClass('btn-success btn-primary btn-warning')
+                        .addClass('btn-danger')
+                        .prop('disabled', false)
+                        .html('<i class="fa fa-trash mr-1"></i> <span id="btn_confirm_fee_modal_text">Yes, Clear All</span>');
+
+                    $('#feeAssignConfirmModal').modal('show');
+                }
+            },
+            error: function() {
+                $btn.prop('disabled', false).html(originalBtnHtml);
+                showFeeToast('Server error while checking payment status', 'error');
+            }
+        });
     });
 
     // TRIGGER MODAL: QUICK APPLY ALL HEADS TO ALL LOADED STUDENTS

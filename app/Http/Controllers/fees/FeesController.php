@@ -2172,6 +2172,77 @@ class FeesController extends Controller
                 ]);
             }
 
+            public function checkStudentCollectedFees(Request $request){
+                $admission_id = $request->admission_id;
+                $student = Admission::with('ClassTypes')->find($admission_id);
+                if(!$student){
+                    return response()->json(['status' => 'error', 'message' => 'Student record not found']);
+                }
+
+                $invoices = FeesDetailsInvoices::where('admission_id', $admission_id)
+                    ->whereIn('status', [0, 1])
+                    ->orderBy('id', 'DESC')
+                    ->get();
+
+                $paidDetails = FeesDetail::where('admission_id', $admission_id)
+                    ->whereIn('status', [0, 1])
+                    ->where('paid_amount', '>', 0)
+                    ->with(['feesGroup', 'PaymentMode'])
+                    ->orderBy('id', 'DESC')
+                    ->get();
+
+                $totalPaid = $paidDetails->sum('paid_amount');
+                $hasPaid = ($totalPaid > 0) || ($paidDetails->count() > 0) || ($invoices->count() > 0);
+
+                $invoiceList = [];
+                foreach($invoices as $inv){
+                    $detailIds = array_filter(explode(',', $inv->fees_details_id));
+                    $heads = FeesDetail::whereIn('id', $detailIds)->with('feesGroup')->get();
+                    $headNames = $heads->pluck('feesGroup.name')->filter()->unique()->implode(', ');
+                    
+                    $paymentModeObj = \App\Models\PaymentMode::find($inv->payment_mode);
+                    $modeName = $paymentModeObj ? $paymentModeObj->name : ($inv->payment_mode ?? 'Cash');
+
+                    $invoiceList[] = [
+                        'id' => $inv->id,
+                        'invoice_no' => $inv->invoice_no,
+                        'amount' => floatval($inv->amount),
+                        'discount' => floatval($inv->discount),
+                        'fine' => floatval($inv->total_fine),
+                        'payment_date' => !empty($inv->payment_date) ? date('d-m-Y', strtotime($inv->payment_date)) : '-',
+                        'payment_mode' => $modeName,
+                        'heads' => $headNames ?: 'Fees Collection',
+                        'receipt_url' => url('feesReceipt/' . $inv->invoice_no . '/' . $admission_id)
+                    ];
+                }
+
+                $directDetails = [];
+                foreach($paidDetails as $pd){
+                    $directDetails[] = [
+                        'head_name' => $pd->feesGroup->name ?? 'Fee Head',
+                        'amount' => floatval($pd->paid_amount),
+                        'date' => !empty($pd->date) ? date('d-m-Y', strtotime($pd->date)) : '-',
+                        'payment_mode' => $pd->PaymentMode->name ?? 'Cash',
+                        'receipt_no' => $pd->receipt_no ?? '-'
+                    ];
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'has_paid' => $hasPaid,
+                    'total_paid' => $totalPaid,
+                    'student' => [
+                        'id' => $student->id,
+                        'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                        'admissionNo' => $student->admissionNo ?? '-',
+                        'class_name' => $student->ClassTypes->name ?? '-',
+                        'batch' => $student->batch ?? '-'
+                    ],
+                    'invoices' => $invoiceList,
+                    'paid_details' => $directDetails
+                ]);
+            }
+
             public function getStudentFeeDetailsModal(Request $request){
                 $admission_id = $request->admission_id;
                 $student = Admission::with('ClassTypes')->find($admission_id);
