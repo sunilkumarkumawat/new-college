@@ -2184,11 +2184,14 @@ class FeesController extends Controller
                     ->orderBy('id', 'DESC')
                     ->get();
 
-                $paidDetails = FeesDetail::where('admission_id', $admission_id)
-                    ->whereIn('status', [0, 1])
-                    ->where('paid_amount', '>', 0)
-                    ->with(['feesGroup', 'PaymentMode'])
-                    ->orderBy('id', 'DESC')
+                $paidDetails = FeesDetail::leftJoin('fees_group', 'fees_group.id', '=', 'fees_detail.fees_group_id')
+                    ->leftJoin('payment_modes', 'payment_modes.id', '=', 'fees_detail.payment_mode_id')
+                    ->select('fees_detail.*', 'fees_group.name as fees_group_name', 'payment_modes.name as payment_mode_name')
+                    ->where('fees_detail.admission_id', $admission_id)
+                    ->whereIn('fees_detail.status', [0, 1])
+                    ->where('fees_detail.paid_amount', '>', 0)
+                    ->whereNull('fees_detail.deleted_at')
+                    ->orderBy('fees_detail.id', 'DESC')
                     ->get();
 
                 $totalPaid = $paidDetails->sum('paid_amount');
@@ -2197,8 +2200,15 @@ class FeesController extends Controller
                 $invoiceList = [];
                 foreach($invoices as $inv){
                     $detailIds = array_filter(explode(',', $inv->fees_details_id));
-                    $heads = FeesDetail::whereIn('id', $detailIds)->with('feesGroup')->get();
-                    $headNames = $heads->pluck('feesGroup.name')->filter()->unique()->implode(', ');
+                    $headNames = '';
+                    if(!empty($detailIds)){
+                        $headNames = FeesDetail::leftJoin('fees_group', 'fees_group.id', '=', 'fees_detail.fees_group_id')
+                            ->whereIn('fees_detail.id', $detailIds)
+                            ->pluck('fees_group.name')
+                            ->filter()
+                            ->unique()
+                            ->implode(', ');
+                    }
                     
                     $paymentModeObj = \App\Models\PaymentMode::find($inv->payment_mode);
                     $modeName = $paymentModeObj ? $paymentModeObj->name : ($inv->payment_mode ?? 'Cash');
@@ -2219,10 +2229,10 @@ class FeesController extends Controller
                 $directDetails = [];
                 foreach($paidDetails as $pd){
                     $directDetails[] = [
-                        'head_name' => $pd->feesGroup->name ?? 'Fee Head',
+                        'head_name' => $pd->fees_group_name ?? 'Fee Head',
                         'amount' => floatval($pd->paid_amount),
                         'date' => !empty($pd->date) ? date('d-m-Y', strtotime($pd->date)) : '-',
-                        'payment_mode' => $pd->PaymentMode->name ?? 'Cash',
+                        'payment_mode' => $pd->payment_mode_name ?? 'Cash',
                         'receipt_no' => $pd->receipt_no ?? '-'
                     ];
                 }

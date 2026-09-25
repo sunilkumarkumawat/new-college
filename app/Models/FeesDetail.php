@@ -27,11 +27,21 @@ class FeesDetail extends Model
     {
         return $this->belongsTo('App\Models\Master\PaymentMode','payment_mode_id');
     }
-     public function FeesCollect()
+    public function FeesCollect()
     {
         return $this->belongsTo('App\Models\FeesCollect','fees_collect_id');
     }   
  
+    public function feesGroup()
+    {
+        return $this->belongsTo('App\Models\FeesGroup', 'fees_group_id');
+    }
+
+    public function FeesGroup()
+    {
+        return $this->belongsTo('App\Models\FeesGroup', 'fees_group_id');
+    }
+
     public function HostelAssign()
     {
         return $this->belongsTo('App\Models\hostel\HostelAssign','hostel_assign_id');
