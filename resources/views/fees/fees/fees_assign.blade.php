@@ -270,6 +270,59 @@
     z-index: 9999;
     min-width: 280px;
 }
+
+/* Collected Fees Warning Modal High-Contrast Styling */
+#feeCollectedWarningModal .modal-content {
+    background-color: #ffffff !important;
+    border: none !important;
+}
+#feeCollectedWarningModal .modal-body {
+    background-color: #ffffff !important;
+}
+#feeCollectedWarningModal .modal-footer {
+    background-color: #f1f5f9 !important;
+    border-top: 1.5px solid #cbd5e1 !important;
+}
+.table-collected-invoices thead,
+.table-collected-invoices thead tr,
+.table-collected-invoices thead th {
+    background-color: #002c54 !important;
+    background: #002c54 !important;
+    color: #ffffff !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    padding: 8px 6px !important;
+    border: 1px solid #103a61 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+.table-collected-invoices tbody td {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    vertical-align: middle !important;
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+    border-color: #e2e8f0 !important;
+}
+.table-collected-invoices tbody tr:nth-of-type(odd) td {
+    background-color: #f8fafc !important;
+}
+.table-collected-invoices tbody tr:hover td {
+    background-color: #f1f5f9 !important;
+}
+#btn_goto_fee_collect {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    transition: all 0.15s ease-in-out;
+}
+#btn_goto_fee_collect:hover {
+    background-color: #b91c1c !important;
+    border-color: #991b1b !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+}
 </style>
 
 <div id="fee_toast_box"></div>
@@ -582,15 +635,15 @@
                     <i class="fa fa-file-text-o text-primary mr-1"></i> Collected Fee Receipts & Invoices:
                 </h6>
                 <div class="table-responsive border rounded" style="max-height: 220px; overflow-y: auto;">
-                    <table class="table table-bordered table-sm table-striped mb-0 text-center" style="font-size: 12px;">
-                        <thead class="bg-light font-weight-bold" style="position: sticky; top: 0; z-index: 1;">
+                    <table class="table table-bordered table-sm table-striped mb-0 text-center table-collected-invoices" style="font-size: 12px; width: 100%;">
+                        <thead style="position: sticky; top: 0; z-index: 10; background-color: #002c54;">
                             <tr>
-                                <th style="width: 40px;">#</th>
-                                <th>Invoice No.</th>
-                                <th class="text-left">Fee Head(s)</th>
-                                <th>Paid Amount</th>
-                                <th>Date & Mode</th>
-                                <th style="width: 110px;">Action</th>
+                                <th style="width: 40px; color: #ffffff !important; background-color: #002c54 !important;">#</th>
+                                <th style="color: #ffffff !important; background-color: #002c54 !important;">Invoice No.</th>
+                                <th class="text-left" style="color: #ffffff !important; background-color: #002c54 !important;">Fee Head(s)</th>
+                                <th style="color: #ffffff !important; background-color: #002c54 !important;">Paid Amount</th>
+                                <th style="color: #ffffff !important; background-color: #002c54 !important;">Date & Mode</th>
+                                <th style="width: 110px; color: #ffffff !important; background-color: #002c54 !important;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="collected_warn_invoices_tbody">
@@ -600,12 +653,12 @@
                 </div>
             </div>
 
-            <!-- Modal Footer -->
-            <div class="modal-footer py-2 px-4 bg-light d-flex justify-content-between border-top">
-                <a href="{{ url('Fees/add') }}" id="btn_goto_fee_collect" target="_blank" class="btn btn-sm btn-outline-danger font-weight-bold px-3 py-1.5" style="border-radius: 6px;">
-                    <i class="fa fa-undo mr-1"></i> Go to Fee Revert / Collect Form
+            <!-- Modal Footer (Crisp Light Background & High-Contrast Solid Buttons) -->
+            <div class="modal-footer py-2.5 px-4 d-flex justify-content-between border-top" style="background-color: #f1f5f9 !important; border-top: 1.5px solid #cbd5e1 !important;">
+                <a href="{{ url('Fees/add') }}" id="btn_goto_fee_collect" target="_blank" class="btn btn-sm btn-danger font-weight-bold px-3 py-2 shadow-sm d-inline-flex align-items-center" style="background-color: #dc2626 !important; border-color: #dc2626 !important; color: #ffffff !important; border-radius: 6px; font-size: 13px; text-decoration: none;">
+                    <i class="fa fa-arrow-circle-right mr-1.5" style="font-size: 14px;"></i> Go to Fee Revert / Collect Form
                 </a>
-                <button type="button" class="btn btn-sm btn-secondary font-weight-bold px-4 py-1.5 btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" style="border-radius: 6px;">
+                <button type="button" class="btn btn-sm btn-secondary font-weight-bold px-4 py-2 btn-close-modal shadow-sm" data-dismiss="modal" data-bs-dismiss="modal" style="background-color: #475569 !important; border-color: #475569 !important; color: #ffffff !important; border-radius: 6px; font-size: 13px;">
                     <i class="fa fa-times mr-1"></i> Close
                 </button>
             </div>
@@ -1092,12 +1145,12 @@ $(document).ready(function() {
                             tbodyHtml.push(
                                 '<tr>' +
                                     '<td class="align-middle font-weight-bold text-muted">' + (idx + 1) + '</td>' +
-                                    '<td class="align-middle font-weight-bold text-primary">' + inv.invoice_no + '</td>' +
-                                    '<td class="align-middle text-left"><span class="font-weight-bold text-dark">' + inv.heads + '</span></td>' +
-                                    '<td class="align-middle font-weight-bold text-success">₹' + inv.amount.toLocaleString('en-IN') + '</td>' +
-                                    '<td class="align-middle text-muted"><span class="d-block">' + inv.payment_date + '</span><small class="badge badge-light border">' + inv.payment_mode + '</small></td>' +
+                                    '<td class="align-middle"><span class="badge badge-light border text-primary font-weight-bold px-2 py-1" style="font-size: 11.5px;">' + inv.invoice_no + '</span></td>' +
+                                    '<td class="align-middle text-left"><strong class="text-dark d-block">' + inv.heads + '</strong></td>' +
+                                    '<td class="align-middle font-weight-bold text-success" style="font-size: 13px;">₹' + inv.amount.toLocaleString('en-IN') + '</td>' +
+                                    '<td class="align-middle text-dark"><span class="d-block font-weight-600">' + inv.payment_date + '</span><span class="badge badge-secondary px-1.5 py-0.5" style="font-size: 10.5px;">' + inv.payment_mode + '</span></td>' +
                                     '<td class="align-middle">' +
-                                        '<a href="' + inv.receipt_url + '" target="_blank" class="btn btn-xs btn-primary font-weight-bold px-2 py-1 shadow-xs" title="Preview / Print Receipt">' +
+                                        '<a href="' + inv.receipt_url + '" target="_blank" class="btn btn-xs btn-primary font-weight-bold px-2.5 py-1 text-white shadow-xs" style="background-color: #0284c7 !important; border-color: #0284c7 !important; font-size: 11px; border-radius: 4px;" title="Preview / Print Receipt">' +
                                             '<i class="fa fa-eye mr-1"></i> Preview' +
                                         '</a>' +
                                     '</td>' +
@@ -1110,11 +1163,11 @@ $(document).ready(function() {
                                 '<tr>' +
                                     '<td class="align-middle font-weight-bold text-muted">' + (idx + 1) + '</td>' +
                                     '<td class="align-middle font-weight-bold text-secondary">' + (pd.receipt_no || '-') + '</td>' +
-                                    '<td class="align-middle text-left"><span class="font-weight-bold text-dark">' + pd.head_name + '</span></td>' +
-                                    '<td class="align-middle font-weight-bold text-success">₹' + pd.amount.toLocaleString('en-IN') + '</td>' +
-                                    '<td class="align-middle text-muted"><span class="d-block">' + pd.date + '</span><small class="badge badge-light border">' + pd.payment_mode + '</small></td>' +
+                                    '<td class="align-middle text-left"><strong class="text-dark d-block">' + pd.head_name + '</strong></td>' +
+                                    '<td class="align-middle font-weight-bold text-success" style="font-size: 13px;">₹' + pd.amount.toLocaleString('en-IN') + '</td>' +
+                                    '<td class="align-middle text-dark"><span class="d-block font-weight-600">' + pd.date + '</span><span class="badge badge-secondary px-1.5 py-0.5" style="font-size: 10.5px;">' + pd.payment_mode + '</span></td>' +
                                     '<td class="align-middle">' +
-                                        '<span class="badge badge-warning text-dark px-2 py-1">Collected</span>' +
+                                        '<span class="badge badge-warning text-dark px-2 py-1 font-weight-bold">Collected</span>' +
                                     '</td>' +
                                 '</tr>'
                             );
