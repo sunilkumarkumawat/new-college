@@ -392,15 +392,29 @@ $(document).ready(function() {
         @endif
     });
 
-    // Auto-open student if unique_system_id is present in URL or $serach
+    // Auto-open student if unique_system_id, admission_id, or admission_no is present in URL or $serach
     var urlParams = new URLSearchParams(window.location.search);
     var targetSysId = urlParams.get('unique_system_id') || '{{ $serach["unique_system_id"] ?? "" }}';
+    var targetAdmId = urlParams.get('admission_id') || '{{ $serach["admission_id"] ?? "" }}';
+    var targetAdmNo = urlParams.get('admission_no') || '{{ $serach["admission_no"] ?? "" }}';
 
-    if (targetSysId) {
-        var targetRow = $('.quickCollect[data-system-id="' + targetSysId + '"]');
-        if (targetRow.length > 0) {
-            targetRow.trigger('click');
-        } else {
+    if (targetSysId || targetAdmId || targetAdmNo) {
+        var targetRow = null;
+        if (targetSysId) {
+            targetRow = $('.quickCollect[data-system-id="' + targetSysId + '"]');
+        }
+        if ((!targetRow || targetRow.length === 0) && targetAdmId) {
+            targetRow = $('.quickCollect[data-id="' + targetAdmId + '"]');
+        }
+        if ((!targetRow || targetRow.length === 0) && targetAdmNo) {
+            targetRow = $('.quickCollect').filter(function() {
+                return $(this).find('td:eq(1)').text().trim() === targetAdmNo.trim();
+            });
+        }
+
+        if (targetRow && targetRow.length > 0) {
+            targetRow.first().trigger('click');
+        } else if (targetSysId) {
             showData(targetSysId, $('#session_id').val() || '{{ Session::get("session_id") }}');
         }
     } else {

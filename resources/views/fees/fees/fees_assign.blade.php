@@ -1137,7 +1137,17 @@ $(document).ready(function() {
                     $('#collected_warn_admission_no').text(res.student.admissionNo);
                     $('#collected_warn_class_batch').text(res.student.class_name + ' (' + res.student.batch + ')');
                     $('#collected_warn_total_paid').text('₹' + parseFloat(res.total_paid).toLocaleString('en-IN'));
-                    $('#btn_goto_fee_collect').attr('href', "{{ url('Fees/add') }}?admission_id=" + res.student.id);
+                    
+                    var collectParams = new URLSearchParams();
+                    collectParams.set('admission_id', res.student.id);
+                    if (res.student.unique_system_id) collectParams.set('unique_system_id', res.student.unique_system_id);
+                    if (res.student.admissionNo && res.student.admissionNo !== '-') collectParams.set('admission_no', res.student.admissionNo);
+                    if (res.student.course_id) collectParams.set('course_id', res.student.course_id);
+                    if (res.student.class_type_id) collectParams.set('class_type_id', res.student.class_type_id);
+                    if (res.student.batch && res.student.batch !== '-') collectParams.set('batch', res.student.batch);
+                    if (res.student.session_id) collectParams.set('session_id', res.student.session_id);
+
+                    $('#btn_goto_fee_collect').attr('href', "{{ url('Fees/add') }}?" + collectParams.toString());
 
                     var tbodyHtml = [];
                     if (res.invoices && res.invoices.length > 0) {

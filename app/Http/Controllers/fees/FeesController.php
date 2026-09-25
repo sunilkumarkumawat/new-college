@@ -108,35 +108,46 @@ class FeesController extends Controller
             }
   
             public function addFees(Request $request){
+                $admissionId = $request->admission_id;
+                $directStudent = null;
+                if (!empty($admissionId)) {
+                    $directStudent = Admission::with('ClassTypes')->where('status', 1)->find($admissionId);
+                } elseif (!empty($request->unique_system_id)) {
+                    $directStudent = Admission::with('ClassTypes')->where('status', 1)->where('unique_system_id', $request->unique_system_id)->first();
+                }
+
                 $serach['name'] = $request->name;
-                $serach['admission_no'] = $request->admission_no;
-                $serach['batch'] = $request->batch;
-                $serach['course_id'] = $request->course_id ?? '';
-                $serach['session_id'] = $request->has('session_id') ? $request->session_id : Session::get('session_id');
+                $serach['admission_no'] = $request->admission_no ?? ($directStudent->admissionNo ?? '');
+                $serach['batch'] = $request->batch ?? ($directStudent->batch ?? '');
+                $serach['course_id'] = $request->course_id ?? ($directStudent->ClassTypes->course_id ?? '');
+                $serach['session_id'] = $request->has('session_id') ? $request->session_id : ($directStudent->session_id ?? Session::get('session_id'));
                 $serach['admission_type_id'] = $request->admission_type_id ?? '';
-                $serach['class_type_id'] = !empty($request->class_type_id) ? $request->class_type_id : 0;
-                $serach['unique_system_id'] = $request->unique_system_id ?? '';
+                $serach['class_type_id'] = !empty($request->class_type_id) ? $request->class_type_id : ($directStudent->class_type_id ?? 0);
+                $serach['unique_system_id'] = $request->unique_system_id ?? ($directStudent->unique_system_id ?? '');
+                $serach['admission_id'] = $admissionId ?? ($directStudent->id ?? '');
                 
-                $hasFilter = !empty($request->class_type_id) 
-                    || !empty($request->name) 
-                    || !empty($request->admission_no) 
-                    || !empty($request->batch) 
-                    || !empty($request->course_id) 
-                    || !empty($request->admission_type_id)
-                    || !empty($request->unique_system_id)
+                $hasFilter = !empty($serach['class_type_id']) 
+                    || !empty($serach['name']) 
+                    || !empty($serach['admission_no']) 
+                    || !empty($serach['batch']) 
+                    || !empty($serach['course_id']) 
+                    || !empty($serach['admission_type_id'])
+                    || !empty($serach['unique_system_id'])
+                    || !empty($serach['admission_id'])
+                    || !empty($directStudent)
                     || ($request->isMethod('post') && $request->has('session_id'));
 
                 if ($request->isMethod('post') || $hasFilter) {
-                    $value = $request->name;
-                    if ($request->class_type_id > 0 || !empty($request->name) || !empty($request->admission_no) || !empty($request->batch) || !empty($request->course_id) || !empty($serach['session_id']) || !empty($request->unique_system_id)) {
+                    $value = $serach['name'];
+                    if ($serach['class_type_id'] > 0 || !empty($serach['name']) || !empty($serach['admission_no']) || !empty($serach['batch']) || !empty($serach['course_id']) || !empty($serach['session_id']) || !empty($serach['unique_system_id']) || !empty($serach['admission_id'])) {
                         $data =  Admission::with('ClassTypes')->where('status', 1)->where('school','=',1);
                         $data = $data->where('branch_id', Session::get('branch_id'));
 
                         if (!empty($serach['session_id'])) {
                             $data = $data->where('session_id', $serach['session_id']);
                         }
-                        if (!empty($request->course_id)) {
-                            $courseId = $request->course_id;
+                        if (!empty($serach['course_id'])) {
+                            $courseId = $serach['course_id'];
                             $courseObj = \App\Models\Master\Course::find($courseId);
                             $courseName = $courseObj ? $courseObj->name : null;
                             $data = $data->where(function($q) use ($courseId, $courseName) {
@@ -149,7 +160,7 @@ class FeesController extends Controller
                             });
                         }
                        
-                        if (!empty($request->name)) {
+                        if (!empty($serach['name'])) {
                             $data = $data->where(function ($query) use ($value) {
                                 $query->where('first_name', 'like', '%' . $value . '%');
                                 $query->orWhere('userName', 'like', '%' . $value . '%');
@@ -162,25 +173,22 @@ class FeesController extends Controller
                                 $query->orWhere('admissionNo', 'like', '%' . $value . '%');
                             });
                         }
-                        if (!empty($request->batch)) {
-                            $data = $data->where("batch", $request->batch);
+                        if (!empty($serach['batch'])) {
+                            $data = $data->where("batch", $serach['batch']);
                         }
-                        if (!empty($request->class_type_id)) {
-                            $data = $data->where("class_type_id", $request->class_type_id);
+                        if (!empty($serach['class_type_id'])) {
+                            $data = $data->where("class_type_id", $serach['class_type_id']);
                         }
-                        if (!empty($request->admission_type_id)) {
-                            $data = $data->where("admission_type_id", $request->admission_type_id);
+                        if (!empty($serach['admission_type_id'])) {
+                            $data = $data->where("admission_type_id", $serach['admission_type_id']);
                         }
-                        if (!empty($request->admission_no)) {
-                            $data = $data->where("admissions.admissionNo", $request->admission_no);
+                        if (!empty($serach['admission_no'])) {
+                            $data = $data->where("admissions.admissionNo", $serach['admission_no']);
                         }
                         $allstudents = $data->orderBy('id', 'ASC')->get();
 
-                        if (!empty($request->unique_system_id) && $allstudents->where('unique_system_id', $request->unique_system_id)->isEmpty()) {
-                            $directStd = Admission::with('ClassTypes')->where('status', 1)->where('unique_system_id', $request->unique_system_id)->first();
-                            if ($directStd) {
-                                $allstudents->prepend($directStd);
-                            }
+                        if ($directStudent && $allstudents->where('id', $directStudent->id)->isEmpty()) {
+                            $allstudents->prepend($directStudent);
                         }
 
                         return  view('fees.fees_collect.add', ['data' => $allstudents, 'serach' => $serach]);
@@ -2252,10 +2260,14 @@ class FeesController extends Controller
                         'total_paid' => $totalPaid,
                         'student' => [
                             'id' => $student->id,
+                            'unique_system_id' => $student->unique_system_id ?? '',
                             'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                             'admissionNo' => $student->admissionNo ?? '-',
                             'class_name' => $student->ClassTypes->name ?? '-',
-                            'batch' => $student->batch ?? '-'
+                            'class_type_id' => $student->class_type_id ?? '',
+                            'course_id' => $student->ClassTypes->course_id ?? ($student->course ?? ''),
+                            'batch' => $student->batch ?? '-',
+                            'session_id' => $student->session_id ?? ''
                         ],
                         'invoices' => $invoiceList,
                         'paid_details' => $directDetails
