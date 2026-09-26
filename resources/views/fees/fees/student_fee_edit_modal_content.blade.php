@@ -101,7 +101,7 @@
                     </div>
 
                     <!-- 4. Auto Allocate Button -->
-                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                    <div class="col-xl-2 col-lg-2 col-md-3 col-sm-6 col-12 mb-1">
                         <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Action</label>
                         <button type="button" 
                                 id="btn_auto_allocate_discount" 
@@ -112,18 +112,31 @@
                     </div>
 
                     <!-- 5. Clear Discounts Button -->
-                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
-                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Reset</label>
+                    <div class="col-xl-1 col-lg-1 col-md-3 col-sm-4 col-12 mb-1">
+                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Clear</label>
                         <button type="button" 
                                 id="btn_reset_discount" 
-                                class="btn btn-sm btn-outline-secondary w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center" 
-                                style="height: 34px; border-radius: 6px;">
-                            <i class="fa fa-eraser mr-1"></i> Clear Disc.
+                                class="btn btn-sm btn-outline-danger w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center" 
+                                style="height: 34px; border-radius: 6px;"
+                                title="Set discounts to 0 for checked heads">
+                            <i class="fa fa-eraser mr-1"></i> Clear
                         </button>
                     </div>
 
-                    <!-- 6. Save All Changes Button (Top Quick Action) -->
-                    <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 mb-1">
+                    <!-- 6. Reset / Revert to Saved Button -->
+                    <div class="col-xl-1 col-lg-1 col-md-3 col-sm-4 col-12 mb-1">
+                        <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Reset</label>
+                        <button type="button" 
+                                id="btn_revert_saved_data" 
+                                class="btn btn-sm btn-outline-secondary w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center btn-revert-saved-data" 
+                                style="height: 34px; border-radius: 6px;"
+                                title="Reset / Revert all changes back to last saved state">
+                            <i class="fa fa-undo mr-1"></i> Reset
+                        </button>
+                    </div>
+
+                    <!-- 7. Save All Changes Button (Top Quick Action) -->
+                    <div class="col-xl-2 col-lg-2 col-md-3 col-sm-4 col-12 mb-1">
                         <label class="d-none d-md-block" style="font-size: 11px; visibility: hidden;">Save</label>
                         <button type="button" 
                                 class="btn btn-sm btn-success w-100 font-weight-bold shadow-xs d-flex align-items-center justify-content-center btn-save-all-batch" 
@@ -170,8 +183,16 @@
                             $headTotal = floatval($detail->fees_group_amount ?? 0);
                             $headDisc = floatval($detail->discount ?? 0);
                             $headNet = $headTotal - $headDisc;
+                            $valAmount = ($headTotal == floor($headTotal)) ? intval($headTotal) : $headTotal;
+                            $valDisc = ($headDisc == floor($headDisc)) ? intval($headDisc) : $headDisc;
+                            $valDueDate = $detail->installment_due_date ? date('Y-m-d', strtotime($detail->installment_due_date)) : '';
+                            $valFine = floatval($detail->installment_fine ?? 0);
                         @endphp
-                        <tr id="row_detail_{{ $detail->id }}" class="fee-detail-row">
+                        <tr id="row_detail_{{ $detail->id }}" class="fee-detail-row"
+                            data-original-amount="{{ $valAmount }}"
+                            data-original-discount="{{ $valDisc }}"
+                            data-original-due-date="{{ $valDueDate }}"
+                            data-original-fine="{{ $valFine }}">
                             <td class="text-center align-middle">
                                 <input type="checkbox" 
                                        class="modal-head-select" 
@@ -188,7 +209,8 @@
                                        min="0"
                                        class="form-control form-control-sm text-right modal-detail-input input-amount" 
                                        data-detail-id="{{ $detail->id }}" 
-                                       value="{{ ($headTotal == floor($headTotal)) ? intval($headTotal) : $headTotal }}" 
+                                       data-original-value="{{ $valAmount }}"
+                                       value="{{ $valAmount }}" 
                                        style="font-size: 12px; height: 28px; padding: 2px 6px; font-weight: 600;">
                             </td>
                             <td class="align-middle">
@@ -197,7 +219,8 @@
                                        min="0"
                                        class="form-control form-control-sm text-right modal-detail-input input-discount" 
                                        data-detail-id="{{ $detail->id }}" 
-                                       value="{{ ($headDisc == floor($headDisc)) ? intval($headDisc) : $headDisc }}" 
+                                       data-original-value="{{ $valDisc }}"
+                                       value="{{ $valDisc }}" 
                                        style="font-size: 12px; height: 28px; padding: 2px 6px; font-weight: 600;">
                             </td>
                             <td class="align-middle text-right font-weight-bold text-dark net-display" id="net_disp_{{ $detail->id }}">
@@ -207,13 +230,15 @@
                                 <input type="date" 
                                        class="form-control form-control-sm modal-detail-input input-due-date" 
                                        data-detail-id="{{ $detail->id }}" 
-                                       value="{{ $detail->installment_due_date ? date('Y-m-d', strtotime($detail->installment_due_date)) : '' }}" 
+                                       data-original-value="{{ $valDueDate }}"
+                                       value="{{ $valDueDate }}" 
                                        style="font-size: 11.5px; height: 28px; padding: 2px 4px;">
                                 <!-- Hidden Fine Field -->
                                 <input type="hidden" 
                                        class="input-fine" 
                                        data-detail-id="{{ $detail->id }}" 
-                                       value="{{ floatval($detail->installment_fine ?? 0) }}">
+                                       data-original-value="{{ $valFine }}"
+                                       value="{{ $valFine }}">
                             </td>
                             <td class="align-middle text-center">
                                 @if(($detail->paid_amount ?? 0) > 0)
@@ -247,13 +272,18 @@
 </div>
 
 <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
-    <div>
+    <div class="d-flex align-items-center" style="gap: 8px;">
         @if(!empty($assignedDetails) && count($assignedDetails) > 0)
             <button type="button" 
                     class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm btn-save-all-batch" 
                     id="btn_save_all_modal_details" 
                     data-admission-id="{{ $student->id }}">
                 <i class="fa fa-check-circle mr-1"></i> Save All Changes
+            </button>
+            <button type="button" 
+                    class="btn btn-outline-secondary btn-sm font-weight-bold px-3 shadow-sm btn-revert-saved-data" 
+                    title="Reset / Revert all changes back to last saved database state">
+                <i class="fa fa-undo mr-1"></i> Reset to Saved
             </button>
         @endif
     </div>

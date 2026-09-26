@@ -1630,7 +1630,7 @@ $(document).ready(function() {
         showFeeToast('₹' + totalDiscountAmt.toLocaleString('en-IN') + ' discount (on ' + basisLabel + ') allocated across ' + count + ' heads!', 'success');
     });
 
-    // MODAL: RESET / CLEAR ALL DISCOUNTS
+    // MODAL: RESET / CLEAR ALL DISCOUNTS TO ZERO
     $(document).on('click', '#btn_reset_discount', function() {
         var $checkedBoxes = $('.modal-head-select:checked');
         if ($checkedBoxes.length > 0) {
@@ -1638,12 +1638,65 @@ $(document).ready(function() {
                 var detailId = $(this).data('detail-id');
                 var $row = $('#row_detail_' + detailId);
                 $row.find('.input-discount').val(0);
+                var amt = parseFloat($row.find('.input-amount').val()) || 0;
+                $row.find('.net-display').text('₹' + amt.toLocaleString('en-IN'));
             });
         } else {
-            $('.input-discount').val(0);
+            $('.fee-detail-row').each(function() {
+                $(this).find('.input-discount').val(0);
+                var amt = parseFloat($(this).find('.input-amount').val()) || 0;
+                $(this).find('.net-display').text('₹' + amt.toLocaleString('en-IN'));
+            });
         }
         recalculateModalSummary();
-        showFeeToast('Discounts cleared', 'info');
+        showFeeToast('Discounts set to 0 for selected heads', 'info');
+    });
+
+    // MODAL: RESET / REVERT BACK TO LAST SAVED DATABASE STATE
+    $(document).on('click', '.btn-revert-saved-data, #btn_revert_saved_data', function() {
+        var $rows = $('#table_student_fee_edit tbody tr.fee-detail-row');
+        if ($rows.length === 0) return;
+
+        $rows.each(function() {
+            var $row = $(this);
+            var origAmt = ($row.attr('data-original-amount') !== undefined && $row.attr('data-original-amount') !== '') 
+                ? $row.attr('data-original-amount') 
+                : ($row.find('.input-amount').data('original-value') !== undefined ? $row.find('.input-amount').data('original-value') : 0);
+            
+            var origDisc = ($row.attr('data-original-discount') !== undefined && $row.attr('data-original-discount') !== '') 
+                ? $row.attr('data-original-discount') 
+                : ($row.find('.input-discount').data('original-value') !== undefined ? $row.find('.input-discount').data('original-value') : 0);
+            
+            var origDueDate = ($row.attr('data-original-due-date') !== undefined) 
+                ? $row.attr('data-original-due-date') 
+                : ($row.find('.input-due-date').data('original-value') || '');
+            
+            var origFine = ($row.attr('data-original-fine') !== undefined) 
+                ? $row.attr('data-original-fine') 
+                : ($row.find('.input-fine').data('original-value') || 0);
+
+            var amtNum = parseFloat(origAmt) || 0;
+            var discNum = parseFloat(origDisc) || 0;
+            var netNum = Math.max(0, amtNum - discNum);
+
+            $row.find('.input-amount').val(origAmt);
+            $row.find('.input-discount').val(origDisc);
+            $row.find('.input-due-date').val(origDueDate || '');
+            $row.find('.input-fine').val(origFine || 0);
+
+            var netText = (netNum % 1 === 0) 
+                ? '₹' + netNum.toLocaleString('en-IN') 
+                : '₹' + netNum.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            $row.find('.net-display').text(netText);
+        });
+
+        // Reset discount value input field & checkboxes
+        $('#modal_total_discount_value').val('');
+        $('.modal-head-select').prop('checked', true);
+        $('#modal_check_all_heads').prop('checked', true);
+        updateSelectedHeadsBadge();
+        recalculateModalSummary();
+        showFeeToast('Reverted all fee amounts and discounts back to saved state!', 'info');
     });
 
     // MODAL: LIVE CALCULATION ON INPUT CHANGE
@@ -1689,6 +1742,16 @@ $(document).ready(function() {
                 }, 2000);
 
                 if (res.status === 'success') {
+                    // Update original attributes on this row
+                    $row.attr('data-original-amount', amount);
+                    $row.attr('data-original-discount', discount);
+                    $row.attr('data-original-due-date', dueDate);
+                    $row.attr('data-original-fine', fine);
+                    $row.find('.input-amount').data('original-value', amount);
+                    $row.find('.input-discount').data('original-value', discount);
+                    $row.find('.input-due-date').data('original-value', dueDate);
+                    $row.find('.input-fine').data('original-value', fine);
+
                     if (res.total_amount !== undefined) {
                         $('#modal_summary_total').text('₹' + parseFloat(res.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     }
@@ -1753,6 +1816,23 @@ $(document).ready(function() {
                 }, 2500);
 
                 if (res.status === 'success') {
+                    // Update original attributes on all rows
+                    $('#table_student_fee_edit tbody tr.fee-detail-row').each(function() {
+                        var $r = $(this);
+                        var a = $r.find('.input-amount').val();
+                        var d = $r.find('.input-discount').val();
+                        var dd = $r.find('.input-due-date').val();
+                        var f = $r.find('.input-fine').val();
+                        $r.attr('data-original-amount', a);
+                        $r.attr('data-original-discount', d);
+                        $r.attr('data-original-due-date', dd);
+                        $r.attr('data-original-fine', f);
+                        $r.find('.input-amount').data('original-value', a);
+                        $r.find('.input-discount').data('original-value', d);
+                        $r.find('.input-due-date').data('original-value', dd);
+                        $r.find('.input-fine').data('original-value', f);
+                    });
+
                     if (res.total_amount !== undefined) {
                         var tot = parseFloat(res.total_amount);
                         $('#modal_summary_total').text('₹' + (tot % 1 === 0 ? tot.toLocaleString('en-IN') : tot.toLocaleString('en-IN', {minimumFractionDigits: 2})));
