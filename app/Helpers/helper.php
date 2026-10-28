@@ -1137,10 +1137,26 @@ $params = json_decode($item->params, true);
     }   
    
     public static function getSiderbar(){
-       $getSidebar = Sidebar::orderBy('id', 'ASC')->get();
-       return $getSidebar;
-   
-   }
+        $getSidebar = Sidebar::orderBy('id', 'ASC')->get();
+        
+        // Temporarily swap College Fees (id: 29) to the position of Fees Management (id: 11), hiding Fees Management
+        $collegeFees = $getSidebar->firstWhere('id', 29) ?: $getSidebar->firstWhere('url', 'college/fees/dashboard');
+        if ($collegeFees) {
+            $reordered = collect();
+            foreach ($getSidebar as $item) {
+                if ($item->id == 11 || $item->url == 'fee_dashboard') {
+                    $reordered->push($collegeFees);
+                } elseif ($item->id == 29 || $item->url == 'college/fees/dashboard') {
+                    continue; // Skip duplicate at bottom
+                } else {
+                    $reordered->push($item);
+                }
+            }
+            return $reordered;
+        }
+
+        return $getSidebar;
+    }
     
    
    public static function classType($course = null, $ignoreSession = false){

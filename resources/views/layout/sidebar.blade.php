@@ -4,6 +4,11 @@ $getPermisn = Helper::getPermisn();
 $getPermisnByBranch = Helper::getPermisnByBranch();
 $getSetting = Helper::getSetting();
 $allPermisn = !empty($getPermisn['sidebar_id']) ? explode(',', $getPermisn['sidebar_id']) : [];
+
+// If user role has permission for old Fees (11) or College Fees (29), grant access to College Fees (29)
+if(in_array(11, $allPermisn) && !in_array(29, $allPermisn)) {
+    $allPermisn[] = 29;
+}
 @endphp
 
 <style>

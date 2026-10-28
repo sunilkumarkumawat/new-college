@@ -1,9 +1,12 @@
 @php
-   $sidebar =Helper::getSiderbar();
+   $sidebar = Helper::getSiderbar();
    $getPermisn = Helper::getPermisn();
    $getPermisnByBranch = Helper::getPermisnByBranch();
    $getSetting = Helper::getSetting();
-   $allPermisn = explode(',',$getPermisn['sidebar_id']);
+   $allPermisn = !empty($getPermisn['sidebar_id']) ? explode(',', $getPermisn['sidebar_id']) : [];
+   if(in_array(11, $allPermisn) && !in_array(29, $allPermisn)) {
+       $allPermisn[] = 29;
+   }
 @endphp
 @extends('layout.app')
 @section('content')
