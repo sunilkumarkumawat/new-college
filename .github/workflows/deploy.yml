@@ -11,10 +11,10 @@ jobs:
       - name: SSH and Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ secrets.SSH_HOST || secrets.HOST }}
+          username: ${{ secrets.SSH_USER || secrets.USERNAME || 'root' }}
+          key: ${{ secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || secrets.PORT || '22' }}
           script: |
             TARGET="${{ secrets.TARGET_DIR || '/var/www/girraj.rusoft.in' }}"
             echo "=== Deploying to directory: $TARGET ==="
