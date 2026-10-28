@@ -2426,71 +2426,72 @@ $params = json_decode($item->params, true);
     }
 
     public static function getMonthWiseFeeCollection(){ 
-        
-    // Initialize arrays to store month names and values
-    $months = [];
-    $values = [];
+        $months = [];
+        $values = [];
+        $branchId = Session::get('admin_branch_id') ?: (Session::get('branch_id') ?: 1);
 
-    // Loop through each month (from January to December)
-    for ($month = 1; $month <= 12; $month++) {
-        // Get the name of the month
-        $monthName = Carbon::create(null, $month, 1)->format('F');
-        
-        // Query to get the sum of amounts collected for the current month
-        $totalAmount = FeesDetail::where('session_id', Session::get('session_id'))
-                                      ->where('branch_id',Session::get('branch_id'))
-                                      ->whereIn('status',[0,1])
-                                  ->whereMonth('date', $month)->whereYear('date', date('Y'))
-                                  ->sum('total_amount');
+        for ($month = 1; $month <= 12; $month++) {
+            $monthName = Carbon::create(null, $month, 1)->format('M');
+            
+            $collegeAmount = (float)\App\Models\CollegeFees\CollegeFeeReceipt::where('branch_id', $branchId)
+                ->whereNull('deleted_at')
+                ->whereMonth('payment_date', $month)
+                ->whereYear('payment_date', date('Y'))
+                ->sum('amount_paid');
 
-        // Store month name in $months array and value in $values array
-        $months[] = $monthName;
-        $values[] = $totalAmount;
+            if ($collegeAmount > 0) {
+                $totalAmount = $collegeAmount;
+            } else {
+                $totalAmount = (float)FeesDetail::where('session_id', Session::get('session_id'))
+                    ->where('branch_id', $branchId)
+                    ->whereIn('status',[0,1])
+                    ->whereMonth('date', $month)->whereYear('date', date('Y'))
+                    ->sum('total_amount');
+            }
+
+            $months[] = $monthName;
+            $values[] = $totalAmount;
+        }
+
+        return [
+            'val1' => $months,
+            'val2' => $values
+        ];
     }
-
-    return [
-        'val1' => $months,
-        'val2' => $values
-    ];
-   }
     public static function getWeeklyWiseFeeCollection(){ 
-  // Get today's date
-    $today = Carbon::today();
+        $today = Carbon::today();
+        $startOfMonth = $today->copy()->startOfMonth();
+        $branchId = Session::get('admin_branch_id') ?: (Session::get('branch_id') ?: 1);
 
-    // Initialize arrays to store dates and values
-    $dates = [];
-    $values = [];
+        $dates = [];
+        $values = [];
 
-$startOfMonth = $today->copy()->startOfMonth();  // Start of the current month
+        for ($date = $startOfMonth; $date->lte($today); $date->addDay()) {
+            $day = $date->format('d-m-Y');
 
-$dates = [];
-$values = [];
+            $collegeAmount = (float)\App\Models\CollegeFees\CollegeFeeReceipt::where('branch_id', $branchId)
+                ->whereNull('deleted_at')
+                ->whereDate('payment_date', $date->format('Y-m-d'))
+                ->sum('amount_paid');
 
-for ($date = $startOfMonth; $date->lte($today); $date->addDay()) {
-    // Get the day number without leading zero (e.g., 1, 2, 3)
-    $day = $date->format('d-m-Y');  // 'j' gives the day of the month without leading zeros
+            if ($collegeAmount > 0) {
+                $totalAmount = $collegeAmount;
+            } else {
+                $totalAmount = (float)FeesDetail::where('session_id', Session::get('session_id'))
+                    ->where('branch_id', $branchId)->whereIn('status',[0,1])
+                    ->whereDate('date', $date->format('Y-m-d'))
+                    ->sum('total_amount');
+            }
 
-    // Query to get the sum of amounts collected on the current day
-    $totalAmount = FeesDetail::where('session_id', Session::get('session_id'))
-    ->where('branch_id',Session::get('branch_id'))->whereIn('status',[0,1])
-                              ->whereDate('date', $date->format('Y-m-d'))
-                              ->sum('total_amount');
+            $dates[] = $day;
+            $values[] = $totalAmount;
+        }
 
-    // Store the day number and value in respective arrays
-    $dates[] = $day;
-    $values[] = $totalAmount;
-}
-
-// Output the dates and values
-
-
-   
-
-    return [
-        'val1' => $dates,
-        'val2' => $values
-    ];
-   }
+        return [
+            'val1' => $dates,
+            'val2' => $values
+        ];
+    }
 
     public static function getBatchSemesterFeeMasters($branch_id, $course_id, $targetClassId, $batch = null, $fallbackSessionId = null)
     {

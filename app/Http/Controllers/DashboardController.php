@@ -14,6 +14,7 @@ use App\Models\Enquiry;
 use App\Models\hostel\HostelAssign;
 use App\Models\Admission;
 use App\Models\CollegeFees\CollegeFeeAssignment;
+use App\Models\CollegeFees\CollegeFeeReceipt;
 use App\Models\FeesDiscount;
 use App\Models\library\LibraryAssign;
 use App\Helpers\helper;
@@ -51,8 +52,103 @@ class DashboardController extends Controller
             $result['today_p_student'] = StudentAttendance::where('branch_id' ,'=', $branch_id)->where('attendance_status_id',1)->where('date',$current_date)->count('id');
             $result['teacher'] = Teacher::where('branch_id' ,'=', $branch_id)->count('id');
             $result['enquiry'] = Enquiry::where('branch_id' ,'=', $branch_id)->count('id');
-            return view('dashboard.admin_dashboard',['result'=>$result,'current_date'=>$current_date]);            
-        }
+
+            // --- College Fees Executive Live KPIs ---
+            $collegeAssign = DB::table('college_fee_assignments')
+                ->where('branch_id', $branch_id)
+                ->whereNull('deleted_at')
+                ->select(
+                    DB::raw('COUNT(DISTINCT student_id) as assigned_students'),
+                    DB::raw('SUM(gross_amount) as total_gross'),
+                    DB::raw('SUM(discount_amount) as total_discount'),
+                    DB::raw('SUM(net_amount) as total_net'),
+                    DB::raw('SUM(paid_amount) as total_paid'),
+                    DB::raw('SUM(due_amount) as total_due')
+                )->first();
+
+            $collegeReceipts = DB::table('college_fee_receipts')
+                ->where('branch_id', $branch_id)
+                ->whereNull('deleted_at')
+                ->select(
+                    DB::raw('COUNT(*) as total_count'),
+                    DB::raw('SUM(amount_paid) as total_collected')
+                )->first();
+
+            $collegeToday = DB::table('college_fee_receipts')
+                ->where('branch_id', $branch_id)
+                ->whereNull('deleted_at')
+                ->whereDate('payment_date', $current_date)
+                ->select(
+                    DB::raw('COUNT(*) as count'),
+                    DB::raw('SUM(amount_paid) as amount')
+                )->first();
+
+            $collegeDefaultersCount = DB::table('college_fee_assignments')
+                ->where('branch_id', $branch_id)
+                ->whereNull('deleted_at')
+                ->where('due_amount', '>', 0)
+                ->distinct('student_id')
+                ->count('student_id');
+
+            // Top Defaulter Batches (Ranked by highest pending dues DESC)
+            $topDefaulterBatches = DB::table('college_fee_assignments as a')
+                ->join('admissions as s', 'a.student_id', '=', 's.id')
+                ->join('courses as c', 'a.course_id', '=', 'c.id')
+                ->where('a.branch_id', $branch_id)
+                ->whereNull('a.deleted_at')
+                ->select(
+                    'c.id as course_id',
+                    'c.name as course_name',
+                    'a.semester_no',
+                    's.batch',
+                    DB::raw('COUNT(DISTINCT s.id) as enrolled_count'),
+                    DB::raw('SUM(a.gross_amount) as gross_demand'),
+                    DB::raw('SUM(a.discount_amount) as discount_amount'),
+                    DB::raw('SUM(a.net_amount) as net_demand'),
+                    DB::raw('SUM(a.paid_amount) as total_paid'),
+                    DB::raw('SUM(a.due_amount) as total_due'),
+                    DB::raw('COUNT(DISTINCT CASE WHEN a.due_amount > 0 THEN s.id END) as defaulters_count')
+                )
+                ->groupBy('c.id', 'c.name', 'a.semester_no', 's.batch')
+                ->having('total_due', '>', 0)
+                ->orderBy('total_due', 'DESC')
+                ->limit(6)
+                ->get();
+
+            // Recent College Fee Operations & Receipts
+            $recentReceipts = DB::table('college_fee_receipts as r')
+                ->join('admissions as s', 'r.student_id', '=', 's.id')
+                ->join('courses as c', 'r.course_id', '=', 'c.id')
+                ->where('r.branch_id', $branch_id)
+                ->whereNull('r.deleted_at')
+                ->select(
+                    'r.id', 'r.receipt_no', 'r.amount_paid', 'r.payment_date', 'r.payment_mode', 'r.created_at',
+                    's.admissionNo', 's.first_name', 's.last_name', 's.userName', 's.batch',
+                    'c.name as course_name', 'r.semester_no'
+                )
+                ->orderBy('r.id', 'DESC')
+                ->limit(8)
+                ->get();
+
+            // Payment Mode Breakdown
+            $modeBreakdown = DB::table('college_fee_receipts')
+                ->where('branch_id', $branch_id)
+                ->whereNull('deleted_at')
+                ->select('payment_mode', DB::raw('SUM(amount_paid) as total_amt'), DB::raw('COUNT(*) as total_count'))
+                ->groupBy('payment_mode')
+                ->get();
+            return view('dashboard.admin_dashboard', [
+                'result' => $result,
+                'current_date' => $current_date,
+                'collegeAssign' => $collegeAssign,
+                'collegeReceipts' => $collegeReceipts,
+                'collegeToday' => $collegeToday,
+                'collegeDefaultersCount' => $collegeDefaultersCount,
+                'topDefaulterBatches' => $topDefaulterBatches,
+                'recentReceipts' => $recentReceipts,
+                'modeBreakdown' => $modeBreakdown
+            ]);
+}
         elseif($barnch['role_id'] == 2){
             return view('dashboard.teacher_dashboard',['result'=>$result]);
         } 

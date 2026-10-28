@@ -8,8 +8,30 @@ $getremark = Helper::getremark() ?? [];
 $roleName = DB::table('role')->whereNull('deleted_at')->find(Session::get('role_id'));
 
 $totalStudents = \App\Models\Admission::countActiveAdmission();
-$todayFees = \App\Models\fees\FeesDetailsInvoices::todayCollection() ?? 0;
-$totalFees = \App\Models\FeesDetail::totalCollection() ?? 0;
+
+$assignTotals = $collegeAssign ?? (object)[
+    'assigned_students' => 0,
+    'total_gross' => 0,
+    'total_discount' => 0,
+    'total_net' => 0,
+    'total_paid' => 0,
+    'total_due' => 0,
+];
+$receiptTotals = $collegeReceipts ?? (object)[
+    'total_count' => 0,
+    'total_collected' => 0
+];
+$todayStat = $collegeToday ?? (object)[
+    'count' => 0,
+    'amount' => 0
+];
+$defaultersCount = $collegeDefaultersCount ?? 0;
+$topDefaulters = $topDefaulterBatches ?? [];
+$recentOps = $recentReceipts ?? [];
+$modes = $modeBreakdown ?? [];
+
+$todayFees = (float)($todayStat->amount ?? 0);
+$totalFees = (float)($receiptTotals->total_collected ?? 0);
 $totalUsers = \App\Models\User::countUser() ?? 0;
 
 $dataMonth = Helper::getMonthWiseFeeCollection();
@@ -148,6 +170,29 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
 }
 
 /* Compact KPI Stat Cards (Matching theme) */
+.col-dash-5 {
+    flex: 0 0 20%;
+    max-width: 20%;
+}
+@media (max-width: 1200px) {
+    .col-dash-5 {
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+    }
+}
+@media (max-width: 768px) {
+    .col-dash-5 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+@media (max-width: 576px) {
+    .col-dash-5 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
 .dash-kpi-card {
     background: #ffffff;
     border: 1px solid var(--line-subtle);
@@ -497,26 +542,27 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                     <h1 class="dash-title">
                         <i class="fa fa-dashboard"></i>
                         <span>{{ $roleName->name ?? 'Administrator' }} Dashboard</span>
+                        <small class="badge badge-light border text-dark ml-2 d-none d-sm-inline-flex" style="font-size: 11px;">College ERP Live</small>
                     </h1>
                     
                     <div class="dash-title-tools">
-                        <a href="{{ url('Fees/add') }}" class="btn-header-action btn-header-add" title="Collect Fee">
+                        <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add" title="Collect Fee / Open Student Ledger">
                             <i class="fa fa-money text-success mr-1"></i> Collect Fee
+                        </a>
+                        <a href="{{ route('college.fees.structures') }}" class="btn-header-action" title="Batch Fee Structures & Matrix">
+                            <i class="fa fa-table text-primary mr-1"></i> Fee Structures
+                        </a>
+                        <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" title="College Fees Executive Cockpit">
+                            <i class="fa fa-line-chart text-info mr-1"></i> Fees Cockpit
+                        </a>
+                        <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action" title="Defaulters Register">
+                            <i class="fa fa-exclamation-triangle text-danger mr-1"></i> Defaulters List
                         </a>
                         <a href="{{ url('admissionView') }}" class="btn-header-action" title="Students Directory">
                             <i class="fa fa-users text-primary mr-1"></i> Students
                         </a>
-                        <a href="{{ url('admissionAdd') }}" class="btn-header-action" title="New Admission">
-                            <i class="fa fa-user-plus text-success mr-1"></i> New Admission
-                        </a>
                         <a href="{{ url('staff/Attendance/view') }}" class="btn-header-action" title="Staff Attendance">
-                            <i class="fa fa-calendar-check-o text-warning mr-1"></i> Staff Attendance
-                        </a>
-                        <a href="{{ url('fee_dashboard') }}" class="btn-header-action" title="Fees Reports">
-                            <i class="fa fa-bar-chart text-info mr-1"></i> Fee Reports
-                        </a>
-                        <a href="{{ url('notice_board/view') }}" class="btn-header-action" title="Notices & Circulars">
-                            <i class="fa fa-bullhorn text-danger mr-1"></i> Notices
+                            <i class="fa fa-calendar-check-o text-warning mr-1"></i> Attendance
                         </a>
                         <span class="dash-header-clock d-none d-md-inline-flex" title="Current Time">
                             <i class="fa fa-clock-o"></i> <span id="dashLiveClock">--:--:--</span>
@@ -524,79 +570,91 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                     </div>
                 </div>
 
-                <!-- 2. Top 4 KPI Metrics Grid -->
+                <!-- 2. Top 5 Real KPI Metrics Grid -->
                 <div class="p-2">
                     <div class="row mx-n1">
                         
-                        <!-- Total Active Students -->
-                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
-                            <a href="{{ url('admissionView') }}" class="dash-kpi-card" title="View Student Directory">
+                        <!-- 1. Total Active Students -->
+                        <div class="col-dash-5 px-1 mb-2 mb-xl-0">
+                            <a href="{{ url('admissionView') }}" class="dash-kpi-card" title="View Active Student Directory">
                                 <div class="dash-kpi-stripe" style="background: #16a34a;"></div>
                                 <div class="dash-kpi-icon" style="background: #f0fdf4; color: #16a34a;">
                                     <i class="fa fa-graduation-cap"></i>
                                 </div>
                                 <div class="dash-kpi-body">
-                                    <div class="dash-kpi-label">{{ __('dashboard.TOTAL STUDENTS') }}</div>
+                                    <div class="dash-kpi-label">TOTAL STUDENTS</div>
                                     <div class="dash-kpi-val">{{ number_format($totalStudents) }}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="dash-kpi-sub">Directory &rarr;</span>
+                                    <span class="dash-kpi-sub" style="color: #16a34a;">Directory &rarr;</span>
                                 </div>
                             </a>
                         </div>
 
-                        <!-- Today's Collection -->
-                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
-                            <form id="todayFeeForm" action="{{ url('fees/index') }}" method="post" style="margin: 0;">
-                                @csrf  
-                                <input type="hidden" name="starting" value="{{ date('Y-m-d') }}">
-                                <input type="hidden" name="ending" value="{{ date('Y-m-d') }}">
-                                <div class="dash-kpi-card" onclick="document.getElementById('todayFeeForm').submit();" style="cursor: pointer;" title="View Today Transactions">
-                                    <div class="dash-kpi-stripe" style="background: #d97706;"></div>
-                                    <div class="dash-kpi-icon" style="background: #fffbeb; color: #d97706;">
-                                        <i class="fa fa-inr"></i>
-                                    </div>
-                                    <div class="dash-kpi-body">
-                                        <div class="dash-kpi-label">{{ __('dashboard.TODAY COLLECTION') }}</div>
-                                        <div class="dash-kpi-val">₹ {{ number_format($todayFees, 2) }}</div>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="dash-kpi-sub" style="color: #d97706;">Ledger &rarr;</span>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                        <!-- Total Fees Collection -->
-                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
-                            <a href="{{ url('fee_dashboard') }}" class="dash-kpi-card" title="Open Fees Dashboard">
-                                <div class="dash-kpi-stripe" style="background: #2563eb;"></div>
-                                <div class="dash-kpi-icon" style="background: #eff6ff; color: #2563eb;">
-                                    <i class="fa fa-line-chart"></i>
+                        <!-- 2. Total Fee Demand (Net Billed) -->
+                        <div class="col-dash-5 px-1 mb-2 mb-xl-0">
+                            <a href="{{ route('college.fees.dashboard') }}" class="dash-kpi-card" title="Total Net Demand Billed to Students">
+                                <div class="dash-kpi-stripe" style="background: #0284c7;"></div>
+                                <div class="dash-kpi-icon" style="background: #f0f9ff; color: #0284c7;">
+                                    <i class="fa fa-file-text-o"></i>
                                 </div>
                                 <div class="dash-kpi-body">
-                                    <div class="dash-kpi-label">{{ __('dashboard.FEES COLLECTION') }}</div>
-                                    <div class="dash-kpi-val">₹ {{ number_format($totalFees, 2) }}</div>
+                                    <div class="dash-kpi-label">NET FEE DEMAND</div>
+                                    <div class="dash-kpi-val" style="color: #0369a1;">₹ {{ number_format((float)($assignTotals->total_net ?? 0), 2) }}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="dash-kpi-sub" style="color: #2563eb;">Overview &rarr;</span>
+                                    <span class="dash-kpi-sub" style="color: #0284c7;" title="Gross: ₹{{ number_format((float)($assignTotals->total_gross ?? 0), 2) }}">Disc: ₹{{ number_format((float)($assignTotals->total_discount ?? 0) / 100000, 2) }}L &rarr;</span>
                                 </div>
                             </a>
                         </div>
 
-                        <!-- Total Staff & Users -->
-                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
-                            <a href="{{ url('viewUser') }}" class="dash-kpi-card" title="Manage Staff & Users">
-                                <div class="dash-kpi-stripe" style="background: #7c3aed;"></div>
-                                <div class="dash-kpi-icon" style="background: #faf5ff; color: #7c3aed;">
-                                    <i class="fa fa-users"></i>
+                        <!-- 3. Total Fee Collected -->
+                        <div class="col-dash-5 px-1 mb-2 mb-xl-0">
+                            <a href="{{ route('college.fees.dashboard') }}" class="dash-kpi-card" title="Total Real Fee Inflow Collected">
+                                <div class="dash-kpi-stripe" style="background: #16a34a;"></div>
+                                <div class="dash-kpi-icon" style="background: #f0fdf4; color: #16a34a;">
+                                    <i class="fa fa-inr"></i>
                                 </div>
                                 <div class="dash-kpi-body">
-                                    <div class="dash-kpi-label">{{ __('dashboard.TOTAL USERS') }}</div>
-                                    <div class="dash-kpi-val">{{ number_format($totalUsers) }}</div>
+                                    <div class="dash-kpi-label">FEES COLLECTED</div>
+                                    <div class="dash-kpi-val text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="dash-kpi-sub" style="color: #7c3aed;">Users &rarr;</span>
+                                    <span class="dash-kpi-sub" style="color: #16a34a;">{{ (float)($assignTotals->total_net ?? 0) > 0 ? round(((float)($receiptTotals->total_collected ?? 0) / (float)$assignTotals->total_net) * 100, 1) : 0 }}% Paid &rarr;</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- 4. Outstanding Dues (Pending) -->
+                        <div class="col-dash-5 px-1 mb-2 mb-xl-0">
+                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="dash-kpi-card" title="Total Outstanding Pending Dues">
+                                <div class="dash-kpi-stripe" style="background: #dc2626;"></div>
+                                <div class="dash-kpi-icon" style="background: #fef2f2; color: #dc2626;">
+                                    <i class="fa fa-exclamation-circle"></i>
+                                </div>
+                                <div class="dash-kpi-body">
+                                    <div class="dash-kpi-label" style="color: #b91c1c;">PENDING DUES</div>
+                                    <div class="dash-kpi-val text-danger">₹ {{ number_format((float)($assignTotals->total_due ?? 0), 2) }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="dash-kpi-sub text-danger font-weight-bold">{{ number_format($defaultersCount) }} Defaulters &rarr;</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- 5. Today's Inflow Collection -->
+                        <div class="col-dash-5 px-1 mb-2 mb-xl-0">
+                            <a href="{{ route('college.fees.dashboard') }}" class="dash-kpi-card" title="Fees Collected Today">
+                                <div class="dash-kpi-stripe" style="background: #d97706;"></div>
+                                <div class="dash-kpi-icon" style="background: #fffbeb; color: #d97706;">
+                                    <i class="fa fa-calendar-check-o"></i>
+                                </div>
+                                <div class="dash-kpi-body">
+                                    <div class="dash-kpi-label">TODAY INFLOW</div>
+                                    <div class="dash-kpi-val" style="color: #b45309;">₹ {{ number_format((float)($todayStat->amount ?? 0), 2) }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="dash-kpi-sub" style="color: #d97706;">{{ $todayStat->count ?? 0 }} Today &rarr;</span>
                                 </div>
                             </a>
                         </div>
@@ -611,9 +669,89 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                  ======================================================== -->
             <div class="row mx-n1">
                 
-                <!-- Left Column (8 cols): Fee Chart & Attendance -->
+                <!-- Left Column (8 cols): Fee Chart, Defaulter Batches & Attendance -->
                 <div class="col-lg-8 col-12 px-1">
                     
+                    <!-- Top Defaulter Batches Ranking Panel -->
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header" style="background: #fff8f8; border-bottom: 1px solid #fecaca;">
+                            <h3 class="dash-sub-panel-title" style="color: #991b1b;">
+                                <i class="fa fa-exclamation-triangle mr-1 text-danger"></i> 
+                                <span>Top Defaulter Batches Ranking</span>
+                                <small class="text-muted ml-1 font-weight-normal">(Highest Pending Dues Across College)</small>
+                            </h3>
+                            <div class="d-flex align-items-center" style="gap: 6px;">
+                                <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger" style="border-color: #fca5a5; font-size: 10.5px; padding: 2px 7px;">
+                                    <i class="fa fa-file-text-o mr-1"></i> Full Defaulters Register &rarr;
+                                </a>
+                            </div>
+                        </div>
+                        <div class="table-responsive mb-0" style="max-height: 275px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" style="font-size: 11.5px;">
+                                <thead style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; position: sticky; top: 0; z-index: 2;">
+                                    <tr>
+                                        <th class="text-center" style="width: 45px;">Rank</th>
+                                        <th>Course &amp; Semester</th>
+                                        <th class="text-center" style="width: 75px;">Batch</th>
+                                        <th class="text-center" style="width: 110px;">Defaulters</th>
+                                        <th class="text-right" style="width: 120px;">Net Demand</th>
+                                        <th class="text-right" style="width: 105px;">Collected</th>
+                                        <th class="text-right" style="width: 125px;">Pending Dues</th>
+                                        <th style="width: 130px;">Recovery</th>
+                                        <th class="text-center" style="width: 105px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($topDefaulters as $idx => $tdb)
+                                        @php
+                                            $recPct = (float)$tdb->net_demand > 0 ? min(100, round(((float)$tdb->total_paid / (float)$tdb->net_demand) * 100, 1)) : 0;
+                                            $progColor = $recPct >= 50 ? '#16a34a' : ($recPct >= 20 ? '#d97706' : '#dc2626');
+                                        @endphp
+                                        <tr>
+                                            <td class="text-center font-weight-bold" style="color: #b91c1c;">#{{ $idx + 1 }}</td>
+                                            <td>
+                                                <strong style="color: #0f172a;">{{ $tdb->course_name }}</strong>
+                                                <span class="badge badge-light border ml-1 font-weight-normal">Sem {{ $tdb->semester_no ?? 1 }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge badge-secondary" style="font-size: 10px; background: #475569;">{{ $tdb->batch }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge badge-danger" style="font-size: 10.5px;">{{ number_format($tdb->defaulters_count) }} / {{ $tdb->enrolled_count }}</span>
+                                            </td>
+                                            <td class="text-right font-weight-bold" style="color: #334155;">
+                                                ₹ {{ number_format((float)$tdb->net_demand, 2) }}
+                                            </td>
+                                            <td class="text-right font-weight-bold text-success">
+                                                ₹ {{ number_format((float)$tdb->total_paid, 2) }}
+                                            </td>
+                                            <td class="text-right font-weight-bold text-danger" style="font-size: 12px;">
+                                                ₹ {{ number_format((float)$tdb->total_due, 2) }}
+                                            </td>
+                                            <td class="align-middle">
+                                                <div class="d-flex align-items-center" style="gap: 5px;">
+                                                    <div class="progress flex-grow-1" style="height: 6px; background-color: #e2e8f0; border-radius: 3px;">
+                                                        <div class="progress-bar" style="width: {{ $recPct }}%; background-color: {{ $progColor }};"></div>
+                                                    </div>
+                                                    <span style="font-size: 10px; font-weight: 700; color: {{ $progColor }}; min-width: 32px; text-align: right;">{{ $recPct }}%</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="{{ route('college.fees.structures', ['course_id' => $tdb->course_id, 'batch' => $tdb->batch, 'semester_no' => $tdb->semester_no]) }}" class="btn btn-xs btn-outline-success font-weight-bold" style="font-size: 10px; padding: 2px 6px;" title="Open Batch Matrix Ledger">
+                                                    Ledger &rarr;
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted py-3">No defaulter batches found.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Monthly Fee Chart Panel -->
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header">
@@ -636,16 +774,24 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                         </div>
                         <div class="fin-bar">
                             <div class="fin-stat-box">
-                                <span class="fin-stat-label">Today's Inflow:</span>
-                                <span class="fin-stat-val text-success">₹ {{ number_format($todayFees, 2) }}</span>
+                                <span class="fin-stat-label">Total Inflow Collected:</span>
+                                <span class="fin-stat-val text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</span>
                             </div>
                             <div class="fin-stat-box">
-                                <span class="fin-stat-label">Session Overall:</span>
-                                <span class="fin-stat-val text-primary">₹ {{ number_format($totalFees, 2) }}</span>
+                                <span class="fin-stat-label">Total Pending Due:</span>
+                                <span class="fin-stat-val text-danger">₹ {{ number_format((float)($assignTotals->total_due ?? 0), 2) }}</span>
+                            </div>
+                            <div class="fin-stat-box d-none d-md-flex align-items-center">
+                                <span class="fin-stat-label mr-1">Modes:</span>
+                                @foreach($modes as $m)
+                                    <span class="badge badge-light border mr-1 font-weight-bold" style="font-size: 10px;">
+                                        {{ $m->payment_mode }}: ₹ {{ number_format((float)$m->total_amt, 0) }}
+                                    </span>
+                                @endforeach
                             </div>
                             <div>
-                                <a href="{{ url('Fees/add') }}" class="btn-header-action btn-header-add" style="padding: 3px 8px; font-size: 10.5px;">
-                                    <i class="fa fa-plus mr-1"></i> Collect Fee Now
+                                <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="padding: 3px 8px; font-size: 10.5px;">
+                                    <i class="fa fa-line-chart mr-1"></i> Fees Cockpit &rarr;
                                 </a>
                             </div>
                         </div>
@@ -706,9 +852,59 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
 
                 </div>
 
-                <!-- Right Column (4 cols): Notifications, Birthdays & To-Do -->
+                <!-- Right Column (4 cols): Recent Operations, Notifications & Tasks -->
                 <div class="col-lg-4 col-12 px-1">
                     
+                    <!-- Recent College Fee Operations Feed -->
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header" style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
+                            <h3 class="dash-sub-panel-title" style="color: #166534;">
+                                <i class="fa fa-history mr-1" style="color: #16a34a;"></i>
+                                <span>Recent Fee Operations</span>
+                                <small class="text-muted ml-1 font-weight-normal">(Live Collections)</small>
+                            </h3>
+                            <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="font-size: 10px; padding: 2px 6px;">
+                                All Receipts &rarr;
+                            </a>
+                        </div>
+                        <div class="dash-feed-list p-2" style="max-height: 295px; overflow-y: auto;">
+                            @forelse($recentOps as $op)
+                                <div class="dash-feed-item mb-2" style="padding: 7px 9px; border-left: 3px solid #16a34a;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="font-weight-bold" style="font-size: 11.5px; color: #0f172a;">
+                                            {{ $op->first_name ?: $op->userName }} {{ $op->last_name }}
+                                        </span>
+                                        <span class="badge badge-success font-weight-bold" style="font-size: 11px;">
+                                            + ₹ {{ number_format((float)$op->amount_paid, 2) }}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center" style="font-size: 10.5px; color: #64748b;">
+                                        <span>
+                                            <span class="badge badge-light border" style="font-size: 9.5px;">Recp #{{ $op->receipt_no }}</span>
+                                            <strong class="text-dark ml-1">{{ $op->course_name }} ({{ $op->batch }})</strong>
+                                        </span>
+                                        <span>
+                                            <span class="badge {{ $op->payment_mode == 'Online' ? 'badge-info' : 'badge-warning' }}" style="font-size: 9.5px;">
+                                                {{ $op->payment_mode }}
+                                            </span>
+                                            <span class="ml-1 text-muted">{{ date('d M', strtotime($op->payment_date)) }}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="empty-state py-3 text-center text-muted">
+                                    <i class="fa fa-inbox fa-2x mb-1"></i>
+                                    <p>No recent transactions recorded.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                        <div class="p-2 border-top bg-light text-center">
+                            <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add w-100 justify-content-center" style="font-size: 10.5px;">
+                                <i class="fa fa-plus-circle mr-1"></i> Collect Fee Payment Now
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Notification Center Tabbed Panel -->
                     <div class="dash-sub-panel">
                         <ul class="nav nav-tabs dash-tabs w-100" id="dashFeedTab" role="tablist">
