@@ -52,9 +52,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 /* ========================================================
    EXECUTIVE COLLEGE ERP DASHBOARD THEME
    - Primary Ribbon: Forest / Excel Green (#217346)
-   - Clean 8/4 Grid Across Financial, Operational, and Communication Rows
-   - High-contrast Fintech Micro-cards for Recent Operations
-   - Crisp Chart.js Visualization Engine
+   - Consistent 8/4 Grid Across Financial, Operational, and Communication Rows
+   - Completely Isolated Classes (Zero dependency on .bg-light or .bg-primary)
+   - Harmonized Header, Card, and Button Styling
    ======================================================== */
 :root {
     --green-excel: #217346;
@@ -65,11 +65,11 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     --line-subtle: #e2e8f0;
     --text-main: #0f172a;
     --text-muted: #64748b;
-    --danger-red: #dc2626;
+    --bg-page: #f4f6f9;
 }
 
 .admin-dash-page {
-    background-color: #f4f6f9;
+    background-color: var(--bg-page) !important;
     font-size: 12px;
 }
 
@@ -79,7 +79,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     border-top: 3px solid var(--green-excel) !important;
     border-radius: 4px !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
-    background: #ffffff;
+    background: #ffffff !important;
     margin-bottom: 12px;
     overflow: hidden;
 }
@@ -89,7 +89,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     min-height: 44px;
     padding: 6px 14px;
     background: var(--green-excel) !important;
-    color: #ffffff;
+    color: #ffffff !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -109,7 +109,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 }
 
 .dash-title i {
-    color: #ffc107;
+    color: #ffc107 !important;
 }
 
 .dash-title-tools {
@@ -177,8 +177,8 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 
 /* Top KPI Cards */
 .dash-kpi-card {
-    background: #ffffff;
-    border: 1px solid var(--line-subtle);
+    background: #ffffff !important;
+    border: 1px solid var(--line-subtle) !important;
     border-radius: 4px;
     height: 62px;
     padding: 6px 10px 6px 0;
@@ -191,8 +191,8 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 .dash-kpi-card:hover {
-    background: #f8fafc;
-    border-color: #94a3b8;
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
@@ -241,11 +241,11 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 
 /* Sub Panels */
 .dash-sub-panel {
-    background: #ffffff;
-    border: 1px solid var(--line);
-    border-top: 2px solid var(--green-excel);
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
     margin-bottom: 12px;
     overflow: hidden;
     height: calc(100% - 12px);
@@ -253,31 +253,41 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     flex-direction: column;
 }
 .dash-sub-panel-header {
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 8px 12px;
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 8px 12px !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
 }
 .dash-sub-panel-title {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
-    color: #1e293b;
+    color: #1e293b !important;
     margin: 0;
     display: flex;
     align-items: center;
 }
 .dash-sub-panel-body {
     flex-grow: 1;
+    background: #ffffff !important;
+}
+
+/* Custom Footer Bar - Replaces .bg-light to eliminate any dark blue conflict */
+.dash-sub-panel-footer {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 7px 12px !important;
+    color: #475569 !important;
+    flex-shrink: 0;
 }
 
 /* Chart toggle buttons */
 .btn-chart-toggle {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    color: #475569;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
     font-size: 10.5px;
     font-weight: 600;
     padding: 3px 8px;
@@ -286,9 +296,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     transition: all 0.15s;
 }
 .btn-chart-toggle.active {
-    background: var(--green-excel);
-    border-color: var(--green-excel);
-    color: #ffffff;
+    background: var(--green-excel) !important;
+    border-color: var(--green-excel) !important;
+    color: #ffffff !important;
 }
 
 /* Donut Chart Center Metric */
@@ -329,17 +339,17 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     margin-bottom: 8px;
 }
 .donut-stat-pill {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 4px;
     padding: 6px 8px;
     text-align: center;
 }
 .donut-stat-pill.stat-collected {
-    border-left: 3px solid #16a34a;
+    border-left: 3px solid #16a34a !important;
 }
 .donut-stat-pill.stat-due {
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid #ef4444 !important;
 }
 .donut-stat-lbl {
     font-size: 9.5px;
@@ -358,8 +368,8 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 
 /* Payment Mode Channel Badges */
 .mode-channel-strip {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 4px;
     padding: 6px 8px;
     display: flex;
@@ -369,17 +379,90 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     gap: 4px;
 }
 
+/* Dedicated Action Buttons */
+.dash-btn-primary {
+    background: var(--green-excel) !important;
+    border: 1px solid var(--green-excel-dark) !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border-radius: 3px !important;
+    padding: 5px 12px !important;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.dash-btn-primary:hover {
+    background: var(--green-excel-dark) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+.dash-btn-outline-danger {
+    background: #ffffff !important;
+    border: 1px solid #fca5a5 !important;
+    color: #dc2626 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border-radius: 3px !important;
+    padding: 5px 12px !important;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.dash-btn-outline-danger:hover {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+    transform: translateY(-1px);
+}
+
+.dash-btn-ledger {
+    background: #f0fdf4 !important;
+    border: 1px solid #86efac !important;
+    color: #166534 !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    border-radius: 3px !important;
+    padding: 2px 7px !important;
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+.dash-btn-ledger:hover {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+    color: #14532d !important;
+}
+
+.dash-badge-subtle {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+}
+
 /* Sleek Fintech Recent Fee Operations Stream */
 .dash-op-stream {
     max-height: 290px;
     overflow-y: auto;
     scrollbar-width: thin;
     padding: 6px 8px;
+    background: #ffffff !important;
 }
 .dash-op-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-left: 3px solid #16a34a;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 3px solid #16a34a !important;
     border-radius: 5px;
     padding: 6px 10px;
     margin-bottom: 6px;
@@ -390,11 +473,11 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 .dash-op-card.mode-online {
-    border-left-color: #0284c7;
+    border-left-color: #0284c7 !important;
 }
 .dash-op-card:hover {
-    background: #f8fafc;
-    border-color: #94a3b8;
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
     transform: translateX(3px);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
@@ -411,12 +494,12 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     font-size: 12px;
 }
 .dash-op-icon.icon-online {
-    background: #e0f2fe;
-    color: #0284c7;
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
 }
 .dash-op-icon.icon-cash {
-    background: #fef3c7;
-    color: #d97706;
+    background: #fef3c7 !important;
+    color: #d97706 !important;
 }
 .dash-op-info {
     flex-grow: 1;
@@ -464,7 +547,8 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-weight: 700;
     color: #334155;
-    background: #f1f5f9;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0;
     padding: 1px 4px;
     border-radius: 2px;
     font-size: 9.5px;
@@ -494,14 +578,16 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     font-size: 11px;
     font-weight: 600;
     padding: 6px 8px;
-    color: #64748b;
+    color: #64748b !important;
     border: none;
     border-bottom: 2px solid transparent;
+    background: transparent !important;
 }
 .dash-tabs .nav-link.active {
-    color: var(--green-excel);
-    border-bottom-color: var(--green-excel);
+    color: var(--green-excel) !important;
+    border-bottom-color: var(--green-excel) !important;
     font-weight: 700;
+    background: #ffffff !important;
 }
 .dash-feed-list {
     max-height: 220px;
@@ -509,18 +595,18 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     scrollbar-width: thin;
 }
 .dash-feed-item {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 3px;
     padding: 6px 8px;
     margin-bottom: 5px;
     display: block;
-    color: #1e293b;
+    color: #1e293b !important;
     text-decoration: none !important;
 }
 .dash-feed-item:hover {
-    background: #f0fdf4;
-    border-color: var(--green-excel-border);
+    background: #f0fdf4 !important;
+    border-color: var(--green-excel-border) !important;
 }
 .empty-state {
     text-align: center;
@@ -551,9 +637,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
     height: 27px;
 }
 .todo-btn-add {
-    background: var(--green-excel);
-    border: 1px solid var(--green-excel-dark);
-    color: #ffffff;
+    background: var(--green-excel) !important;
+    border: 1px solid var(--green-excel-dark) !important;
+    color: #ffffff !important;
     padding: 2px 10px;
     border-radius: 3px;
     font-size: 11px;
@@ -575,7 +661,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                     <h1 class="dash-title">
                         <i class="fa fa-dashboard"></i>
                         <span>{{ $roleName->name ?? 'Administrator' }} Dashboard</span>
-                        <small class="badge badge-light border text-dark ml-2 d-none d-sm-inline-flex" style="font-size: 10.5px;">College ERP Live</small>
+                        <span class="dash-badge-subtle ml-2 d-none d-sm-inline-flex" style="font-size: 10px; font-weight: 700; color: #166534; background: #f0fdf4 !important; border-color: #86efac !important;">College ERP Live</span>
                     </h1>
                     
                     <div class="dash-title-tools">
@@ -707,7 +793,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header">
                             <h3 class="dash-sub-panel-title">
-                                <i class="fa fa-bar-chart mr-1 text-success"></i>
+                                <i class="fa fa-bar-chart mr-2 text-success"></i>
                                 <span>Fee Collection Inflow Trend</span>
                                 <small class="text-muted ml-2 font-weight-normal">(Academic Year {{ date('Y') }})</small>
                             </h3>
@@ -725,7 +811,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                             <div class="d-flex justify-content-between align-items-center mb-1 px-1">
                                 <div>
                                     <span class="font-weight-bold" style="font-size: 11.5px; color: #1e293b;" id="chartHeading">Monthly Collection Curve (Jan - Dec)</span>
-                                    <span class="badge badge-light border text-muted ml-1" style="font-size: 9.5px;">Real Live Receipts</span>
+                                    <span class="dash-badge-subtle ml-1" style="font-size: 9.5px;">Real Live Receipts</span>
                                 </div>
                                 <div class="text-muted" style="font-size: 10.5px;">
                                     Total Inflow: <strong class="text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</strong>
@@ -737,15 +823,15 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                             </div>
                         </div>
 
-                        <!-- Chart Bottom Summary Bar -->
-                        <div class="p-2 border-top bg-light d-flex justify-content-between align-items-center flex-wrap" style="gap: 8px;">
+                        <!-- Chart Bottom Summary Bar (Clean Isolated Theme) -->
+                        <div class="dash-sub-panel-footer d-flex justify-content-between align-items-center flex-wrap" style="gap: 8px;">
                             <div class="d-flex align-items-center" style="gap: 12px; font-size: 10.5px;">
                                 <span><i class="fa fa-check-circle text-success mr-1"></i>Live Receipts: <strong>{{ number_format($receiptTotals->total_count ?? 0) }}</strong></span>
                                 <span><i class="fa fa-trophy text-warning mr-1"></i>Peak Month: <strong>Sep (₹ 5.48L)</strong></span>
                                 <span><i class="fa fa-clock-o text-info mr-1"></i>Current Month (Oct): <strong>₹ 1.15L</strong></span>
                             </div>
                             <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="font-size: 10px; padding: 2px 7px;">
-                                <i class="fa fa-line-chart mr-1"></i> Executive Cockpit &rarr;
+                                <i class="fa fa-line-chart text-success mr-1"></i> Executive Cockpit &rarr;
                             </a>
                         </div>
                     </div>
@@ -756,7 +842,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header">
                             <h3 class="dash-sub-panel-title">
-                                <i class="fa fa-pie-chart mr-1 text-primary"></i>
+                                <i class="fa fa-pie-chart mr-2 text-primary"></i>
                                 <span>Fee Clearance &amp; Recovery</span>
                             </h3>
                             <span class="badge badge-success font-weight-bold" style="font-size: 10px;">
@@ -795,7 +881,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                                     <i class="fa fa-credit-card mr-1 text-info"></i> Inflows:
                                 </span>
                                 @forelse($modes as $m)
-                                    <span class="badge badge-light border" style="font-size: 10px;">
+                                    <span class="dash-badge-subtle" style="font-size: 10px;">
                                         <i class="fa {{ strtolower($m->payment_mode) == 'online' ? 'fa-globe text-primary' : 'fa-money text-warning' }} mr-1"></i>
                                         <strong>{{ $m->payment_mode }}:</strong> ₹ {{ number_format((float)$m->total_amt, 0) }}
                                     </span>
@@ -806,8 +892,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
 
                         </div>
 
-                        <div class="p-2 border-top bg-light text-center">
-                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger w-100 justify-content-center" style="font-size: 10.5px;">
+                        <!-- Footer Action: Clean Outlined Danger Button (No Dark Blue Conflict) -->
+                        <div class="dash-sub-panel-footer text-center">
+                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="dash-btn-outline-danger w-100 justify-content-center">
                                 <i class="fa fa-exclamation-triangle mr-1"></i> View All {{ number_format($defaultersCount) }} Defaulters &rarr;
                             </a>
                         </div>
@@ -823,20 +910,20 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                 
                 <!-- Left: Top Defaulter Batches Ranking (8 Columns) -->
                 <div class="col-lg-8 col-12 px-1 mb-2 mb-lg-0">
-                    <div class="dash-sub-panel">
-                        <div class="dash-sub-panel-header" style="background: #fff8f8; border-bottom: 1px solid #fecaca;">
-                            <h3 class="dash-sub-panel-title" style="color: #991b1b;">
-                                <i class="fa fa-exclamation-triangle mr-1 text-danger"></i> 
+                    <div class="dash-sub-panel" style="border-top-color: #dc2626 !important;">
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-exclamation-triangle mr-2 text-danger"></i> 
                                 <span>Top Defaulter Batches Ranking</span>
-                                <small class="text-muted ml-1 font-weight-normal">(Highest Pending Dues Across College)</small>
+                                <small class="text-muted ml-2 font-weight-normal">(Highest Pending Dues Across College)</small>
                             </h3>
-                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger" style="border-color: #fca5a5; font-size: 10px; padding: 2px 7px;">
+                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="dash-btn-outline-danger" style="font-size: 10px; padding: 2px 8px;">
                                 <i class="fa fa-file-text-o mr-1"></i> Defaulters Register &rarr;
                             </a>
                         </div>
                         <div class="table-responsive mb-0" style="max-height: 290px; overflow-y: auto;">
                             <table class="table table-sm table-hover mb-0" style="font-size: 11.5px;">
-                                <thead style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; position: sticky; top: 0; z-index: 2;">
+                                <thead style="background: #f8fafc !important; border-bottom: 2px solid #cbd5e1 !important; position: sticky; top: 0; z-index: 2;">
                                     <tr>
                                         <th class="text-center" style="width: 45px;">Rank</th>
                                         <th>Course &amp; Semester</th>
@@ -859,10 +946,10 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                                             <td class="text-center font-weight-bold" style="color: #b91c1c;">#{{ $idx + 1 }}</td>
                                             <td>
                                                 <strong style="color: #0f172a;">{{ $tdb->course_name }}</strong>
-                                                <span class="badge badge-light border ml-1 font-weight-normal">Sem {{ $tdb->semester_no ?? 1 }}</span>
+                                                <span class="dash-badge-subtle ml-1 font-weight-normal">Sem {{ $tdb->semester_no ?? 1 }}</span>
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge badge-secondary" style="font-size: 10px; background: #475569;">{{ $tdb->batch }}</span>
+                                                <span class="dash-badge-subtle font-weight-bold" style="background: #f1f5f9 !important;">{{ $tdb->batch }}</span>
                                             </td>
                                             <td class="text-center">
                                                 <span class="badge badge-danger" style="font-size: 10.5px;">{{ number_format($tdb->defaulters_count) }} / {{ $tdb->enrolled_count }}</span>
@@ -885,7 +972,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                                                 </div>
                                             </td>
                                             <td class="text-center">
-                                                <a href="{{ route('college.fees.structures', ['course_id' => $tdb->course_id, 'batch' => $tdb->batch, 'semester_no' => $tdb->semester_no]) }}" class="btn btn-xs btn-outline-success font-weight-bold" style="font-size: 10px; padding: 2px 6px;" title="Open Batch Matrix Ledger">
+                                                <a href="{{ route('college.fees.structures', ['course_id' => $tdb->course_id, 'batch' => $tdb->batch, 'semester_no' => $tdb->semester_no]) }}" class="dash-btn-ledger" title="Open Batch Matrix Ledger">
                                                     Ledger &rarr;
                                                 </a>
                                             </td>
@@ -904,11 +991,11 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                 <!-- Right: Sleek Fintech Recent Fee Operations Stream (4 Columns) -->
                 <div class="col-lg-4 col-12 px-1 mb-2 mb-lg-0">
                     <div class="dash-sub-panel">
-                        <div class="dash-sub-panel-header" style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
-                            <h3 class="dash-sub-panel-title" style="color: #166534;">
-                                <i class="fa fa-history mr-1 text-success"></i>
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-history mr-2 text-success"></i>
                                 <span>Recent Fee Operations</span>
-                                <small class="text-muted ml-1 font-weight-normal">(Live Inflows)</small>
+                                <small class="text-muted ml-2 font-weight-normal">(Live Inflows)</small>
                             </h3>
                             <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="font-size: 10px; padding: 2px 6px;">
                                 Receipts ({{ $receiptTotals->total_count ?? 0 }}) &rarr;
@@ -956,8 +1043,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                             @endforelse
                         </div>
 
-                        <div class="p-2 border-top bg-light text-center">
-                            <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add w-100 justify-content-center" style="font-size: 10.5px;">
+                        <!-- Footer Action: Executive Green Button -->
+                        <div class="dash-sub-panel-footer text-center">
+                            <a href="{{ route('college.fees.structures') }}" class="dash-btn-primary w-100 justify-content-center">
                                 <i class="fa fa-plus-circle mr-1"></i> Collect Fee Payment Now
                             </a>
                         </div>
@@ -977,7 +1065,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                         <ul class="nav nav-tabs dash-tabs w-100" id="dashFeedTab" role="tablist">
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link active" id="notices-tab" data-toggle="tab" href="#noticesTab" role="tab">
-                                    <i class="fa fa-bullhorn mr-1"></i> Notices
+                                    <i class="fa fa-bullhorn mr-1 text-success"></i> Notices
                                     @if(count($noticeBoard) > 0)
                                         <span class="badge badge-success ml-1">{{ count($noticeBoard) }}</span>
                                     @endif
@@ -985,7 +1073,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                             </li>
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link" id="birthdays-tab" data-toggle="tab" href="#birthdaysTab" role="tab">
-                                    <i class="fa fa-birthday-cake mr-1"></i> Birthdays
+                                    <i class="fa fa-birthday-cake mr-1 text-warning"></i> Birthdays
                                     @if(count($getstudentbirthday) > 0)
                                         <span class="badge badge-warning ml-1 text-white">{{ count($getstudentbirthday) }}</span>
                                     @endif
@@ -993,7 +1081,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                             </li>
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link" id="remarks-tab" data-toggle="tab" href="#remarksTab" role="tab">
-                                    <i class="fa fa-comment-o mr-1"></i> Remarks
+                                    <i class="fa fa-comment-o mr-1 text-danger"></i> Remarks
                                     @if(count($getremark) > 0)
                                         <span class="badge badge-danger ml-1">{{ count($getremark) }}</span>
                                     @endif
@@ -1011,7 +1099,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                                             @foreach($noticeBoard as $item)
                                                 <a href="{{ url('notice_board/view') }}/{{ $item->id }}" class="dash-feed-item">
                                                     <div class="d-flex justify-content-between align-items-center mb-1">
-                                                        <strong style="font-size: 11px;">{{ $item->title ?? 'Notice Announcement' }}</strong>
+                                                        <strong style="font-size: 11px; color: #0f172a;">{{ $item->title ?? 'Notice Announcement' }}</strong>
                                                         <span class="badge badge-success" style="font-size: 9px;">Active</span>
                                                     </div>
                                                     <p class="text-muted mb-1" style="font-size: 10px; line-height: 1.3;">
@@ -1042,7 +1130,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                                     <div class="dash-feed-list">
                                         @if(!empty($getstudentbirthday) && count($getstudentbirthday) > 0)
                                             @foreach($getstudentbirthday as $bday)
-                                                <div class="dash-feed-item d-flex align-items-center justify-content-between" style="background: #fffbeb; border-color: #fde68a;">
+                                                <div class="dash-feed-item d-flex align-items-center justify-content-between" style="background: #fffbeb !important; border-color: #fde68a !important;">
                                                     <div>
                                                         <div class="font-weight-bold" style="font-size: 11px; color: #92400e;">
                                                             {{ $bday->first_name ?? '' }} {{ $bday->last_name ?? '' }} 🎂
@@ -1097,7 +1185,7 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header">
                             <h3 class="dash-sub-panel-title">
-                                <i class="fa fa-tasks mr-1 text-primary"></i> Personal Task List
+                                <i class="fa fa-tasks mr-2 text-primary"></i> Personal Task List
                             </h3>
                             <a href="{{ url('to_do_assign') }}" class="text-muted" style="font-size: 10px; font-weight: 600;">
                                 View All &rarr;
