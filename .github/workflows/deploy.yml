@@ -1,0 +1,44 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            TARGET="${{ secrets.TARGET_DIR }}"
+            if [ -z "$TARGET" ]; then
+              if [ -d "/var/www/girraj.rusoft.in/public/.git" ]; then
+                TARGET="/var/www/girraj.rusoft.in/public"
+              elif [ -d "/var/www/girraj.rusoft.in/.git" ]; then
+                TARGET="/var/www/girraj.rusoft.in"
+              elif [ -d "/var/www/new-college.rusoft.in/.git" ]; then
+                TARGET="/var/www/new-college.rusoft.in"
+              elif [ -d "/var/www/girraj.rusoft.in/public" ]; then
+                TARGET="/var/www/girraj.rusoft.in/public"
+              elif [ -d "/var/www/girraj.rusoft.in" ]; then
+                TARGET="/var/www/girraj.rusoft.in"
+              elif [ -d "/var/www/new-college.rusoft.in" ]; then
+                TARGET="/var/www/new-college.rusoft.in"
+              fi
+            fi
+
+            echo "=== Deploying to directory: $TARGET ==="
+            cd "$TARGET"
+            git pull origin master
+            composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            echo "=== Deployment Completed Successfully ==="
