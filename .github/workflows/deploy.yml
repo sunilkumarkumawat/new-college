@@ -31,13 +31,27 @@ jobs:
           DEPLOY_PORT="${SSH_PORT:-22}"
           TARGET="${TARGET_DIR:-/var/www/girraj.rusoft.in}"
 
-          echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
-
-          # 2. Setup SSH Key
+          # 2. Setup SSH Key with clean Unix newlines
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf "%s\n" "$SSH_KEY" > ~/.ssh/id_deploy
+
+          python3 -c "
+          import os
+          raw = os.environ.get('SSH_KEY', '')
+          lines = [line.strip() for line in raw.splitlines() if line.strip()]
+          clean_key = '\n'.join(lines) + '\n'
+          with open(os.path.expanduser('~/.ssh/id_deploy'), 'w') as f:
+              f.write(clean_key)
+          "
           chmod 600 ~/.ssh/id_deploy
+
+          # Verify Key Format
+          ssh-keygen -l -f ~/.ssh/id_deploy || {
+            echo "::error::SSH Key format is invalid! Please check the key in GitHub Secrets."
+            exit 1
+          }
+
+          echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
 
           # 3. Execute Deployment Commands on VPS
           ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
