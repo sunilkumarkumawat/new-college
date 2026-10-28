@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
-            TARGET="${{ secrets.TARGET_DIR || '/var/www/girraj.rusoft.in/public' }}"
+            TARGET="${{ secrets.TARGET_DIR || '/var/www/girraj.rusoft.in' }}"
             echo "=== Deploying to directory: $TARGET ==="
             cd "$TARGET"
             git pull origin master
