@@ -21,6 +21,8 @@ jobs:
             cd "$TARGET"
             git pull origin master
             composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+            mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/logs bootstrap/cache
+            chmod -R 775 storage bootstrap/cache
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
