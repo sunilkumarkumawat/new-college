@@ -2117,9 +2117,11 @@ tr.row-student-focused td .cell-fee-input {
 
                             <select id="selLedgerCourse" class="toolbar-control" onchange="onFilterChange(true)">
 
+                                <option value="" {{ empty($courseId) ? 'selected' : '' }}>-- Select Course --</option>
+
                                 @foreach($courses as $c)
 
-                                    <option value="{{ $c->id }}" data-sems="{{ $c->total_semester ?: 6 }}" {{ $c->id == $courseId ? 'selected' : '' }}>
+                                    <option value="{{ $c->id }}" data-sems="{{ $c->total_semester ?: 6 }}" {{ (!empty($courseId) && $c->id == $courseId) ? 'selected' : '' }}>
 
                                         {{ $c->name }}
 
@@ -2141,9 +2143,11 @@ tr.row-student-focused td .cell-fee-input {
 
                             <select id="selLedgerBatch" class="toolbar-control" onchange="onFilterChange(true)">
 
+                                <option value="" {{ empty($batch) ? 'selected' : '' }}>-- Select Admission Batch --</option>
+
                                 @foreach($batches as $b)
 
-                                    <option value="{{ $b }}" {{ $b == $batch ? 'selected' : '' }}>Batch {{ $b }}</option>
+                                    <option value="{{ $b }}" {{ (!empty($batch) && $b == $batch) ? 'selected' : '' }}>Batch {{ $b }}</option>
 
                                 @endforeach
 
@@ -2163,7 +2167,7 @@ tr.row-student-focused td .cell-fee-input {
 
                                 @for($s = 1; $s <= ($maxSemesters ?? 6); $s++)
 
-                                    <button type="button" class="sem-pill-btn {{ $s == $semesterNo ? 'active' : '' }}" onclick="selectSemester({{ $s }})">
+                                    <button type="button" class="sem-pill-btn {{ (!empty($semesterNo) && $s == $semesterNo) ? 'active' : '' }}" onclick="selectSemester({{ $s }})">
 
                                         Sem {{ $s }}
 
@@ -2346,6 +2350,46 @@ tr.row-student-focused td .cell-fee-input {
 
                                     <tbody id="matrixTableBody">
 
+                                        @if(empty($courseId) || empty($batch))
+
+                                        <tr>
+
+                                            <td colspan="10" class="text-center py-5" style="background: #ffffff;">
+
+                                                <div style="max-width: 520px; margin: 40px auto; padding: 32px 24px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
+
+                                                    <div style="width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background: #f0fdf4; border: 2px solid #86efac; margin: 0 auto 16px auto; color: #166534; font-size: 24px;">
+
+                                                        <i class="fa fa-filter"></i>
+
+                                                    </div>
+
+                                                    <h4 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+
+                                                        Select Course &amp; Admission Batch
+
+                                                    </h4>
+
+                                                    <p style="font-size: 12.5px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
+
+                                                        Please select a <strong>Course</strong> and <strong>Admission Batch</strong> from the left panel to load the student fee ledger, structure matrix, and payment records.
+
+                                                    </p>
+
+                                                    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #166534; background: #e0f2fe; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 20px;">
+
+                                                        <i class="fa fa-arrow-left"></i> Use the sidebar filters on the left to get started
+
+                                                    </div>
+
+                                                </div>
+
+                                            </td>
+
+                                        </tr>
+
+                                        @else
+
                                         <tr>
 
                                             <td colspan="10" class="text-center py-5 text-muted">
@@ -2357,6 +2401,8 @@ tr.row-student-focused td .cell-fee-input {
                                             </td>
 
                                         </tr>
+
+                                        @endif
 
                                     </tbody>
 
@@ -3606,11 +3652,11 @@ function showCommonToast(type, msg) {
 
 
 
-var currentCourseId = {{ $courseId ?? 1 }};
+var currentCourseId = {{ !empty($courseId) ? (int)$courseId : 'null' }};
 
-var currentBatch = "{{ $batch ?? date('Y') }}";
+var currentBatch = {!! !empty($batch) ? json_encode((string)$batch) : 'null' !!};
 
-var currentSemester = {{ $semesterNo ?? 1 }};
+var currentSemester = {{ !empty($semesterNo) ? (int)$semesterNo : 'null' }};
 
 var currentStatusFilter = 'all';
 
@@ -3647,16 +3693,22 @@ function updateBrowserURL(paramsToUpdate) {
         // Sync course_id
         if (typeof currentCourseId !== 'undefined' && currentCourseId) {
             searchParams.set('course_id', currentCourseId);
+        } else {
+            searchParams.delete('course_id');
         }
 
         // Sync batch
         if (typeof currentBatch !== 'undefined' && currentBatch) {
             searchParams.set('batch', currentBatch);
+        } else {
+            searchParams.delete('batch');
         }
 
         // Sync semester_no
-        if (typeof currentSemester !== 'undefined' && currentSemester && currentSemester !== 'auto') {
+        if (typeof currentSemester !== 'undefined' && currentSemester && currentSemester !== 'auto' && currentCourseId && currentBatch) {
             searchParams.set('semester_no', currentSemester);
+        } else {
+            searchParams.delete('semester_no');
         }
 
         // Update custom params (e.g. student_id)
@@ -3759,7 +3811,11 @@ $(document).ready(function() {
     });
 
     updateCollectionModeHeaderUI();
-    loadLedgerMatrix();
+    if (currentCourseId && currentBatch) {
+        loadLedgerMatrix();
+    } else {
+        renderEmptyCourseBatchPrompt();
+    }
     initMatrixScrollHandlers();
 
     // Safety fallback (only if matrix load completely failed after 8s)
@@ -4018,6 +4074,11 @@ function initMatrixScrollHandlers() {
 // Load Ledger Matrix from Backend via AJAX
 
 function loadLedgerMatrix() {
+    if (!currentCourseId || !currentBatch) {
+        $('#matrixLoadingOverlay').hide();
+        renderEmptyCourseBatchPrompt();
+        return;
+    }
 
     $('#matrixLoadingOverlay').show();
 
@@ -4171,13 +4232,21 @@ function onFilterChange(resetSem) {
     }
 
     currentCourseId = $('#selLedgerCourse').val();
-
     currentBatch = $('#selLedgerBatch').val();
 
+    if (!currentCourseId || !currentBatch) {
+        updateBrowserURL({
+            course_id: currentCourseId || null,
+            batch: currentBatch || null,
+            semester_no: null,
+            student_id: null
+        });
+        renderEmptyCourseBatchPrompt();
+        return;
+    }
+
     if (resetSem) {
-
         currentSemester = 'auto'; // Automatically resolved to active semester by backend
-
     }
 
     updateBrowserURL({
@@ -4188,7 +4257,6 @@ function onFilterChange(resetSem) {
     });
 
     loadLedgerMatrix();
-
 }
 
 
@@ -4266,6 +4334,59 @@ function triggerAutoSaveFeedback() {
 
 
 // Render Matrix Spreadsheet Table
+
+
+// Render Empty State Prompt when Course / Batch are unselected
+function renderEmptyCourseBatchPrompt() {
+    $('#matrixLoadingOverlay').hide();
+    $('#kpiStudentsCount').text('0 / 0');
+    $('#kpiNetPayable').text('₹0.00');
+    $('#kpiAlreadyPaid').text('₹0.00');
+    $('#kpiToBeAssigned').text('0 Students');
+    $('#batchFeeBoysAmt').text('₹0');
+    $('#batchFeeGirlsAmt').text('₹0');
+    $('#batchFeeStatusText span').text('No batch selected');
+    $('#selectedCountBadge').html('<i class="fa fa-check-square-o mr-1"></i> 0 Selected');
+    $('#btnQuickAssignCount').text('0');
+
+    $('#matrixTableHead').html(`
+        <tr>
+            <th class="col-matrix-cb" style="width: 38px; text-align: center;"><input type="checkbox" disabled></th>
+            <th class="col-matrix-idx" style="width: 45px; text-align: center;">#</th>
+            <th class="col-matrix-student" style="min-width: 220px;">Student / Roll</th>
+            <th class="col-matrix-amount" style="min-width: 140px; text-align: right;">Tuition Fee</th>
+            <th class="col-matrix-amount" style="min-width: 130px; text-align: right;">Gross Demand</th>
+            <th class="col-matrix-amount" style="min-width: 110px; text-align: right;">Discount</th>
+            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #e0f2fe !important;">Net Demand</th>
+            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #fef3c7 !important;">Paid</th>
+            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #fee2e2 !important;">Outstanding</th>
+            <th class="col-matrix-action" style="min-width: 90px; text-align: center;">Action</th>
+        </tr>
+    `);
+
+    var promptHtml = `
+        <tr>
+            <td colspan="10" class="text-center py-5" style="background: #ffffff;">
+                <div style="max-width: 520px; margin: 40px auto; padding: 32px 24px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
+                    <div style="width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background: #f0fdf4; border: 2px solid #86efac; margin: 0 auto 16px auto; color: #166534; font-size: 24px;">
+                        <i class="fa fa-filter"></i>
+                    </div>
+                    <h4 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+                        Select Course &amp; Admission Batch
+                    </h4>
+                    <p style="font-size: 12.5px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
+                        Please select a <strong>Course</strong> and <strong>Admission Batch</strong> from the left panel to load the student fee ledger, structure matrix, and payment records.
+                    </p>
+                    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #166534; background: #e0f2fe; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 20px;">
+                        <i class="fa fa-arrow-left"></i> Use the sidebar filters on the left to get started
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+    $('#matrixTableBody').html(promptHtml);
+}
+
 
 function renderMatrixTable(data) {
 

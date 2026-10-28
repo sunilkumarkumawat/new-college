@@ -340,6 +340,9 @@ class CollegeFeeController extends Controller
         }
 
         $autoOpenStudentId = null;
+        $courseId = null;
+        $batch = null;
+        $semesterNo = null;
         if ($request->has('student_id') && !empty($request->get('student_id'))) {
             $autoOpenStudentId = (int)$request->get('student_id');
             $targetStudent = Admission::find($autoOpenStudentId);
@@ -381,34 +384,37 @@ class CollegeFeeController extends Controller
             }
         }
 
-        if (empty($courseId)) {
-            $courseId = $request->get('course_id') ?: ($courses->first()->id ?? 1);
+        if ($request->has('course_id') && !empty($request->get('course_id'))) {
+            $courseId = (int)$request->get('course_id');
         }
-        if (empty($batch)) {
-            $batch = $request->get('batch') ?: date('Y');
+        if ($request->has('batch') && !empty($request->get('batch'))) {
+            $batch = (string)$request->get('batch');
         }
 
-        $selectedCourse = Course::find($courseId);
+        $selectedCourse = $courseId ? Course::find($courseId) : null;
         $maxSemesters = $selectedCourse ? ($selectedCourse->total_semester ?: 6) : 6;
 
-        if (empty($semesterNo)) {
-            if ($request->has('semester_no') && !empty($request->get('semester_no')) && $request->get('semester_no') !== 'auto') {
-                $semesterNo = (int)$request->get('semester_no');
-            } else {
-                $semesterNo = $this->resolveActiveSemester($branchId, $courseId, $batch, $maxSemesters);
+        if ($courseId && $batch) {
+            if (empty($semesterNo)) {
+                if ($request->has('semester_no') && !empty($request->get('semester_no')) && $request->get('semester_no') !== 'auto') {
+                    $semesterNo = (int)$request->get('semester_no');
+                } else {
+                    $semesterNo = $this->resolveActiveSemester($branchId, $courseId, $batch, $maxSemesters);
+                }
             }
-        }
 
-        $structures = CollegeFeeStructure::where('branch_id', $branchId)
-            ->where('course_id', $courseId)
-            ->where('semester_no', $semesterNo)
-            ->when(!empty($batch), function($q) use ($batch) {
-                $q->where(function($sub) use ($batch) {
+            $structures = CollegeFeeStructure::where('branch_id', $branchId)
+                ->where('course_id', $courseId)
+                ->where('semester_no', $semesterNo)
+                ->where(function($sub) use ($batch) {
                     $sub->where('batch', $batch)->orWhereNull('batch');
-                });
-            })
-            ->orderBy('id', 'ASC')
-            ->get();
+                })
+                ->orderBy('id', 'ASC')
+                ->get();
+        } else {
+            $structures = collect([]);
+            $semesterNo = null;
+        }
 
         if ($request->ajax() || $request->wantsJson()) {
             $totalBoys = (float)$structures->sum('amount_boys');
@@ -453,8 +459,27 @@ class CollegeFeeController extends Controller
     public function getLedgerMatrixData(Request $request)
     {
         $branchId = $this->getBranchId();
-        $courseId = (int)($request->get('course_id') ?: 1);
-        $batch = (string)($request->get('batch') ?: date('Y'));
+        $courseId = $request->get('course_id') ? (int)$request->get('course_id') : null;
+        $batch = $request->get('batch') ? (string)$request->get('batch') : null;
+
+        if (empty($courseId) || empty($batch)) {
+            return response()->json([
+                'status' => 'empty',
+                'message' => 'Please select a Course and Admission Batch to view fee structures and student records.',
+                'kpi' => [
+                    'total_enrolled' => 0,
+                    'filtered_count' => 0,
+                    'net_payable' => 0,
+                    'already_paid' => 0,
+                    'to_be_assigned' => 0,
+                    'assigned_count' => 0,
+                    'batch_first_boys' => 0,
+                    'batch_first_girls' => 0,
+                ],
+                'standard_heads' => [],
+                'rows' => []
+            ]);
+        }
         $course = Course::find($courseId);
         $courseName = $course ? $course->name : '';
         $maxSemesters = $course ? ($course->total_semester ?: 6) : 6;
