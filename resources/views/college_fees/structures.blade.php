@@ -1386,6 +1386,29 @@ tr.row-student-focused td .cell-fee-input {
 
 }
 
+.cell-fee-input.cell-newly-added {
+    border-color: #16a34a !important;
+    background: #f0fdf4 !important;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25) !important;
+}
+
+.btn-cell-add {
+    font-size: 10px !important;
+    padding: 1px 7px !important;
+    border-radius: 3px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    transition: all 0.15s ease !important;
+}
+
+.btn-cell-add:hover {
+    background: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+}
+
 
 
 .student-cell-name {
@@ -3659,6 +3682,29 @@ function updateBrowserURL(paramsToUpdate) {
 
 // On Page Load
 
+// Keyboard Navigation & Enter/Escape for Matrix Cells
+$(document).on('keydown', '.cell-fee-input', function(e) {
+    if (e.which === 13) { // Enter key
+        e.preventDefault();
+        $(this).blur();
+    } else if (e.which === 27) { // Escape key
+        e.preventDefault();
+        var origVal = parseFloat($(this).data('orig-val')) || 0;
+        if (origVal === 0) {
+            var studentId = $(this).data('student-id');
+            var headName = $(this).data('head-name');
+            var defAmt = parseFloat($(this).data('default-amount')) || 0;
+            var $td = $(this).closest('td');
+            $td.html('<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                     'onclick="activateCellInput(this, ' + studentId + ', \'' + addslashes(headName) + '\', ' + defAmt + ')" ' +
+                     'title="Click to assign fee for this student" ' +
+                     'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
+        } else {
+            $(this).val(origVal).blur();
+        }
+    }
+});
+
 $(document).ready(function() {
 
     // Initial URL sync
@@ -4336,15 +4382,17 @@ function renderMatrixTable(data) {
                 var negStyle = (amount < 0) ? ' style="color: #0369a1 !important; font-weight: 700; background: #f0f9ff;" title="Advance credit carried forward from previous semester" ' : '';
                 tbHtml += '<input type="number" step="0.01" class="cell-fee-input" ' + negStyle + ' value="' + amount + '" ' +
                           'data-student-id="' + stu.student_id + '" ' +
-                          'data-head-name="' + h.head_name + '" ' +
+                          'data-head-name="' + escapeHtml(h.head_name) + '" ' +
+                          'data-default-amount="' + defAmt + '" ' +
                           'data-orig-val="' + amount + '" ' +
                           'onblur="onCellFeeBlur(this)">';
             } else if (isPrevDues) {
                 // User requirement: previous dues head me kabhi bhi "+ Add" button nahi ayega
                 tbHtml += '<span class="text-muted" style="font-size: 11px;">&mdash;</span>';
             } else {
-                tbHtml += '<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold" ' +
-                          'onclick="assignOptionalHead(' + stu.student_id + ', \'' + addslashes(h.head_name) + '\', ' + defAmt + ')" ' +
+                tbHtml += '<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                          'onclick="activateCellInput(this, ' + stu.student_id + ', \'' + addslashes(h.head_name) + '\', ' + defAmt + ')" ' +
+                          'title="Click to assign fee for this student" ' +
                           'style="font-size: 10px; padding: 1px 6px;">+ Add</button>';
             }
             tbHtml += '</td>';
@@ -4509,181 +4557,150 @@ function renderMatrixTable(data) {
 
 
 // Real-Time Cell Blur: Fee Amount Update
-
 function onCellFeeBlur(input) {
-
     var studentId = $(input).data('student-id');
-
     var headName = $(input).data('head-name');
-
     var origVal = parseFloat($(input).data('orig-val')) || 0;
+    var rawVal = $(input).val();
+    var newVal = (rawVal === '' || isNaN(parseFloat(rawVal))) ? 0 : parseFloat(rawVal);
+    var defAmt = parseFloat($(input).data('default-amount')) || 0;
+    var $td = $(input).closest('td');
 
-    var newVal = parseFloat($(input).val()) || 0;
-
-
-
-    if (origVal === newVal) return;
-
-
-
-    if (newVal < 0 && (headName || '').toLowerCase().indexOf('previous dues') === -1) {
-
-        showCommonToast('error', 'Fee amount cannot be negative.');
-
-        $(input).val(origVal);
-
+    // Case 1: Opened from "+ Add" (origVal == 0), but user cleared it or left it empty/0
+    if (origVal === 0 && newVal === 0) {
+        $td.html('<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                 'onclick="activateCellInput(this, ' + studentId + ', \'' + addslashes(headName) + '\', ' + defAmt + ')" ' +
+                 'title="Click to assign fee for this student" ' +
+                 'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
         return;
-
     }
 
+    // Case 2: No change made
+    if (origVal === newVal) {
+        $(input).removeClass('cell-newly-added');
+        return;
+    }
 
+    // Case 3: Negative amount not allowed for standard heads
+    if (newVal < 0 && (headName || '').toLowerCase().indexOf('previous dues') === -1) {
+        showCommonToast('error', 'Fee amount cannot be negative.');
+        $(input).val(origVal > 0 ? origVal : '');
+        if (origVal === 0) {
+            $td.html('<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                     'onclick="activateCellInput(this, ' + studentId + ', \'' + addslashes(headName) + '\', ' + defAmt + ')" ' +
+                     'title="Click to assign fee for this student" ' +
+                     'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
+        }
+        return;
+    }
 
     triggerAutoSaveFeedback();
 
-
-
     $.ajax({
-
         url: "{{ route('college.fees.update_cell_fee') }}",
-
         type: "POST",
-
         data: {
-
             _token: "{{ csrf_token() }}",
-
             student_id: studentId,
-
             course_id: currentCourseId,
-
             semester_no: currentSemester,
-
             head_name: headName,
-
             amount: newVal
-
         },
-
         dataType: 'json',
-
         success: function(res) {
-
             if (res.status === 'success') {
-
                 if (newVal <= 0) {
-
                     showCommonToast('success', headName + ' removed.');
-
-                    loadLedgerMatrix();
-
+                    $td.html('<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                             'onclick="activateCellInput(this, ' + studentId + ', \'' + addslashes(headName) + '\', ' + defAmt + ')" ' +
+                             'title="Click to assign fee for this student" ' +
+                             'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
+                    updateRowValues(studentId, res.row, headName, 0);
                 } else {
-
+                    $(input).removeClass('cell-newly-added');
                     $(input).data('orig-val', newVal);
-
-                    updateRowValues(studentId, res.row);
-
+                    $(input).val(newVal);
+                    updateRowValues(studentId, res.row, headName, newVal);
                 }
-
             }
-
         },
-
         error: function(xhr) {
-
-            $(input).val(origVal);
-
             var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Cell update failed.';
-
             showCommonToast('error', msg);
-
+            if (origVal === 0) {
+                // If it was a new add that failed, revert back to + Add button
+                $td.html('<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold btn-cell-add" ' +
+                         'onclick="activateCellInput(this, ' + studentId + ', \'' + addslashes(headName) + '\', ' + defAmt + ')" ' +
+                         'title="Click to assign fee for this student" ' +
+                         'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
+            } else {
+                $(input).val(origVal);
+            }
         }
-
     });
-
 }
 
-
-
-// Assign Optional Head Inline
-
-function assignOptionalHead(studentId, headName, defAmt) {
-
+// Inline Cell Activation for "+ Add" button
+function activateCellInput(btn, studentId, headName, defAmt) {
     var lower = (headName || '').toLowerCase();
     if (lower.indexOf('previous dues') !== -1 || lower.indexOf('prev dues') !== -1 || lower.indexOf('previous fee') !== -1 || lower.indexOf('prev fee') !== -1) {
         showCommonToast('error', 'Previous Dues is an automatic progression rollover head and cannot be manually added.');
         return;
     }
 
-    var amt = parseFloat(defAmt) || 0;
+    var $td = $(btn).closest('td');
+    var defaultVal = (parseFloat(defAmt) > 0) ? parseFloat(defAmt) : '';
 
-    if (amt <= 0) {
+    var inputHtml = '<input type="number" step="0.01" class="cell-fee-input cell-newly-added" ' +
+                    'value="' + defaultVal + '" ' +
+                    'placeholder="0" ' +
+                    'data-student-id="' + studentId + '" ' +
+                    'data-head-name="' + escapeHtml(headName) + '" ' +
+                    'data-default-amount="' + (parseFloat(defAmt) || 0) + '" ' +
+                    'data-orig-val="0" ' +
+                    'onblur="onCellFeeBlur(this)">';
 
-        var inputAmt = prompt("Enter fee amount for " + headName + ":", "0");
-
-        if (inputAmt === null) return;
-
-        amt = parseFloat(inputAmt) || 0;
-
-        if (amt <= 0) {
-
-            showCommonToast('error', 'Please enter a valid amount greater than 0.');
-
-            return;
-
-        }
-
+    $td.html(inputHtml);
+    var $input = $td.find('input');
+    $input.focus();
+    if (defaultVal !== '') {
+        $input.select();
     }
+}
 
-
-
-    triggerAutoSaveFeedback();
-
-
-
-    $.ajax({
-
-        url: "{{ route('college.fees.update_cell_fee') }}",
-
-        type: "POST",
-
-        data: {
-
-            _token: "{{ csrf_token() }}",
-
-            student_id: studentId,
-
-            course_id: currentCourseId,
-
-            semester_no: currentSemester,
-
-            head_name: headName,
-
-            amount: amt
-
-        },
-
-        dataType: 'json',
-
-        success: function(res) {
-
-            if (res.status === 'success') {
-
-                loadLedgerMatrix();
-
+// Assign Optional Head Programmatic Fallback
+function assignOptionalHead(studentId, headName, defAmt) {
+    var selector = 'input[data-student-id="' + studentId + '"][data-head-name="' + headName + '"]';
+    var $inp = $(selector);
+    if ($inp.length) {
+        $inp.focus().select();
+    } else {
+        var amt = parseFloat(defAmt) || 0;
+        triggerAutoSaveFeedback();
+        $.ajax({
+            url: "{{ route('college.fees.update_cell_fee') }}",
+            type: "POST",
+            data: {
+                _token: "{{ csrf_token() }}",
+                student_id: studentId,
+                course_id: currentCourseId,
+                semester_no: currentSemester,
+                head_name: headName,
+                amount: amt
+            },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    loadLedgerMatrix();
+                }
+            },
+            error: function(xhr) {
+                var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Optional head assignment failed.';
+                showCommonToast('error', msg);
             }
-
-        },
-
-        error: function(xhr) {
-
-            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Optional head assignment failed.';
-
-            showCommonToast('error', msg);
-
-        }
-
-    });
-
+        });
+    }
 }
 
 
@@ -4769,16 +4786,12 @@ function onDiscountBlur(input) {
 
 
 // Update Row Totals Dynamically
-
-function updateRowValues(studentId, rowData) {
-
+function updateRowValues(studentId, rowData, headName, newAmount) {
     if (!rowData) return;
 
-    $('#cellGross_' + studentId).text('₹' + rowData.gross);
-
-    $('#cellNet_' + studentId).text('₹' + rowData.net);
-
-    $('#cellPaid_' + studentId).text('₹' + rowData.paid);
+    $('#cellGross_' + studentId).text('₹' + numberFormat(rowData.gross));
+    $('#cellNet_' + studentId).text('₹' + numberFormat(rowData.net));
+    $('#cellPaid_' + studentId).text('₹' + numberFormat(rowData.paid));
 
     var dueVal = Math.round((parseFloat(rowData.net) - parseFloat(rowData.paid)) * 100) / 100;
     var dueBg = (dueVal > 0) ? '#fff5f5' : (dueVal < 0 ? '#f0fdf4' : '#ffffff');
@@ -4824,8 +4837,28 @@ function updateRowValues(studentId, rowData) {
     }
     $('#cellAction_' + studentId).html(actionHtml);
 
-    recalculateMatrixTableFoot();
+    // Sync student in ledgerDataCache so matrix footer totals recalculate immediately!
+    if (window.ledgerDataCache && window.ledgerDataCache.rows) {
+        var stuObj = window.ledgerDataCache.rows.find(function(s) { return s.student_id == studentId; });
+        if (stuObj) {
+            stuObj.gross = rowData.gross;
+            stuObj.net = rowData.net;
+            stuObj.paid = rowData.paid;
+            stuObj.discount = rowData.discount;
+            stuObj.status = rowData.status;
+            if (headName !== undefined && headName !== null) {
+                if (!stuObj.head_values) stuObj.head_values = {};
+                if (!stuObj.head_values[headName]) {
+                    stuObj.head_values[headName] = { assigned: false, amount: 0, default_amount: 0 };
+                }
+                var amtNum = parseFloat(newAmount) || 0;
+                stuObj.head_values[headName].assigned = (amtNum > 0);
+                stuObj.head_values[headName].amount = amtNum;
+            }
+        }
+    }
 
+    recalculateMatrixTableFoot();
 }
 
 

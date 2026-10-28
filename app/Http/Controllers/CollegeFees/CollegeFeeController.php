@@ -826,9 +826,22 @@ class CollegeFeeController extends Controller
                     }
                     $assign->delete();
                 } else {
+                    if (!$assign->structure_id) {
+                        $matchingStruct = CollegeFeeStructure::where('branch_id', $branchId)
+                            ->where('course_id', $courseId)
+                            ->where('semester_no', $semesterNo)
+                            ->where(function($q) use ($headName) {
+                                $q->where('head_name', $headName)
+                                  ->orWhereRaw('LOWER(TRIM(head_name)) = ?', [strtolower(trim($headName))]);
+                            })
+                            ->first();
+                        if ($matchingStruct) {
+                            $assign->structure_id = $matchingStruct->id;
+                        }
+                    }
                     $assign->gross_amount = $newAmount;
-                    $assign->net_amount = $newAmount - $assign->discount_amount;
-                    $assign->due_amount = $assign->net_amount - $assign->paid_amount;
+                    $assign->net_amount = max(0, $newAmount - $assign->discount_amount);
+                    $assign->due_amount = max(0, $assign->net_amount - $assign->paid_amount);
                     $assign->status = ($assign->due_amount <= 0) ? 'Paid' : ($assign->paid_amount > 0 ? 'Partial' : 'Unpaid');
                     $assign->save();
                 }
@@ -839,11 +852,21 @@ class CollegeFeeController extends Controller
                     'message' => 'Previous Dues is an automatic progression rollover head and cannot be manually created.'
                 ], 422);
             } elseif ($newAmount != 0) {
+                $matchingStruct = CollegeFeeStructure::where('branch_id', $branchId)
+                    ->where('course_id', $courseId)
+                    ->where('semester_no', $semesterNo)
+                    ->where(function($q) use ($headName) {
+                        $q->where('head_name', $headName)
+                          ->orWhereRaw('LOWER(TRIM(head_name)) = ?', [strtolower(trim($headName))]);
+                    })
+                    ->first();
+
                 $assign = new CollegeFeeAssignment();
                 $assign->branch_id = $branchId;
                 $assign->student_id = $studentId;
                 $assign->course_id = $courseId;
                 $assign->semester_no = $semesterNo;
+                $assign->structure_id = $matchingStruct ? $matchingStruct->id : null;
                 $assign->head_name = $headName;
                 $assign->gross_amount = $newAmount;
                 $assign->discount_amount = 0;
@@ -857,7 +880,10 @@ class CollegeFeeController extends Controller
             }
 
             DB::commit();
-            return $this->getStudentRecalculatedRow($studentId, $semesterNo);
+            return $this->getStudentRecalculatedRow($studentId, $semesterNo, [
+                'head_name' => $headName,
+                'new_amount' => $newAmount
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -1346,7 +1372,7 @@ public function updateDiscount(Request $request)
     /**
      * Helper to return recalculated row data for a student
      */
-    protected function getStudentRecalculatedRow($studentId, $semesterNo)
+    protected function getStudentRecalculatedRow($studentId, $semesterNo, $extra = [])
     {
         $branchId = $this->getBranchId();
 
@@ -1391,7 +1417,7 @@ public function updateDiscount(Request $request)
             $status = 'Progressed';
         } else {
             $outstanding = round($net - $paid, 2);
-            if ($assignments->isEmpty()) {
+            if ($assigns->isEmpty()) {
                 $status = 'Unassigned';
             } elseif ($outstanding <= 0) {
                 $status = 'Paid';
@@ -1402,7 +1428,7 @@ public function updateDiscount(Request $request)
             }
         }
 
-        return response()->json([
+        $resp = [
             'status' => 'success',
             'message' => 'Updated successfully!',
             'row' => [
@@ -1422,7 +1448,11 @@ public function updateDiscount(Request $request)
                 'next_semester' => $nextSemester,
                 'transferred_dues' => $transferredDues
             ]
-        ]);
+        ];
+        if (!empty($extra)) {
+            $resp = array_merge($resp, $extra);
+        }
+        return response()->json($resp);
     }
 
     /**
