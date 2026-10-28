@@ -31,35 +31,38 @@ jobs:
           DEPLOY_PORT="${SSH_PORT:-22}"
           TARGET="${TARGET_DIR:-/var/www/girraj.rusoft.in}"
 
-          # 2. Setup SSH Key
+          # 2. Setup SSH Key with automatic Header & Footer formatting
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
           python3 -c "
-          import os, sys
-          raw = os.environ.get('SSH_KEY', '')
+          import os
+          raw = os.environ.get('SSH_KEY', '').strip()
           lines = [line.strip() for line in raw.splitlines() if line.strip()]
-          print(f'INFO: Secret raw len={len(raw)}, non-empty lines={len(lines)}')
-          for idx, line in enumerate(lines):
-              print(f'  Line {idx}: len={len(line)} prefix={line[:12]} suffix={line[-12:]}')
+          
+          # Auto-wrap if header/footer was omitted when pasted
+          if not any('BEGIN' in line for line in lines):
+              lines.insert(0, '-----BEGIN OPENSSH PRIVATE KEY-----')
+          if not any('END' in line for line in lines):
+              lines.append('-----END OPENSSH PRIVATE KEY-----')
+
           clean_key = '\n'.join(lines) + '\n'
           key_path = os.path.expanduser('~/.ssh/id_deploy')
           with open(key_path, 'w', newline='\n') as f:
               f.write(clean_key)
+          print('INFO: Private key constructed successfully with header and footer.')
           "
           chmod 600 ~/.ssh/id_deploy
 
-          # Inspect OpenSSH load error
-          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub || {
-            echo "::error::Failed to parse private key with ssh-keygen"
-            ssh-keygen -y -f ~/.ssh/id_deploy 2>&1 || true
-            exit 1
-          }
+          # Generate public key
+          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub
+          chmod 644 ~/.ssh/id_deploy.pub
+          echo "Public key verified: $(cat ~/.ssh/id_deploy.pub)"
 
           echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
 
           # 3. Execute Deployment Commands on VPS
-          ssh -v -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
+          ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
             set -e
             echo "=== Target Directory: $TARGET ==="
             cd "$TARGET"
