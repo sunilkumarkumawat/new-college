@@ -9,21 +9,160 @@ $batches = Helper::getBatch();
 @endphp
 @extends('layout.app')
 @section('content')
-<div class="content-wrapper">
-    
-    <section class="content pt-3">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12 col-md-12">
-                    <div class="card card-outline card-orange mb-0">
-                        <div class="card-header bg-primary">
-                            <h3 class="card-title"><i class="fa fa-money"></i> &nbsp;{{ __('Collect Student Fees By Ledger') }}</h3>
-                            <div class="card-tools">
-                                <a href="{{url('fees/index')}}" class="btn btn-primary  btn-sm" title="View Fees"><i class="fa fa-eye"></i>{{ __('common.View') }} </a>
-                                <a href="{{url('fee_dashboard')}}" class="btn btn-primary  btn-sm" title="Back"><i class="fa fa-arrow-left"></i>{{ __('common.Back') }} </a>
-                            </div>
+<style>
+/* ========================================================
+   COLLECT BY LEDGER - EXCEL GREEN EXECUTIVE THEME (#217346)
+   ======================================================== */
+:root {
+    --green-excel: #217346;
+    --green-excel-dark: #185c37;
+    --green-excel-light: #f0fdf4;
+    --line: #b8c8d5;
+    --line-subtle: #cbd5e1;
+}
 
-                        </div>
+.byledger-page {
+    background-color: #f4f6f9;
+    font-size: 12px;
+}
+
+.dash-main-card {
+    border: 1px solid var(--line) !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    background: #ffffff;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.dash-titlebar {
+    min-height: 42px;
+    padding: 6px 14px;
+    background: var(--green-excel) !important;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dash-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+}
+
+.dash-title small {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #e2f0d9;
+    margin-left: 6px;
+}
+
+.btn-header-action {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 3px !important;
+    padding: 4px 10px !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.btn-header-action:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.filter-card {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--line-subtle);
+    padding: 10px 14px 6px 14px;
+}
+.form-label-compact {
+    font-size: 10.5px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.35px;
+    display: block;
+}
+.form-control-compact {
+    height: 30px !important;
+    font-size: 12px !important;
+    padding: 3px 8px !important;
+    border-radius: 3px !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.select2-container--default .select2-selection--single {
+    height: 30px !important;
+    padding: 2px 6px !important;
+    font-size: 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 24px !important;
+    padding-left: 2px !important;
+}
+
+.padding_table thead tr th {
+    background: #1e293b !important;
+    color: #ffffff !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    padding: 6px 8px !important;
+    vertical-align: middle;
+}
+.padding_table td {
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+    vertical-align: middle !important;
+}
+.padding_table tbody tr:hover {
+    background-color: #f0fdf4 !important;
+}
+.padding_table tbody tr.active-student {
+    background-color: #217346 !important;
+    color: #ffffff !important;
+}
+.padding_table tbody tr.active-student td,
+.padding_table tbody tr.active-student a {
+    color: #ffffff !important;
+}
+</style>
+
+<div class="content-wrapper byledger-page">
+    <section class="content pt-2">
+        <div class="container-fluid px-2">
+            <div class="dash-main-card">
+                <div class="dash-titlebar">
+                    <h1 class="dash-title">
+                        <i class="fa fa-money text-warning"></i>
+                        <span>{{ __('Collect Student Fees By Ledger') }}</span>
+                        <small>Ledger Matrix &amp; Multi-head Student Fee Records</small>
+                    </h1>
+                    <div class="dash-title-tools">
+                        <a href="{{ url('fees_assign') }}" class="btn-header-action" title="Assign Fees">
+                            <i class="fa fa-users text-primary mr-1"></i> Fee Assign
+                        </a>
+                        <a href="{{ url('fee_dashboard') }}" class="btn-header-action" title="Back">
+                            <i class="fa fa-arrow-left text-secondary mr-1"></i> {{ __('common.Back') }}
+                        </a>
+                    </div>
+                </div>
                         <div class="card-body">
                             <form id="quickForm" method="post" action="{{ url('fees/ledger/collect') }}">
                                 @csrf
@@ -314,11 +453,9 @@ $batches = Helper::getBatch();
 
 
 $(document).ready(function() {
-    $('#trColor tr').click(function() {
-        $(this).css('backgroundColor', 'skyblue');
-        $(this).css('color', 'black');
-        $( this ).siblings().css( "background-color", "white" );
-        $( this ).siblings().css( "color", "black" );
+    $('#trColor tbody tr').click(function() {
+        $('#trColor tbody tr').removeClass('active-student');
+        $(this).addClass('active-student');
     });
 });
 

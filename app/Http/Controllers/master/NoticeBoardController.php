@@ -88,7 +88,16 @@ class NoticeBoardController extends Controller
                                     $role_name->name,
                                     $creator_user->mobile,
                                     $setting->name);
-                                if($template->status != 1){
+                                if(!empty($template) && $template->status != 1){
+                                    $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content ?? '');
+                                    if (!empty($setting) && $setting->firebase_notification == 1) {
+                                        Helper::sendNotification(
+                                            $template->title ?? 'Notice Board',
+                                            $whatsapp,
+                                            'user',
+                                            $user[$us]->id
+                                        ); 
+                                    }
                                     if($branch->whatsapp_srvc != 0){
                                         if ($user[$us]->mobile != ""){
                                             if($template->whatsapp_status != 0){
@@ -133,7 +142,16 @@ class NoticeBoardController extends Controller
                                 $role_name->name,
                                 $creator_user->mobile,
                                 $setting->name);
-                                if($template->status != 1){
+                                if(!empty($template) && $template->status != 1){
+                                    $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content ?? '');
+                                    if (!empty($setting) && $setting->firebase_notification == 1) {
+                                        Helper::sendNotification(
+                                            $template->title ?? 'Notice Board',
+                                            $whatsapp,
+                                            'student',
+                                            $students[$st]->id
+                                        ); 
+                                    }
                                     if($branch->whatsapp_srvc != 0){
                                         if ($students[$st]->mobile != ""){
                                             if($template->whatsapp_status != 0){

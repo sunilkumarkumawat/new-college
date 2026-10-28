@@ -1,504 +1,70 @@
 @php
-  $courses = Helper::getCourses();
-  $classType = Helper::classType($search['course'] ?? null);
-  $allClassType = Helper::classType();
-  $getCountry = Helper::getCountry();
-  $getSetting = Helper::getSetting();
-  $getSession = Helper::getSession();
-  $batches = Helper::getBatch();
+    $courses = Helper::getCourses();
+    $sessions = Helper::getSession();
+    $batches = Helper::getBatch();
 @endphp
-@extends('layout.app') 
+@extends('layout.app')
 @section('content')
-
 <style>
-    
-    .padding_table thead tr{
-    background: #002c54;
-    color:white;
-}
-    
-.padding_table th, .padding_table td{
-     padding:0px;
-     font-size:14px;
-}
+.fee-ledger-page{--navy:#217346;--navy-dark:#185c37;--line:#b8c8d5;--green:#1fa84f;--red:#e43643}.fee-ledger-page .ledger-card{border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);background:#fff}.fee-ledger-page .ledger-titlebar{min-height:44px;padding:7px 14px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.fee-ledger-page .ledger-title{margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px;color:#fff!important}.fee-ledger-page .ledger-title small{font-size:11.5px;font-weight:400;color:#e2f0d9;margin-left:6px}.fee-ledger-page .title-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.fee-ledger-page .title-actions .btn{font-weight:600;font-size:11px;padding:4px 9px}.fee-ledger-page .filter-strip{padding:8px 10px;background:#f8fafc;border-bottom:1px solid var(--line)}.fee-ledger-page .filter-grid{display:grid;grid-template-columns:155px minmax(150px,1fr) 130px minmax(190px,1.35fr) 155px auto;gap:8px;align-items:end}.fee-ledger-page .filter-field label{display:block;margin:0 0 3px;color:#475569;font-size:10px;line-height:1;font-weight:700;letter-spacing:.5px;text-transform:uppercase}.fee-ledger-page .filter-field .form-control{height:30px;padding:3px 8px;border-color:#cbd5e1;font-size:12px}.fee-ledger-page .filter-actions{display:flex;gap:5px}.fee-ledger-page .filter-actions .btn{height:30px;white-space:nowrap}.fee-ledger-page .ledger-scroll{max-height:calc(100vh - 205px);min-height:265px;overflow:auto;background:#fff}.fee-ledger-page .ledger-table{margin:0;min-width:1180px;border-collapse:separate;border-spacing:0;font-size:12px}.fee-ledger-page .ledger-table th,.fee-ledger-page .ledger-table td{padding:6px 8px;border-right:1px solid #d1dbe3;border-bottom:1px solid #d1dbe3;vertical-align:middle}.fee-ledger-page .ledger-table thead th{position:sticky;top:0;z-index:3;background:#1e293b;color:#fff;text-align:center;font-weight:700;white-space:nowrap}.fee-ledger-page .ledger-table tbody tr:nth-child(even){background:#f8fafb}.fee-ledger-page .ledger-table tbody tr:hover{background:#f0fdf4}.fee-ledger-page .student-name{display:block;color:#152437;font-size:12.5px;font-weight:700;text-transform:uppercase}.fee-ledger-page .student-meta{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:3px;color:#62717d;font-size:11px}.fee-ledger-page .adm-chip{padding:1px 5px;border-radius:3px;background:#217346;color:#fff;font-weight:700}.fee-ledger-page .course-name{display:block;font-weight:700;color:#273849}.fee-ledger-page .meta-chip{display:inline-block;margin-top:3px;padding:1px 6px;border:1px solid #c9d5de;border-radius:4px;background:#fff;font-size:11px}.fee-ledger-page .money{text-align:right;white-space:nowrap;font-weight:600}.fee-ledger-page .money.discount{color:#e18b00}.fee-ledger-page .money.paid{color:var(--green)}.fee-ledger-page .money.due{color:var(--red)}.fee-ledger-page .status-pill{display:inline-block;min-width:68px;padding:2px 7px;border-radius:10px;text-align:center;font-size:10px;font-weight:700}.fee-ledger-page .status-active{background:#e2f7e8;color:#16873d}.fee-ledger-page .status-inactive{background:#f2f3f5;color:#707983}.fee-ledger-page .action-stack{display:flex;gap:5px;justify-content:center}.fee-ledger-page .action-stack .btn{padding:3px 8px;font-size:11px;white-space:nowrap}.fee-ledger-page .ledger-table tfoot td{position:sticky;bottom:0;z-index:2;background:#e2f0d9;border-top:2px solid #83a978;font-weight:700}.fee-ledger-page .empty-state{padding:60px 20px;color:#71808c;text-align:center}.fee-ledger-page .empty-state i{display:block;margin-bottom:8px;color:#9eb1bf;font-size:34px}.fee-ledger-page .modal-header{background:#f1f5f9;color:#1e293b;border-bottom:1px solid #cbd5e1}.fee-ledger-page .modal-header .close{color:#1e293b;opacity:1}@media(max-width:1100px){.fee-ledger-page .filter-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:767px){.fee-ledger-page .ledger-titlebar{align-items:flex-start;flex-direction:column}.fee-ledger-page .filter-grid{grid-template-columns:1fr 1fr}.fee-ledger-page .filter-actions{grid-column:1/-1}.fee-ledger-page .ledger-scroll{max-height:calc(100vh - 285px)}}
 </style>
-
-<div class="content-wrapper">
-
-   <section class="content pt-3">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12 col-md-12">      
-    <div class="card card-outline card-orange">
-        <div class="card-header bg-primary">
-        <h3 class="card-title"><i class="fa fa-bar-chart-o"></i> &nbsp;{{ __('Student Fees Ledger') }}</h3>
-        <div class="card-tools">
-        <a href="{{url('fee_dashboard')}}" class="btn btn-primary  btn-sm" title="Back"><i class="fa fa-arrow-left"></i> {{ __('messages.Back') }}</a>
-        </div>
-        
-        </div>  
-            <form id="quickForm" action="{{ url('fees/ledger') }}" method="post" >
-                @csrf 
-                    <div class="row m-2">
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label>{{ __('Session') }}</label>
-                            <select class="form-control select2" id="session_id" name="session_id">
-                                <option value="">{{ __('common.All') }}</option>
-                                @if(!empty($getSession))
-                                    @foreach($getSession as $session)
-                                        <option value="{{ $session->id ?? '' }}" {{ ($session->id == ($search['session_id'] ?? '')) ? 'selected' : '' }}>{{ $session->from_year ?? ''  }} - {{ $session->to_year ?? ''  }}</option>
-                                    @endforeach
-                                @endif
-                            </select>                 	    
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                        <label>{{ __('Course') }}</label>
-                            <select class="form-control select2" id="course" name="course">
-                            <option value="">{{ __('common.Select') }}</option>
-                            @if(!empty($courses))
-                                @foreach($courses as $course)
-                                <option value="{{ $course->name ?? ''  }}"  {{ ($course->name == ($search['course'] ?? '')) ? 'selected' : '' }}>{{ $course->name ?? ''  }}</option>
-                                @endforeach
-                            @endif
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label>{{ __('Class/Semester') }}</label>
-                            <select class="form-control select2" id="class_type_id" name="class_type_id">
-                                <option value="">{{ __('common.All') }}</option>
-                                @if(!empty($classType))
-                                    @foreach($classType as $class)
-                                        <option value="{{ $class->id ?? '' }}" {{ ($class->id == ($search['class_type_id'] ?? '')) ? 'selected' : '' }}>{{ $class->name ?? '' }}</option>
-                                    @endforeach
-                                @endif
-                            </select>                 	    
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-group">
-                        <label>{{ __('Batch') }}</label>
-                            <select class="form-control select2" id="batch" name="batch">
-                                <option value="">{{ __('common.Select') }}</option>
-                                @if(!empty($batches))
-                                    @foreach($batches as $batch)
-                                    <option value="{{ $batch->name ?? ''  }}" {{ ($batch->name == ($search['batch'] ?? '')) ? 'selected' : '' }}>{{ $batch->name ?? ''  }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label for="State">{{ __('student.Admission No.') }}</label>
-                            <input type="text" class="form-control" id="admissionNo" name="admissionNo" placeholder="{{ __('student.Admission No.') }}" value="{{ $search['admissionNo'] ?? '' }}">
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-					<div class="form-group">
-						<label>Status</label>
-						<select class="form-control " id="status" name="status">
-						    	<option value="">{{ __('common.Select') }}</option>
-						    	@if(($search['status'] ?? '') == null && ($search['status'] ?? '') !== '0')
-								<option value="1"  selected>{{ __('Continue') }}</option>
-							<option class='text-danger' value="0">{{ __('Discontinue') }}</option>
-							@else
-								<option value="1"  {{ ($search['status'] ?? '') == '1' ? 'selected' : '' }}>{{ __('Continue') }}</option>
-							<option class='text-danger' value="0" {{ ($search['status'] ?? '') == '0' ? 'selected' : '' }}>{{ __('Discontinue') }}</option>
-							@endif
-				       </select>
-					</div>
-				</div>
-            		<div class="col-md-2">
-            			<div class="form-group"> 
-            				<label>{{ __('messages.Search By Keywords') }}</label>
-            				<input type="text" class="form-control" id="name" name="name" placeholder="{{ __('messages.Ex. Name, Father Name, Mobile, Email, etc.') }}" value="{{$search['name'] ?? ''}}">
-            		    </div>
-            		</div>                     	
-                        <div class="col-md-1">
-                             <label for="" style="color: white;">Search</label>
-                    	    <button type="submit" class="btn btn-primary" >{{ __('messages.Search') }}</button>
-                    	</div>
-                    			
-                    </div>
-                </form>        
-
-        
-    	<div class="row m-2"> 
-    	    <div class="col-md-12 head_table text-center"></div>
-    	    </div>
-    	<div class="row m-2">
-		    <div class="col-md-12  " style="overflow-x:auto;">	
-        <table id="example1" class="table table-bordered table-striped dataTable dtr-inline padding_table">
-          <thead>
-          <tr role="row">
-            <th>{{ __('messages.Sr.No.') }}</th>
-            <!--<th>{{ __('Counter') }}</th>-->
-            <th>{{ __('student.Admission No.') }}</th>
-            <th>{{ __('Student Name') }}</th>
-            <th>{{ __('messages.Fathers Name') }}</th>
-            <th>{{ __('Gender') }}</th>
-            <th>{{ __('Category ') }}</th>
-            <th>Student Type</th>
-            <th>Course</th>
-            <th>Class</th>
-            <th>Session </th>
-            <th>Batch  </th>
-            <th>{{ __('Status') }}</th>
-            <th>{{ __('Total Fees') }}</th>
-            <th>{{ __('Total Paid Fees') }}</th>
-            <th>{{ __('Paid Fine') }}</th>
-            <th>Discount</th>
-            <th>{{ __('Pending Fees') }}</th>
-
-            @php
-             $feesGroups = [];
-             if(($search['class_type_id'] ?? '') != '')
-                        {
-                                $feesGroups = DB::table('fees_master')
-                                ->leftJoin('fees_group', 'fees_master.fees_group_id', '=', 'fees_group.id') 
-                                ->where('fees_master.session_id', Session::get('session_id'))
-                                ->whereNull('fees_master.deleted_at')
-                                ->groupBy('fees_master.fees_group_id')
-                                ->where('fees_master.class_type_id', $search['class_type_id'] ?? '')
-                                ->select('fees_master.*', 'fees_group.name as group_name') 
-                                ->get();
-                        }
-                                            @endphp
-                                           @if(!empty($feesGroups))
-                                           @foreach($feesGroups as $item)
-                                              <th>{{$item->group_name ?? ''}}</th>
-                                           @endforeach
-                                           @endif
-
-            <th>{{ __('messages.Action') }}</th>
-          </thead>
-          <tbody>
-          @php
-                
-                   $total_assigned=0;
-                   $total_collected=0;
-                   $total_discount=0;
-                   $total_pending=0;
-                   $total_fine=0;
-                   
-                @endphp
-
-              @if(!empty($data))
-                @php
-                   $i=1;
-                   $feesGroupsAmt = [];               
-                @endphp
-
-                @foreach ($data  as $item)
-                
-                
-              
-                  @php
-                  $genderName = DB::table('gender')->whereNull('deleted_at')->where('id',$item->gender_id)->first();
-                  $session = DB::table('sessions')->whereNull('deleted_at')->where('id', $item->session_id ?? '')->first();
-
-                  $assign_discount = $item['assign_discount'] ?? 0;
-
-                  $paid = DB::table('fees_detail')
-                                ->where('admission_id', $item->id)
-                                ->whereIn('status',[0,1])
-                                ->whereNull('deleted_at')
-                                ->select(
-                                    DB::raw('SUM(installment_fine) as total_installment_fine'),
-                                    DB::raw('SUM(discount) as total_discount'),
-                                    DB::raw('SUM(total_amount) as total_amount')
-                                )
-                                ->first();
-                $fees_counters = DB::table('fees_counters')->where('id', $item->fees_counter_id)->whereNull('deleted_at')->first();
-
-                 // dd($paid);
-                  $total_assigned += ($item['total_amount']-$assign_discount ?? 0);
-                   $total_collected += ($paid->total_amount ?? 0);
-                   $total_discount += ($paid->total_discount ?? 0);
-                   $total_fine += $paid->total_installment_fine ?? 0;
-                   $total_pending += (($item['total_amount']-$assign_discount ?? 0)-($paid->total_amount ?? 0))-($paid->total_discount ?? 0);
-              
-                @endphp
-                <tr>
-                    <td>{{ $i++ }}</td>
-                    <!--<td>{{ $fees_counters->name ?? ''  }}</td>-->
-                    <td>{{ $item['admissionNo'] ?? ''  }}</td>
-                    <td>{{ $item['first_name'] ?? ''  }} {{ $item['last_name'] ?? ''  }}</td>
-                    <td>{{ $item['father_name'] ?? ''  }}</td>
-                    <td>{{ $genderName->name ?? '' }}</td>
-                    <td>{{ $item['category']  }}</td>
-                    <td>{{ $item['student_type'] ?? '' }}</td>
-                    <td>{{ $item['course'] ?? '' }}</td>
-                    <td>{{ $item['className'] ?? '' }}</td>
-                    <td>{{$session->from_year ?? ''}}-{{$session->to_year ?? ''}}</td>
-                    <td>{{ $item['batch'] ?? '' }}</td>
-                    <td>
-                    @if($item['status'] == 1)
-                        Continue
-                    @else
-                       <spam class='text-danger' >Discontinue </spam>
-                    @endif
-                    </td>
-                    <td> {{ number_format($item['total_amount']-$assign_discount,2) ?? '' }}</td>
-                    <td> {{ number_format($paid->total_amount ,2) ?? '' }}</td>
-                    <td> {{ number_format($paid->total_installment_fine ,2) ?? '' }}</td>
-                    <td> {{ number_format($paid->total_discount ,2) ?? '' }}</td>
-                    <td> {{ number_format(($item['total_amount']-$assign_discount) - $paid->total_amount ,2)  }}</td>
-         
-
-
-                                           @php
-                                     
-                                     if(($search['class_type_id'] ?? '') != '')                                    
-                                        {
-                                            $feesGroups = DB::table('fees_master')
-                                                ->leftJoin('fees_group', 'fees_master.fees_group_id', '=', 'fees_group.id') 
-                                                ->where('fees_master.session_id', Session::get('session_id'))
-                                                ->where('fees_master.branch_id', Session::get('branch_id'))
-                                                ->whereNull('fees_master.deleted_at')
-                                                ->groupBy('fees_master.fees_group_id')
-                                                ->select('fees_master.*', 'fees_group.name as group_name') 
-                                                ->where('fees_master.class_type_id', $search['class_type_id'] ?? '')
-                                                ->get();
-                                            }
-                                           
-                                            @endphp
-                                           
-                                           @if(!empty($feesGroups))
-                                           @php
-                                           $total=0;
-                                           
-                                           @endphp
-                                           @foreach($feesGroups as $item1)
-                                          @php 
-                                          $fees_assign = App\Models\fees\FeesAssignDetail::
-                                          where('fees_group_id', $item1->fees_group_id)->where('admission_id',$item->id)->sum('fees_group_amount');
-                                         
-                                          $head = DB::table('fees_detail')->where('session_id', Session::get('session_id'))
-                                          ->where('admission_id',$item->id)->where('fees_group_id',$item1->fees_group_id)
-                                          ->whereIn('status',[0,1])->sum('total_amount');
-                                          
-                                        
-                                          
-                                          if(!empty($head)){
-                                         
-                                          $total = $fees_assign-$head;
-                                          }else{
-                                          $total = $fees_assign;
-                                          }
-
-                                           if (!isset($feesGroupsAmt[$item1->id])) {
-                                                                $feesGroupsAmt[$item1->id] = 0;
-                                                            }
-                                                            $feesGroupsAmt[$item1->id] += $total;
-                                                            @endphp
-                                         <td>{{$total ?? 0}} </td>
-                                           
-                                           
-                                           @endforeach
-                                           
-                                           @endif
-                   
-                    <td>
-                    <button type="button" class="btn btn-primary data" data-id="{{ $item->id ?? '' }}" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo"><i class="fa fa-eye"></i></button>
-                    <a href="{{url('fees_ledger_print',$item->unique_system_id)}}" target="blank" class="btn btn-primary  btn-xs" title="View Fees Ledger"><i class="fa fa-bar-chart-o"></i></a>
-
-                    </td>
-              </tr>
-              @endforeach
-            @endif
-          
-            </tbody>
-            <tfoot>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>{{number_format($total_assigned,2) ?? ''}}</td>
-                <td>{{number_format($total_collected,2) ?? ''}}</td>
-                <td>{{number_format($total_fine,2) ?? ''}}</td>
-                <td>{{number_format($total_discount,2) ?? ''}}</td>
-                <td>{{number_format($total_pending,2) ?? ''}}</td>
-                
-                @php
-                //dd($feesGroupsAmt);
-                                     $feesGroups = [];
-                                     if(($search['class_type_id'] ?? '') != '')                                    
-                                        {
-                                            $feesGroups = DB::table('fees_master')
-                                                ->leftJoin('fees_group', 'fees_master.fees_group_id', '=', 'fees_group.id') 
-                                                ->where('fees_master.session_id', Session::get('session_id'))
-                                                ->whereNull('fees_master.deleted_at')
-                                                ->groupBy('fees_master.fees_group_id')
-                                                ->select('fees_master.*', 'fees_group.name as group_name') 
-                                                ->where('fees_master.class_type_id', $search['class_type_id'] ?? '')
-                                                ->get();
-                                            }
-                                            
-                                            @endphp
-                                           
-                                           @if(!empty($feesGroups))
-                                           @php
-                                           $total=0;
-                                           @endphp
-                                           @foreach($feesGroups as $item1)
-                                          
-                                           
-                                         <td>{{$feesGroupsAmt[$item1->id]  ?? ''}}</td>
-                                           
-                                           
-                                           @endforeach
-                                           
-                                           @endif
-               
-                <td></td>
-            </tr>
-            </tfoot>
-        </table>
-        </div>
-        </div>
-    </div>
-
-    </div>
-  </div>
+<style>
+.fee-ledger-page #ledgerModal .modal-header{padding:10px 14px;background:#f1f5f9;color:#1e293b;border-bottom:1px solid #cbd5e1}.fee-ledger-page #ledgerModal .modal-title{font-size:14px;font-weight:700;color:#1e293b}.fee-ledger-page #ledgerModal .modal-header .close{color:#1e293b;opacity:1}.fee-ledger-page #ledgerModal .modal-body{padding:12px;background:#fff}.fee-ledger-page #ledgerModal .modal-footer{background:#f8fafc;border-top:1px solid #cbd5e1}
+.fee-ledger-page .ledger-filter-row th{top:34px!important;padding:5px!important;background:#e5eef5!important;color:#334b60!important;z-index:4!important}.fee-ledger-page .student-filter-grid{display:grid;grid-template-columns:minmax(125px,1fr) 105px;gap:5px}.fee-ledger-page .course-filter-grid{display:grid;grid-template-columns:92px minmax(105px,1fr) 88px;gap:5px}.fee-ledger-page .ledger-filter-row .form-control{height:28px;padding:2px 6px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;font-size:11px}.fee-ledger-page .filter-hint{font-size:10px;font-weight:600;color:#697b89}.fee-ledger-page .ledger-filter-row .btn{height:28px;padding:3px 8px;font-size:11px;white-space:nowrap}
+.fee-ledger-page #ledgerTable{transition:opacity .15s ease}.fee-ledger-page #ledgerTable.ledger-loading{opacity:.5;pointer-events:none}
+.fee-ledger-page .ledger-export-actions{display:none;gap:5px}.fee-ledger-page .ledger-export-actions.visible{display:flex}.fee-ledger-page .ledger-export-actions .btn{white-space:nowrap}
+.fee-ledger-page .layout-switch{display:inline-flex;border:1px solid rgba(255,255,255,.55);border-radius:3px;overflow:hidden}.fee-ledger-page .layout-switch button{border:0;border-radius:0;padding:4px 8px;background:transparent;color:#fff;font-size:11px;font-weight:700}.fee-ledger-page .layout-switch button.active{background:#fff;color:#217346}.fee-ledger-page #ledgerTable.consolidated-mode>thead{display:none}.consolidated-grid{table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:10.5px}.consolidated-grid th,.consolidated-grid td{box-sizing:border-box;padding:4px 5px;border-right:1px solid #b8c3ca;border-bottom:1px solid #b8c3ca;vertical-align:top;overflow:hidden}.consolidated-grid>thead>tr>th{position:sticky;top:0;z-index:5;height:34px;padding:5px;background:#1e293b;color:#fff;text-align:center;font-size:10.5px}.consolidated-grid .student-col{position:sticky;left:0;z-index:3;width:180px;min-width:180px;max-width:180px;background:#fff;vertical-align:middle}.consolidated-grid .course-col{position:sticky;left:180px;z-index:3;width:120px;min-width:120px;max-width:120px;background:#fff;vertical-align:middle;box-shadow:3px 0 4px rgba(0,35,67,.12)}.consolidated-grid .year-column,.consolidated-grid .year-cell{width:300px;min-width:300px;max-width:300px}.consolidated-grid>thead .student-col,.consolidated-grid>thead .course-col{z-index:7;background:#1e293b}.consolidated-grid tbody tr:nth-child(even)>.student-col,.consolidated-grid tbody tr:nth-child(even)>.course-col,.consolidated-grid tbody tr:nth-child(even)>td{background:#f8fafb}.year-cell{padding:0!important}.year-summary{width:300px;background:#fff}.year-total-grid{display:grid;grid-template-columns:repeat(3,100px);width:300px;background:#f4f8f1}.year-total-grid span{box-sizing:border-box;width:100px;min-height:42px;padding:5px 5px;border-right:1px solid #c3cec4;border-bottom:1px solid #c3cec4;text-align:right}.year-total-grid span:nth-child(3n){border-right:0}.year-total-grid small{display:block;color:#66746a;font-size:7px;text-transform:uppercase}.year-total-grid strong{font-size:10px}.year-summary-action{padding:4px 5px;text-align:right;background:#fff}.year-summary-action .btn{padding:2px 7px;border-radius:2px;font-size:9.5px;font-weight:700}.no-year-data{width:300px;padding:38px 6px;text-align:center;color:#89959e}
+</style>
+<div class="content-wrapper fee-ledger-page"><section class="content pt-2"><div class="container-fluid px-2"><div class="ledger-card">
+<div class="ledger-titlebar"><h1 class="ledger-title"><i class="fa fa-table mr-1 text-warning"></i> Student Fees Ledger <small>Course &amp; batch-wise complete student status</small></h1><div class="title-actions"><div class="layout-switch"><button type="button" data-layout="standalone" class="ledger-layout-btn {{ ($search['layout'] ?? 'standalone') === 'standalone' ? 'active' : '' }}">Standalone</button><button type="button" data-layout="consolidated" class="ledger-layout-btn {{ ($search['layout'] ?? '') === 'consolidated' ? 'active' : '' }}">Consolidated</button></div><div class="ledger-export-actions {{ ($search['layout'] ?? '') === 'consolidated' ? 'visible' : '' }}"><a class="btn btn-outline-light btn-sm ledger-export-link" data-format="xlsx" href="{{ url('fees/ledger/export/xlsx') }}"><i class="fa fa-file-excel-o mr-1"></i> Excel</a><a class="btn btn-outline-light btn-sm ledger-export-link" data-format="csv" href="{{ url('fees/ledger/export/csv') }}"><i class="fa fa-download mr-1"></i> CSV</a></div><a href="{{ url('fees_assign') }}" class="btn btn-light btn-sm font-weight-bold text-dark"><i class="fa fa-plus-circle text-success mr-1"></i> Fee Assign</a><a href="{{ url('fee_dashboard') }}" class="btn btn-outline-light btn-sm"><i class="fa fa-arrow-left mr-1"></i> Back</a></div></div>
+<form id="ledgerFilterForm" action="{{ url('fees/ledger') }}" method="get">
+<input type="hidden" name="layout" id="ledgerLayout" value="{{ $search['layout'] ?? 'standalone' }}">
+<div class="ledger-scroll">
+<table id="ledgerTable" class="ledger-table table-bordered w-100 {{ ($search['layout'] ?? 'standalone') === 'consolidated' ? 'consolidated-mode' : '' }}"><thead>
+<tr><th style="width:42px">#</th><th style="min-width:240px;text-align:left">Student / Admission / Mobile</th><th style="min-width:300px">Course / Batch / Current Class</th><th style="min-width:145px;text-align:left">Father's Name</th><th>Status</th><th>Gross Fee</th><th>Discount</th><th>Carried</th><th>Net Fee</th><th>Paid</th><th>Fine</th><th>Due</th><th>Actions</th></tr>
+<tr class="ledger-filter-row"><th></th><th><div class="student-filter-grid"><input class="form-control live-ledger-input" name="name" value="{{ $search['name'] ?? '' }}" placeholder="Name, father or mobile"><input class="form-control live-ledger-input" name="admissionNo" value="{{ $search['admissionNo'] ?? '' }}" placeholder="Admission no."></div></th><th><div class="course-filter-grid"><select class="form-control live-ledger-select" name="session_id"><option value="">All Years</option>@foreach($sessions as $session)<option value="{{ $session->id }}" {{ (string)$session->id === (string)($search['session_id'] ?? '') ? 'selected' : '' }}>{{ $session->from_year }}-{{ $session->to_year }}</option>@endforeach</select><select class="form-control live-ledger-select" name="course"><option value="">All Courses</option>@foreach($courses as $course)<option value="{{ $course->name }}" {{ $course->name === ($search['course'] ?? '') ? 'selected' : '' }}>{{ $course->name }}</option>@endforeach</select><select class="form-control live-ledger-select" name="batch"><option value="">All Batches</option>@foreach($batches as $batch)<option value="{{ $batch->name }}" {{ (string)$batch->name === (string)($search['batch'] ?? '') ? 'selected' : '' }}>{{ $batch->name }}</option>@endforeach</select></div></th><th colspan="9"><span class="filter-hint"><i class="fa fa-bolt"></i> Filters apply automatically</span></th><th><button id="ledgerReset" type="button" class="btn btn-light btn-sm border" title="Clear filters"><i class="fa fa-refresh"></i> Reset</button></th></tr>
+</thead>
+@if(($search['layout'] ?? 'standalone') === 'consolidated')
+    @include('fees.ledger.consolidated_results', [
+        'consolidatedData' => $consolidatedData,
+        'hasFilter' => $hasFilter,
+    ])
+@else
+    @include('fees.ledger.results', [
+        'data' => $data,
+        'summary' => $summary,
+        'hasFilter' => $hasFilter,
+    ])
+@endif
+</table>
+</div></form></div></div></section>
+<div class="modal fade" id="ledgerModal" tabindex="-1" role="dialog" aria-hidden="true"><div class="modal-dialog modal-xl" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fa fa-table mr-1"></i> Student Fee Ledger Details</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div><div class="modal-body ledger-response"><div class="text-center p-4 text-muted"><i class="fa fa-spinner fa-spin"></i> Loading ledger...</div></div><div class="modal-footer py-2"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button></div></div></div></div>
 </div>
-</section>
-</div>
-
-
 <script>
-          $(document).ready(function(){
-                $(".data").click(function(){
-                    var id = $(this).data("id");
-                    var basurl = "{{ url('/') }}";
-                    $.ajax({
-                            headers: {'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')},
-                        type:'post',
-                        url: basurl +'/fees_ledger_view',
-                        data: {admission_id:id},
-                        dataType: 'json',
-                        success: function (response) {
-                            //alert(JSON.stringify(response));
-                            $(".response").html(response.html);
-                        }
-                    }); 
-                });
-        
-                
-              
-   
-  });
-      </script>
-      <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document" >
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title " id="exampleModalLabel">Ledger History</h5>&nbsp;&nbsp;&nbsp;&nbsp;
-       
-     
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body response">
-       
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
- $(document).ready(function(){
-
-var  total_assigned =  "{{number_format($total_assigned ?? '' ,2) }}";
-var  total_collected =  "{{number_format($total_collected ?? '' ,2) }}";
-var  total_discount =  "{{number_format($total_discount ?? '',2) }}";
-var  total_pending =  "{{number_format($total_pending ?? '' ,2) }}";
-var  total_fine =  "{{number_format($total_fine ?? '' ,2) }}";
-                 
-                 
-                
-    function updateClassDropdown(classSelect, data) {
-        classSelect.empty();
-        classSelect.append('<option value="">{{ __("common.All") }}</option>');
-        if (data && data.length > 0) {
-            $.each(data, function(key, val) {
-                classSelect.append('<option value="' + val.id + '">' + val.name + '</option>');
-            });
-        }
-        if (classSelect.hasClass("select2-hidden-accessible")) {
-            classSelect.select2('destroy');
-        }
-        classSelect.select2();
-        classSelect.val('').trigger('change');
+$(function(){
+    var filterTimer, ledgerRequest;
+    var baseUrl = '{{ url('fees/ledger') }}';
+    var exportBaseUrl = '{{ url('fees/ledger/export') }}';
+    function queryString(){var values=$('#ledgerFilterForm').serializeArray(),params=new URLSearchParams();$.each(values,function(_,item){if($.trim(item.value)!=='')params.set(item.name,item.value)});return params.toString()}
+    function refreshExportLinks(){var query=queryString();$('.ledger-export-link').each(function(){var format=$(this).data('format');$(this).attr('href',exportBaseUrl+'/'+format+(query?'?'+query:''))});$('.ledger-export-actions').toggleClass('visible',$('#ledgerLayout').val()==='consolidated')}
+    function loadLedger(updateUrl){
+        var query=queryString(),url=baseUrl+(query?'?'+query:'');
+        if(updateUrl!==false)history.replaceState({ledger:true},'',url);
+        if(ledgerRequest)ledgerRequest.abort();
+        $('#ledgerTable').addClass('ledger-loading');
+        ledgerRequest=$.ajax({url:url,type:'GET',dataType:'json',headers:{'X-Requested-With':'XMLHttpRequest'}})
+            .done(function(response){$('#ledgerTable tbody,#ledgerTable tfoot').remove();$('#ledgerTable').append(response.html)})
+            .fail(function(xhr,status){if(status!=='abort'){$('#ledgerTable tbody,#ledgerTable tfoot').remove();$('#ledgerTable').append('<tbody><tr><td colspan="13"><div class="empty-state text-danger"><i class="fa fa-exclamation-circle"></i>Unable to load data. Please try again.</div></td></tr></tbody>')}})
+            .always(function(){$('#ledgerTable').removeClass('ledger-loading')});
     }
-
-    $(document).on('change', '#course', function() {
-        var courseName = $(this).val();
-        var classSelect = $('#class_type_id');
-        if (courseName) {
-            $.ajax({
-                url: "{{ url('getClassesByCourse') }}",
-                type: "GET",
-                data: { course: courseName },
-                dataType: "json",
-                success: function(data) {
-                    updateClassDropdown(classSelect, data);
-                },
-                error: function() {
-                    updateClassDropdown(classSelect, []);
-                }
-            });
-        } else {
-            var defaultClasses = [];
-            @if(!empty($allClassType))
-                @foreach($allClassType as $class)
-                    defaultClasses.push({ id: "{{ $class->id }}", name: "{{ $class->name }}" });
-                @endforeach
-            @endif
-            updateClassDropdown(classSelect, defaultClasses);
-        }
-    });
-
-$('.head_table').append('<table class="table table-bordered table-striped"><tr><td class="bg-primary">Total Fee</td><td>₹ '+total_assigned+'</td><td class="bg-primary">Total Discount</td><td >₹ '+total_discount+'</td><td class="bg-primary">Total Collected</td><td>₹ '+total_collected+'</td><td class="bg-primary">Total Pending</td><td>₹ '+total_pending+'</td><td class="bg-primary">Total Fine</td><td>₹ '+total_fine+'</td></tr><table>');
-    });
+    $('#ledgerFilterForm').on('submit',function(e){e.preventDefault();loadLedger(true)});
+    $('.ledger-layout-btn').on('click',function(){var layout=$(this).data('layout');$('#ledgerLayout').val(layout);$('#ledgerTable').toggleClass('consolidated-mode',layout==='consolidated');$('.ledger-layout-btn').removeClass('active');$(this).addClass('active');refreshExportLinks();loadLedger(true)});
+    $('.live-ledger-select').on('change',function(){refreshExportLinks();loadLedger(true)});
+    $('.live-ledger-input').on('input',function(){clearTimeout(filterTimer);filterTimer=setTimeout(function(){refreshExportLinks();loadLedger(true)},450)});
+    $('#ledgerReset').on('click',function(){$('#ledgerFilterForm').find('input[type="text"],select').val('');refreshExportLinks();loadLedger(true)});
+    window.addEventListener('popstate',function(){var params=new URLSearchParams(location.search),layout=params.get('layout')||'standalone';$('#ledgerFilterForm').find('[name]').each(function(){$(this).val(params.get(this.name)||'')});$('#ledgerLayout').val(layout);$('#ledgerTable').toggleClass('consolidated-mode',layout==='consolidated');$('.ledger-layout-btn').removeClass('active').filter('[data-layout="'+layout+'"]').addClass('active');refreshExportLinks();loadLedger(false)});
+    refreshExportLinks();
+    $(document).on('click','.ledger-details,.consolidated-year-details',function(){var button=$(this),target=$('.ledger-response'),year=button.data('year');$('#ledgerModal .modal-title').html('<i class="fa fa-table mr-1"></i> '+(year?year+' Fee Details':'Student Fee Ledger Details'));target.html('<div class="text-center p-4 text-muted"><i class="fa fa-spinner fa-spin"></i> Loading ledger...</div>');$.ajax({headers:{'X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')},type:'POST',url:'{{ url('fees_ledger_view') }}',data:{admission_id:button.data('id'),admission_ids:button.attr('data-admission-ids')},dataType:'json'}).done(function(response){target.html(response.html||'<div class="alert alert-info mb-0">No ledger details available.</div>')}).fail(function(){target.html('<div class="alert alert-danger mb-0">Ledger details could not be loaded. Please try again.</div>')})});
+});
 </script>
-       
-<style>
-    .label-success-custom {
-    border: #47a447 1px solid;
-    color: #47a447;
-    
-}
-.btn-print{
-        margin: 3px;
-    margin-left: 17px;
-    font-size: 13px;
-}
-.label-danger-custom {
-    border: #d2322d 1px solid;
-    color: #d2322d;
-}
-th, td{
-    white-space: nowrap !important;
-
-}
-</style>
-@endsection 
+@endsection

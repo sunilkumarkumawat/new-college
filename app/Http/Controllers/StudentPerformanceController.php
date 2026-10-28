@@ -70,8 +70,7 @@ class StudentPerformanceController extends Controller
         
    $data = Admission::select('admissions.*','class.name as class_name')
                             ->leftJoin('class_types as class','class.id','admissions.class_type_id')
-                            ->orderBy('admissions.class_type_id', 'ASC')
-                            ->where('admissions.session_id', Session::get('session_id'));
+                            ->orderBy('admissions.class_type_id', 'ASC');
       
         if(Session::get('role_id') > 1) {
             $data = $data->where('admissions.branch_id', Session::get('branch_id'));
@@ -81,6 +80,23 @@ class StudentPerformanceController extends Controller
         }
         if (!empty(Session::get('admin_branch_id'))) {
             $data = $data->where('admissions.branch_id', Session::get('admin_branch_id'));
+        }
+        if (!empty($request->course)) {
+            $courseName = $request->course;
+            $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+            $courseClassIds = [];
+            if ($courseObj) {
+                $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+            }
+            $data = $data->where(function($q) use ($courseName, $courseClassIds) {
+                $q->where('admissions.course', $courseName);
+                if (!empty($courseClassIds)) {
+                    $q->orWhereIn('admissions.class_type_id', $courseClassIds);
+                }
+            });
+        }
+        if (!empty($request->batch)) {
+            $data = $data->where("admissions.batch", $request->batch);
         }
         
             if ($request->name != '') {

@@ -168,6 +168,44 @@ $getgenders = Helper::getgender();
 		</div>
 	    <div class="col-md-2">
 			<div class="form-group">
+				<label>Enrollment No</label>
+				<input type="text" class="form-control" name="enrollment_no" id="enrollment_no" placeholder="Enrollment No" value="{{ $data->enrollment_no ?? old('enrollment_no') }}">
+			</div>
+		</div>
+
+	    <div class="col-md-2">
+			<div class="form-group">
+				<label>Web Registration No</label>
+				<input type="text" class="form-control" name="web_registration_no" id="web_registration_no" placeholder="Web Reg. No" value="{{ $data->web_registration_no ?? old('web_registration_no') }}">
+			</div>
+		</div>
+
+	    <div class="col-md-4">
+			<div class="form-group">
+				<div class="d-flex align-items-center justify-content-between mb-1">
+					<label class="mb-0">Agent / Referrer</label>
+					<button type="button" class="btn btn-xs btn-outline-success font-weight-bold px-2 py-0" style="font-size: 10.5px; line-height: 1.3;" data-toggle="modal" data-target="#quickAgentModal" data-bs-toggle="modal" data-bs-target="#quickAgentModal">
+						<i class="fa fa-plus-circle"></i> Quick Add Agent
+					</button>
+				</div>
+				<select class="select2 form-control" id="agent_id" name="agent_id">
+					<option value="">{{ __('common.Select') }} Agent</option>
+					@php
+						$activeAgents = \App\Models\Agent::getActiveAgents();
+					@endphp
+					@if(!empty($activeAgents))
+						@foreach($activeAgents as $agent)
+							<option value="{{ $agent->id }}" {{ (($data->agent_id ?? old('agent_id')) == $agent->id) ? 'selected' : '' }}>
+								{{ $agent->name }} @if(!empty($agent->mobile))({{ $agent->mobile }})@endif
+							</option>
+						@endforeach
+					@endif
+				</select>
+			</div>
+		</div>
+
+	    <div class="col-md-2">
+			<div class="form-group">
 				<label for="City" >Select ID Proof</label>
 				<select class="form-control" id="id_proof" name="id_proof" autocomplete="off">
                     <option value="">Select ID Proof</option>
@@ -277,5 +315,6 @@ $getgenders = Helper::getgender();
   })
 
 </script>
+@include('agents.quick_add_modal')
 @endsection    
     

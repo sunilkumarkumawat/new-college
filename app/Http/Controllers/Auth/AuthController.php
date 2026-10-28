@@ -219,8 +219,8 @@ class AuthController extends Controller
   if ($isStudent) {
         session()->put('session_id', $userData->session_id);
     }else{
-        $current_active_session_id = Setting::where('branch_id', $userData->branch_id)->first(['current_active_session_id']);
-         session()->put('session_id', $current_active_session_id->current_active_session_id);
+        $dynamicSession = helper::resolveCurrentFinancialSession($userData->branch_id);
+        session()->put('session_id', $dynamicSession->id);
     }
     // Set session variables
     $request->session()->put([
@@ -235,7 +235,6 @@ class AuthController extends Controller
         'last_name' => $userData->last_name,
         'role_id' => $userData->role_id,
     ]);
-    $current_active_session_id = Setting::where('branch_id', $userData->branch_id)->first(['current_active_session_id']);
    
     session()->put('class_type_id', $userData->class_type_id);
 
@@ -270,8 +269,9 @@ class AuthController extends Controller
                     session()->put('email',$userData->email);
                     session()->put('teacher_id',$userData->teacher_id);
                     session()->put('admin_branch_id',null);
-                    $current_active_session_id = Setting::where('branch_id',$userData->branch_id)->first(['current_active_session_id']);
-                    session()->put('session_id',$current_active_session_id->current_active_session_id);
+                    $adminBranchId = $userData->branch_id ?? 1;
+                    $dynamicSession = helper::resolveCurrentFinancialSession($adminBranchId);
+                    session()->put('session_id', $dynamicSession->id);
                     session()->put('branch_id',$userData->branch_id);
                     session()->put('userName',$userData->userName);
                     session()->put('first_name',$userData->first_name);

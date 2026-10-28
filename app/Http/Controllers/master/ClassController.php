@@ -61,6 +61,9 @@ class ClassController extends Controller
                         $newClass->user_id = Session::get('id');
                         $newClass->session_id = $currentSessionId;   
                         $newClass->branch_id = $destinationBranchId; 
+                        $newClass->course_id = $oldClass->course_id;
+                        $newClass->master_id = $oldClass->master_id;
+                        $newClass->section_id = $oldClass->section_id;
                         $newClass->name = $oldClass->name;
                         $newClass->orderBy = $oldClass->orderBy;
                         $newClass->save();
@@ -101,41 +104,71 @@ class ClassController extends Controller
                             break;
                         }
                     }
-                    $class = new ClassType;//model name
-                    $class->user_id = Session::get('id');
-                    $class->session_id = Session::get('session_id') ?? 1;
-                    $class->branch_id = Session::get('branch_id');
+
+                    if (!empty($request->id)) {
+                        $class = ClassType::find($request->id);
+                        $msg = 'Class / Semester Updated Successfully.';
+                    } else {
+                        $class = new ClassType;
+                        $class->user_id = Session::get('id');
+                        $class->session_id = Session::get('session_id') ?? 1;
+                        $class->branch_id = Session::get('branch_id');
+                        $msg = 'Class / Semester Added Successfully.';
+                    }
+
                     $class->course_id = $request->course_id;
                     $class->name = $request->name;
-                    $class->orderBy = $orderBy;
+                    if ($orderBy > 0 || empty($class->orderBy)) {
+                        $class->orderBy = $orderBy;
+                    }
                     $class->save();
-                    return redirect::to('add_class')->with('message', 'Class / Semester added Successfully.');
-                }    
-                $alladd_type = ClassType::with('course')->where('branch_id', Session('branch_id'))->where('session_id', Session('session_id'));
-                $alladd_type = $alladd_type->orderBy('course_id', 'ASC')->orderBy('orderBy', 'ASC')->get();
-                $courses = Course::where('branch_id', Session('branch_id'))->orderBy('name', 'ASC')->get();
-                return view('admin.class.add', ['data' => $alladd_type, 'courses' => $courses]);
+
+                    return redirect::to('add_class')->with('message', $msg);
+                }
+
+                $editData = null;
+                if ($request->has('edit_id') && !empty($request->edit_id)) {
+                    $editData = ClassType::find($request->edit_id);
+                }
+
+                $alladd_type = ClassType::with('course')
+                    ->withCount('admissions')
+                    ->where('branch_id', Session::get('branch_id'))
+                    ->where('session_id', Session::get('session_id'))
+                    ->orderBy('course_id', 'ASC')
+                    ->orderBy('orderBy', 'ASC')
+                    ->get();
+
+                $courses = Course::where('branch_id', Session::get('branch_id'))->orderBy('name', 'ASC')->get();
+                return view('admin.class.add', ['data' => $alladd_type, 'courses' => $courses, 'editData' => $editData]);
             }    
-    
-            public function edit(Request $request,$id){
-                $data = ClassType::find($id);
+
+            public function edit(Request $request, $id = null){
+                $editId = $id ?? $request->id;
                 if($request->isMethod('post')){
                     $request->validate([
                         'name'  => 'required',
                     ]);
-                    $data->session_id = Session::get('session_id') ?? 1;
-                    $data->branch_id = Session::get('branch_id');
-                    $data->course_id = $request->course_id ?? $data->course_id;
-                    $data->name = $request->name;
-                    $data->save();
+                    $data = ClassType::find($editId);
+                    if ($data) {
+                        $data->session_id = Session::get('session_id') ?? 1;
+                        $data->branch_id = Session::get('branch_id');
+                        $data->course_id = $request->course_id ?? $data->course_id;
+                        $data->name = $request->name;
+                        $data->save();
+                    }
                     return redirect::to('add_class')->with('message', 'Class / Semester Updated Successfully.');
                 }
-                $courses = Course::where('branch_id', Session('branch_id'))->orderBy('name', 'ASC')->get();
-                return view('admin.class.edit', ['data' => $data, 'courses' => $courses]);
+                
+                return redirect::to('add_class?edit_id=' . $editId);
             }
+
             public function delete(Request $request){
                 $id = $request->delete_id;
-                $sss = ClassType::find($id)->delete();
+                $sss = ClassType::find($id);
+                if ($sss) {
+                    $sss->delete();
+                }
                 return redirect::to('add_class')->with('message', 'Class / Semester Deleted Successfully.');
             }
             
@@ -148,43 +181,65 @@ class ClassController extends Controller
                         'name' => 'required',
                     ]);
                     
-                    $course = new Course;//model name
-                    $course->session_id = Session::get('session_id') ?? 1;
-                    $course->branch_id = Session::get('branch_id');
+                    if (!empty($request->id)) {
+                        $course = Course::find($request->id);
+                        $msg = 'Course Stream Updated Successfully.';
+                    } else {
+                        $course = new Course;
+                        $course->session_id = Session::get('session_id') ?? 1;
+                        $course->branch_id = Session::get('branch_id');
+                        $msg = 'Course Stream Added Successfully.';
+                    }
+
                     $course->name = $request->name;
                     $course->duration = $request->duration ?? 1;
                     $course->total_semester = $request->total_semester ?? 0;
                     $course->course_type = $request->course_type ?? 'Semester';
                    
                     $course->save();
-                    return redirect::to('course_add')->with('message', 'Course added Successfully.');
-                }    
-                $viewcourse = Course::where('branch_id', Session('branch_id'))->orderBy('id', 'ASC')->get();
-                return view('master.course.add',['data'=>$viewcourse]);
+                    return redirect::to('course_add')->with('message', $msg);
+                }
+
+                $editData = null;
+                if ($request->has('edit_id') && !empty($request->edit_id)) {
+                    $editData = Course::find($request->edit_id);
+                }
+
+                $viewcourse = Course::withCount('classes')
+                    ->where('branch_id', Session::get('branch_id'))
+                    ->orderBy('id', 'ASC')
+                    ->get();
+
+                return view('master.course.add', ['data' => $viewcourse, 'editData' => $editData]);
             }   
-            public function course_edit(Request $request,$id){
-                $data = Course::find($id);
+
+            public function course_edit(Request $request, $id = null){
+                $editId = $id ?? $request->id;
                 if($request->isMethod('post')){
                     $request->validate([
                         'name' => 'required',
                     ]);
-                    $data->session_id = Session::get('session_id') ?? 1;
-                    $data->branch_id = Session::get('branch_id');
-                    $data->name = $request->name;
-                    $data->duration = $request->duration ?? 1;
-                    $data->total_semester = $request->total_semester ?? 0;
-                    $data->course_type = $request->course_type ?? 'Semester';
-                    $data->save(); 
+                    $data = Course::find($editId);
+                    if ($data) {
+                        $data->session_id = Session::get('session_id') ?? 1;
+                        $data->branch_id = Session::get('branch_id');
+                        $data->name = $request->name;
+                        $data->duration = $request->duration ?? 1;
+                        $data->total_semester = $request->total_semester ?? 0;
+                        $data->course_type = $request->course_type ?? 'Semester';
+                        $data->save(); 
+                    }
                     return redirect::to('course_add')->with('message', 'Course Details Edited Successfully.');
                 }
-                return view('master.course.edit',['data'=>$data]);
+                return redirect::to('course_add?edit_id=' . $editId);
             }
             
             public function course_delete(Request $request){
-       
                 $id = $request->delete_id;
-                $course = Course::find($id)->delete();
-                return redirect::to('course_add')->with('message', 'Course  Delete Successfully.');
+                if ($id) {
+                    Course::find($id)?->delete();
+                }
+                return redirect::to('course_add')->with('message', 'Course Stream Deleted Successfully.');
             }
 
 }

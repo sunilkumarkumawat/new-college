@@ -46,5 +46,10 @@ public function roleName()
     {
         return $this->belongsTo('App\Models\Master\Branch','branch_id');
     }
+
+    public function getNameAttribute()
+    {
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')) ?: ($this->userName ?? 'User');
+    }
     
 }

@@ -180,7 +180,7 @@ $feesDetails = DB::table('fees_assign_details')
                         </div>
                         <div class="col-md-3">
                             <label>{{ __('fees.Receipt No.') }}</label>
-                            <input type="text" class="form-control" placeholder="{{ __('fees.Receipt No.') }}" name="slip_no[]"  value="{{$data['BillCounter']['counter']+1 ?? ''}}" onkeypress="javascript:return isNumber(event)"  readonly>
+                            <input type="text" class="form-control" placeholder="{{ __('fees.Receipt No.') }}" name="slip_no[]"  value="{{ \App\Helpers\Helper::formatReceiptNo(($data['BillCounter']['counter'] ?? 0) + 1, $data['session_id'] ?? Session::get('session_id')) }}" readonly>
                         </div>
                         <!--<div class="col-md-4 d-none">-->
                         <!--    <label>{{ __('fees.Remaining Amount') }}</label>-->
@@ -335,7 +335,7 @@ $feesDetails = DB::table('fees_assign_details')
                                     <td class="text-danger">₹ {{ number_format($paid_fine ?? 0, 2) }}</td>
                                     
                                     @php
-                                        $pending_amount = (($fees->fees_group_amount) - ($fees->discount)) - ($paid);
+                                        $pending_amount = (($fees->fees_group_amount) - ($fees->discount) - ($fees->promotion_carry_adjustment ?? 0)) - ($paid);
                                     @endphp
                                     
                                     

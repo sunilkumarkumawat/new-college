@@ -76,6 +76,149 @@ class StudentsAdmissionController extends Controller
                 $uniqueId = strtoupper(Str::random(10));
                 Admission::where('id',$id)->whereNull('unique_system_id')->update(['unique_system_id' => $uniqueId]);
             }
+
+            /**
+             * Upload and compress student/parent profile image
+             */
+            private function handleStudentImageUpload($file, $subfolder, $oldImage = null)
+            {
+                $filename = time() . uniqid() . '.' . $file->getClientOriginalExtension();
+                $destinationPath = env('IMAGE_UPLOAD_PATH') . $subfolder . '/';
+
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0755, true);
+                }
+
+                if (!empty($oldImage) && File::exists($destinationPath . $oldImage)) {
+                    File::delete($destinationPath . $oldImage);
+                }
+
+                $compressedImage = Image::make($file)
+                    ->resize(600, null, function ($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize();
+                    })
+                    ->encode('jpg', 80);
+                $compressedImage->save($destinationPath . $filename);
+
+                return $filename;
+            }
+
+            /**
+             * Map request input to Admission model attributes
+             */
+            private function mapAdmissionAttributes(Admission $admission, Request $request, $isEdit = false)
+            {
+                $admission->user_id = Session::get('id');
+                $admission->session_id = Session::get('session_id');
+                $admission->branch_id = Session::get('branch_id');
+
+                if (!$isEdit) {
+                    $admissionNo = !empty($request->admissionNo) ? $request->admissionNo : self::generateNextAdmissionNo($request->course, $request->course_id);
+                    $admission->admissionNo = $admissionNo;
+                    $admission->school = '1';
+                    $admission->library = '0';
+                    $admission->hostel = '0';
+                    $admission->password = Hash::make($admissionNo);
+                    $admission->confirm_password = $admissionNo;
+                    $status = 1;
+                    if (($request->newStudentRegistration ?? '') == 'newStudentRegistration') {
+                        $status = 'newStudentRegistration';
+                    }
+                    $admission->status = $status;
+                    $admission->userName = strtoupper(str_replace(' ', '', $request->first_name)) . $request->admissionNo;
+                }
+
+                $admission->ledger_no = $request->ledger_no;
+                $admission->roll_no = $request->roll_no;
+                $admission->admission_date = $request->admission_date;
+                $admission->admission_type_id = $request->admission_type_id;
+                $admission->rte_student = $request->rte_student;
+                $admission->class_type_id = $request->class_type_id;
+
+                if (!empty($request->stream_subject)) {
+                    $admission->stream_subject = is_array($request->stream_subject) ? implode(',', $request->stream_subject) : $request->stream_subject;
+                } else {
+                    $admission->stream_subject = null;
+                }
+
+                $course_name = $request->course;
+                if (empty($course_name) && !empty($request->class_type_id)) {
+                    $cType = ClassType::find($request->class_type_id);
+                    if ($cType && !empty($cType->course_id)) {
+                        $crs = \App\Models\Master\Course::find($cType->course_id);
+                        if ($crs) {
+                            $course_name = $crs->name;
+                        }
+                    }
+                }
+                $admission->course = $course_name;
+                $admission->student_type = $request->student_type;
+                $admission->batch = $request->batch;
+                $admission->first_name = $request->first_name;
+                $admission->last_name = $request->last_name;
+                $admission->aadhaar = $request->aadhaar;
+                $admission->jan_aadhaar = $request->jan_aadhaar;
+                $admission->previous_school = $request->previous_school;
+                $admission->email = $request->email;
+                $admission->mobile = $request->mobile;
+                $admission->father_name = $request->father_name;
+                $admission->mother_name = $request->mother_name;
+                $admission->father_mobile = $request->father_mobile;
+                $admission->dob = $request->dob;
+                $admission->gender_id = $request->gender_id;
+                $admission->blood_group = $request->blood_group;
+                $admission->medium = $request->medium;
+                $admission->address = $request->address;
+                $admission->country_id = $request->country;
+                $admission->village_city = $request->village_city;
+                $admission->family_id = $request->family_id;
+                $admission->srn = $request->srn;
+                $admission->religion = $request->religion;
+                $admission->category = $request->category;
+                $admission->caste_category = $request->caste_category;
+                $admission->transport = $request->transport;
+                $admission->bus_number = $request->bus_number;
+                $admission->bus_route = $request->bus_route;
+                $admission->stoppage = $request->stoppage;
+                $admission->transpor_charges = $request->transpor_charges;
+                $admission->guardian_name = $request->guardian_name;
+                $admission->guardian_mobile = $request->guardian_mobile;
+                $admission->mother_mob = $request->mother_mob;
+                $admission->father_aadhaar = $request->father_aadhaar;
+                $admission->mother_aadhaar = $request->mother_aadhaar;
+                $admission->family_annual_income = $request->family_annual_income;
+                $admission->bank_account = $request->bank_account;
+                $admission->bank_name = $request->bank_name;
+                $admission->branch_name = $request->branch_name;
+                $admission->ifsc = $request->ifsc;
+                $admission->micr_code = $request->micr_code;
+                $admission->city_id = $request->city;
+                $admission->state_id = $request->state;
+                $admission->relation_student = $request->relation_student;
+                $admission->school_namestudied_last_year = $request->school_namestudied_last_year;
+                $admission->house = $request->house;
+                $admission->height = $request->height;
+                $admission->weight = $request->weight;
+                $admission->pincode = $request->pincode;
+                $admission->remark_1 = $request->remark_1;
+                $admission->bank_account_holder = $request->bank_account_holder;
+                $admission->optional_subject = $request->optional_subject;
+                $admission->urban = $request->urban;
+                $admission->district = $request->district;
+                $admission->tehsil = $request->tehsil;
+                $admission->father_pancard = $request->father_pancard;
+                $admission->mother_pancard = $request->mother_pancard;
+                $admission->income_tax_payee_father = $request->income_tax_payee_father;
+                $admission->income_tax_payee_mother = $request->income_tax_payee_mother;
+                $admission->bpl = $request->bpl;
+                $admission->bpl_certificate_no = $request->bpl_certificate_no;
+                $admission->father_occupation = $request->father_occupation;
+                $admission->mother_occupation = $request->mother_occupation;
+                $admission->enrollment_no = $request->enrollment_no;
+                $admission->web_registration_no = $request->web_registration_no;
+                $admission->agent_id = $request->agent_id;
+            }
     
             protected function convertExcelDate($date){
                 if(is_numeric($date)) {
@@ -421,220 +564,37 @@ class StudentsAdmissionController extends Controller
             }
 
             public function admissionAdd(Request $request){
-                $BillCounter = BillCounter::where('session_id',Session::get('session_id'))->where('branch_id',Session::get('branch_id'))->where('type', 'StudentAdmission')->get()->first();
+                $BillCounter = BillCounter::where('session_id', Session::get('session_id'))
+                    ->where('branch_id', Session::get('branch_id'))
+                    ->where('type', 'StudentAdmission')
+                    ->first();
+                $counter = !empty($BillCounter) ? ($BillCounter->counter ?? 0) : 0;
+                $BillCounterNo = $counter + 1;
+
+                if ($request->isMethod('post')) {
+                    if (!empty($request->registration_id)) {
+                        Enquiry::where('registration_no', $request->registration_id)->update(['status' => 1]);
+                    }
+                    $addadmission = new Admission();
+                    if ($request->file('student_img')) {
+                        $addadmission->image = $this->handleStudentImageUpload($request->file('student_img'), 'profile');
+                    }
+                    if ($request->file('father_img')) {
+                        $addadmission->father_img = $this->handleStudentImageUpload($request->file('father_img'), 'father_image');
+                    }
+                    if ($request->file('mother_img')) {
+                        $addadmission->mother_img = $this->handleStudentImageUpload($request->file('mother_img'), 'mother_image');
+                    }
                     if (!empty($BillCounter)) {
-                        $counter = !empty($BillCounter->counter) ? $BillCounter->counter : 0;
-                        $BillCounterNo = $counter + 1;
-                    }
-                    if ($request->isMethod('post')) {
-                        $sessionId =   Session::get('session_id');
-                            $request->validate([
-                                //'admissionNo' => 'nullable|unique:admissions',
-                                //'aadhaar' => 'unique:admissions,aadhaar',
-                                //'mobile' => 'unique:admissions,mobile',
-                            ]);
-                            $Student = Enquiry:: where('registration_no',$request->registration_id)->update(['status'=>1]);
-                        $student_image = '';
-                    if ($request->file('student_img')) {
-                        $image = $request->file('student_img');
-                        $student_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'profile/';
-                    if (!file_exists($destinationPath)) {
-                        mkdir($destinationPath, 0755, true);
-                    }
-                    if (isset($data->image) && File::exists($destinationPath . $data->image)) {
-                        File::delete($destinationPath . $data->image);
-                    }
-                    $compressedImage = Image::make($image)
-                        ->resize(600, null, function ($constraint) {
-                            $constraint->aspectRatio();
-                            $constraint->upsize();
-                        })
-                        ->encode('jpg', 80); // Adjust quality as needed
-                        $compressedImage->save($destinationPath . $student_image);
-                        $image->move($destinationPath, $student_image);
-                    }
-                    /*$student_image = '';
-                    if ($request->file('student_img')) {
-                        $image = $request->file('student_img');
-                        $path = $image->getRealPath();
-                        $student_image = time() . uniqid() . $image->getClientOriginalName();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'profile';
-                        $image->move($destinationPath, $student_image);
-                    }*/
-                    $father_image = '';
-                    if ($request->file('father_img')) {
-                        $image = $request->file('father_img');
-                        $father_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'father_image/';
-                    if (!file_exists($destinationPath)) {
-                        mkdir($destinationPath, 0755, true);
-                    }
-                    if (isset($data->father_image) && File::exists($destinationPath . $data->father_image)) {
-                        File::delete($destinationPath . $data->father_image);
-                    }
-                    $compressedImage = Image::make($image)
-                        ->resize(600, null, function ($constraint) {
-                            $constraint->aspectRatio();
-                            $constraint->upsize();
-                        })
-                        ->encode('jpg', 80); // Adjust quality as needed
-                        $compressedImage->save($destinationPath . $father_image);
-                        $image->move($destinationPath, $father_image);
-                    }
-                    /*$father_image = '';
-                    if ($request->file('father_img')) {
-                        $image = $request->file('father_img');
-                        $path = $image->getRealPath();
-                        $father_image = time() . uniqid() . $image->getClientOriginalName();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'father_image';
-                        $image->move($destinationPath, $father_image);
-                    }*/
-                    $mother_image = '';
-                    if ($request->file('mother_img')) {
-                        $image = $request->file('mother_img');
-                        $mother_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'mother_image/';
-                    if (!file_exists($destinationPath)) {
-                        mkdir($destinationPath, 0755, true);
-                    }
-                    if (isset($data->mother_img) && File::exists($destinationPath . $data->mother_img)) {
-                        File::delete($destinationPath . $data->mother_img);
-                    }
-                    $compressedImage = Image::make($image)
-                        ->resize(600, null, function ($constraint) {
-                            $constraint->aspectRatio();
-                            $constraint->upsize();
-                        })
-                        ->encode('jpg', 80); // Adjust quality as needed
-                        $compressedImage->save($destinationPath . $mother_image);
-                        $image->move($destinationPath, $mother_image);
-                    }
-                    /*$mother_image = '';
-                    if ($request->file('mother_img')) {
-                        $image = $request->file('mother_img');
-                        $path = $image->getRealPath();
-                        $mother_image = time() . uniqid() . $image->getClientOriginalName();
-                        $destinationPath = env('IMAGE_UPLOAD_PATH') . 'mother_image';
-                        $image->move($destinationPath, $mother_image);
-                    }*/
-                        $counter = !empty($BillCounter->counter) ? $BillCounter->counter : 0;
                         $BillCounter->counter = $counter + 1;
                         $BillCounter->save();
-                        $addadmission = new Admission(); //model name
-                        $addadmission->user_id = Session::get('id');
-                        $addadmission->session_id = Session::get('session_id');
-                        $addadmission->branch_id = Session::get('branch_id');
-                        $addadmission->admissionNo = $request->admissionNo;
-                        $addadmission->ledger_no = $request->ledger_no;
-                        $addadmission->school = '1';
-                        $addadmission->library = '0';
-                        $addadmission->hostel = '0';
-                        $addadmission->roll_no = $request->roll_no;
-                        $addadmission->admission_date = $request->admission_date;
-                        $addadmission->admission_type_id = $request->admission_type_id;
-                        $addadmission->rte_student = $request->rte_student;
-                        $addadmission->class_type_id = $request->class_type_id;
-                            if(!empty($request->stream_subject)){
-                                $addadmission->stream_subject = implode(',', $request->stream_subject);
-                            }
-                            $course_name = $request->course;
-                            if (empty($course_name) && !empty($request->class_type_id)) {
-                                $cType = ClassType::find($request->class_type_id);
-                                if ($cType && !empty($cType->course_id)) {
-                                    $crs = \App\Models\Master\Course::find($cType->course_id);
-                                    if ($crs) {
-                                        $course_name = $crs->name;
-                                    }
-                                }
-                            }
-                            $addadmission->course = $course_name;
-                            $addadmission->student_type = $request->student_type;
-                            $addadmission->batch = $request->batch;
-                            $addadmission->first_name = $request->first_name;
-                            $addadmission->last_name = $request->last_name;
-                            $addadmission->aadhaar = $request->aadhaar;
-                            $addadmission->jan_aadhaar = $request->jan_aadhaar;
-                            $addadmission->previous_school = $request->previous_school;
-                            $addadmission->email = $request->email;
-                            $addadmission->mobile = $request->mobile;
-                            $addadmission->father_name = $request->father_name;
-                            $addadmission->mother_name = $request->mother_name;
-                            $addadmission->father_mobile = $request->father_mobile;
-                            $addadmission->dob = $request->dob;
-                            $addadmission->relation_student = $request->relation_student;
-                            $addadmission->school_namestudied_last_year = $request->school_namestudied_last_year;
-                            $addadmission->house = $request->house;
-                            $addadmission->height = $request->height;
-                            $addadmission->weight = $request->weight;
-                            $addadmission->gender_id = $request->gender_id;
-                            $addadmission->admission_type_id = $request->admission_type_id;
-                            $addadmission->blood_group = $request->blood_group;
-                            $addadmission->medium = $request->medium;
-                            $addadmission->address = $request->address;
-                            $addadmission->country_id = $request->country;
-                            $addadmission->village_city = $request->village_city;
-                            $addadmission->city_id = $request->city;
-                            $addadmission->state_id = $request->state;
-                            $addadmission->pincode = $request->pincode;
-                            $addadmission->family_id = $request->family_id;
-                            $addadmission->srn = $request->srn;
-                            $addadmission->religion = $request->religion;
-                            // $addadmission->nationalty = $request->nationalty;
-                            $addadmission->category = $request->category;
-                            $addadmission->caste_category = $request->caste_category;
-                            $addadmission->transport = null;
-                            $addadmission->bus_number = null;
-                            $addadmission->bus_route = null;
-                            $addadmission->stoppage = null;
-                            $addadmission->transpor_charges = null;
-                            $addadmission->guardian_name = $request->guardian_name;
-                            $addadmission->guardian_mobile = $request->guardian_mobile;
-                            $addadmission->mother_mob = $request->mother_mob;
-                            $addadmission->father_aadhaar = $request->father_aadhaar;
-                            $addadmission->mother_aadhaar = $request->mother_aadhaar;
-                            $addadmission->family_annual_income = $request->family_annual_income;
-                            $addadmission->bank_account = $request->bank_account;
-                            $addadmission->bank_name = $request->bank_name;
-                            $addadmission->branch_name = $request->branch_name;
-                            $addadmission->ifsc = $request->ifsc;
-                            $addadmission->micr_code = $request->micr_code;
-                            $addadmission->image = $student_image;
-                            $addadmission->father_img = $father_image;
-                            $addadmission->mother_img = $mother_image;
-                            $addadmission->remark_1 = $request->remark_1;
-                            $addadmission->bank_account_holder = $request->bank_account_holder;
-                            $addadmission->optional_subject = $request->optional_subject;
-                            $addadmission->urban = $request->urban;
-                            $addadmission->district = $request->district;
-                            $addadmission->tehsil = $request->tehsil;
-                            $addadmission->father_pancard = $request->father_pancard;
-                            $addadmission->mother_pancard = $request->mother_pancard;
-                            $addadmission->income_tax_payee_father = $request->income_tax_payee_father;
-                            $addadmission->income_tax_payee_mother = $request->income_tax_payee_mother;
-                            $addadmission->bpl = $request->bpl;
-                            $addadmission->bpl_certificate_no = $request->bpl_certificate_no;
-                            $addadmission->father_occupation = $request->father_occupation;
-                            $addadmission->mother_occupation = $request->mother_occupation;
-                            $addadmission->password = Hash::make($request->admissionNo);
-                            $addadmission->confirm_password = $request->admissionNo;
-                            $status = 1;
-                            if(($request->newStudentRegistration ?? '') == 'newStudentRegistration'){
-                                $status = 'newStudentRegistration';
-                            }
-                            $addadmission->status = $status;
-                            
-                            $class_name = ClassType::find($request->class_type_id);
-                            $initials = substr($request->first_name, 0, 3);
-                            $birthYear = date('Y', strtotime($request->dob));
-                            $random_number = Str::random(10);
-                            $cleanedMobile = preg_replace('/[^0-9]/', '', $request->mobile ?? $random_number);
-                            $username = strtoupper($initials).strtoupper($class_name->name).substr($cleanedMobile, -3);
-                            $addadmission->userName = strtoupper(str_replace(' ', '', $request->first_name)) . $request->admissionNo;
-                            $addadmission->save();
-                            
-                            $addadmission_id = $addadmission->id;
-                            $this->unique_system_id($addadmission_id);
+                    }
+
+                    $this->mapAdmissionAttributes($addadmission, $request, false);
+                    $addadmission->save();
+
+                    $addadmission_id = $addadmission->id;
+                    $this->unique_system_id($addadmission_id);
                             
                             $feesGroupId = null;
                             if (!empty($request->fees_master_id) && is_array($request->fees_assign)) {
@@ -677,26 +637,36 @@ class StudentsAdmissionController extends Controller
                                 $feesGroup->save();
                             }
                            
-                        //     $template =  MessageTemplate::Select('message_templates.*','message_types.slug')
-                        //     ->leftjoin('message_types','message_types.id','message_templates.message_type_id')
-                        //     ->where('message_types.status',1)->where('message_types.slug','student-admission')->first();
-                        //     $branch = Branch::find(Session::get('branch_id'));
-                        //     $setting = Setting::where('branch_id',Session::get('branch_id'))->first();
-                        //     $arrey1 =   array(
-                        //                 '{#name#}',
-                        //                 '{#school_name#}',
-                        //                 '{#user_name#}',
-                        //                 '{#password#}',
-                        //                 '{#email#}',
-                        //                 '{#mobile#}',);
-                        //     $arrey2 = array(
-                        //                     $addadmission->first_name." ".$addadmission->last_name,
-                        //                     $setting->name,
-                        //                     $addadmission->userName,
-                        //                     $addadmission->confirm_password,
-                        //                     $addadmission->email,
-                        //                     $addadmission->mobile);
-                        // if($template->status != 1){
+                            $template = MessageTemplate::Select('message_templates.*','message_types.slug')
+                                ->leftjoin('message_types','message_types.id','message_templates.message_type_id')
+                                ->where('message_types.status',1)->where('message_types.slug','student-admission')->first();
+                            $branch = Branch::find(Session::get('branch_id'));
+                            $setting = Setting::where('branch_id',Session::get('branch_id'))->first();
+                            if (!empty($template)) {
+                                $arrey1 = array(
+                                    '{#name#}',
+                                    '{#school_name#}',
+                                    '{#user_name#}',
+                                    '{#password#}',
+                                    '{#email#}',
+                                    '{#mobile#}');
+                                $arrey2 = array(
+                                    $addadmission->first_name." ".$addadmission->last_name,
+                                    $setting->name ?? '',
+                                    $addadmission->userName ?? '',
+                                    $addadmission->confirm_password ?? '',
+                                    $addadmission->email ?? '',
+                                    $addadmission->mobile ?? '');
+                                $whatsapp = str_replace($arrey1, $arrey2, $template->whatsapp_content ?? '');
+                                if (!empty($setting) && $setting->firebase_notification == 1) {
+                                    Helper::sendNotification(
+                                        $template->title ?? 'Admission Notification',
+                                        $whatsapp,
+                                        'student',
+                                        $addadmission->id
+                                    ); 
+                                }
+                            }
                         //         if($request->email != ""){
                         //             if($branch->email_srvc != 0){
                         //                 if($template->email_status != 0){
@@ -740,7 +710,6 @@ class StudentsAdmissionController extends Controller
                     // if($generate_user_name != ''){
                     //     //$this->studentUserNameCreate();  
                     // }
-                    $search['session_id'] = $request->has('session_id') ? $request->session_id : Session::get('session_id');
                     $search['admissionNo'] = $request->admissionNo;
                     $search['course'] = $request->course;
                     $search['class_type_id'] = $request->class_type_id;
@@ -754,111 +723,146 @@ class StudentsAdmissionController extends Controller
                     $search['status'] = $request->status;
                     $search['name'] = $request->name;
                     $search['batch'] = $request->batch;
+                    $search['agent_id'] = $request->agent_id;
+                    $search['enrollment_no'] = $request->enrollment_no;
+                    $search['web_registration_no'] = $request->web_registration_no;
 
                     $data = Admission::select('admissions.*','class.name as class_name')
                         ->leftJoin('class_types as class','class.id','admissions.class_type_id')
-                        ->orderBy('class.orderBy', 'ASC')->with('City')->with('State');
+                        ->orderBy('class.orderBy', 'ASC')->with('City')->with('State')->with('Agent');
                     $data = $data->where('admissions.branch_id', Session::get('branch_id'));
-                    if (!empty($search['session_id'])) {
-                        $data = $data->where('admissions.session_id', $search['session_id']);
-                    }
                     if (Session::get('role_id') == 2) {
                         $data = $data->where('admissions.class_type_id', $request->class_type_id);
                     }
                     
-                    if ($request->isMethod('post')) {
-                        if ($request->name != '') {
-                            $value = $request->name;
-                            $data = $data->where(function ($query) use ($value) {
-                                $query->where('first_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('last_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('father_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('mother_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('mobile', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('email', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('aadhaar', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('jan_aadhaar', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('previous_school', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('address', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('ledger_no', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('srn', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('dob', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('village_city', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('address', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('pincode', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('caste_category', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('house', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('height', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('weight', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('family_annual_income', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('family_id', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('religion', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('category', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('father_mobile', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('father_aadhaar', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('mother_mob', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('mother_aadhaar', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('guardian_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('guardian_mobile', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('bus_number', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('bus_route', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('stoppage', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('transpor_charges', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('bank_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('bank_account', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('branch_name', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('ifsc', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('micr_code', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('remark_1', 'LIKE', '%' . $value . '%');
-                                $query->orWhere('admission_date', 'LIKE', '%' . $value . '%');
-                            });
-                        }
-                        if ($request->admissionNo != '') {
-                            $data = $data->where("admissionNo", $request->admissionNo);
-                        }
-                       
-                        if ($request->batch != '') {
-                            $data = $data->where("batch", $request->batch);
-                        }
-                        if ($request->course != '') {
-                            $data = $data->where("admissions.course", $request->course);
-                        }
-                        if ($request->class_type_id != '') {
-                            $data = $data->where("class_type_id", $request->class_type_id);
-                        }
-                        if ($request->state_id != '') {
-                            $data = $data->where("state_id", $request->state_id);
-                        }
-                        if ($request->city_id != '') {
-                            $data = $data->where("city_id", $request->city_id);
-                        }
-                        if ($request->category != '') {
-                            $data = $data->where("category", $request->category);
-                        }
-                        if ($request->gender_id != '') {
-                            $data = $data->where("gender_id", $request->gender_id);
-                        }
-                        if ($request->admission_type_id != '') {
-                            $data = $data->where("admission_type_id", $request->admission_type_id);
-                        }
-                        if ($request->blood_group != '') {
-                            $data = $data->where("blood_group", $request->blood_group);
-                        }
-                        if ($request->transport != '') {
-                            $data = $data->where("transport", $request->transport);
-                        }
-                        if ($request->status != '') {
-                            $data = $data->where("status", $request->status);
-                        }else
-                        {
-                            $data = $data->where("status", 1);
-                        }
-                        $alladmission = $data->where('school',1)->orderBy('first_name')->get();
-                        return view('students.admission.view', ['data' => $alladmission, 'search' => $search]);
+                    if (!empty($request->admission_id)) {
+                        $data = $data->where('admissions.id', $request->admission_id);
                     }
-                $alladmission = $data->where('school',1)->orderBy('first_name')->where('status',1)->get();
-              
-                return view('students.admission.view', ['data' => $alladmission, 'search' => $search]);
+                    if (!empty($request->name)) {
+                        $value = $request->name;
+                        $data = $data->where(function ($query) use ($value) {
+                            $query->where('first_name', 'LIKE', '%' . $value . '%');
+                            $query->orWhere('last_name', 'LIKE', '%' . $value . '%');
+                            $query->orWhere('father_name', 'LIKE', '%' . $value . '%');
+                            $query->orWhere('mobile', 'LIKE', '%' . $value . '%');
+                            $query->orWhere('aadhaar', 'LIKE', '%' . $value . '%');
+                        });
+                    }
+                    if (!empty($request->father_name)) {
+                        $data = $data->where('admissions.father_name', 'LIKE', '%' . $request->father_name . '%');
+                    }
+                    if (!empty($request->mother_name)) {
+                        $data = $data->where('admissions.mother_name', 'LIKE', '%' . $request->mother_name . '%');
+                    }
+                    if (!empty($request->mobile)) {
+                        $data = $data->where('admissions.mobile', 'LIKE', '%' . $request->mobile . '%');
+                    }
+                    if (!empty($request->aadhaar)) {
+                        $data = $data->where('admissions.aadhaar', 'LIKE', '%' . $request->aadhaar . '%');
+                    }
+                    if (!empty($request->admissionNo)) {
+                        $data = $data->where("admissionNo", $request->admissionNo);
+                    }
+                    if (!empty($request->agent_id)) {
+                        $data = $data->where("admissions.agent_id", $request->agent_id);
+                    }
+                    if (!empty($request->enrollment_no)) {
+                        $data = $data->where("admissions.enrollment_no", 'LIKE', '%' . $request->enrollment_no . '%');
+                    }
+                    if (!empty($request->web_registration_no)) {
+                        $data = $data->where("admissions.web_registration_no", 'LIKE', '%' . $request->web_registration_no . '%');
+                    }
+                   
+                    if (!empty($request->batch)) {
+                        $data = $data->where("admissions.batch", $request->batch);
+                    }
+                    if (!empty($request->course)) {
+                        $courseName = $request->course;
+                        $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                        $courseClassIds = [];
+                        if ($courseObj) {
+                            $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+                        }
+                        $data = $data->where(function($q) use ($courseName, $courseClassIds) {
+                            $q->where('admissions.course', $courseName);
+                            if (!empty($courseClassIds)) {
+                                $q->orWhereIn('admissions.class_type_id', $courseClassIds);
+                            }
+                        });
+                    }
+                    if (!empty($request->class_type_id)) {
+                        $data = $data->where("admissions.class_type_id", $request->class_type_id);
+                    }
+                    if (!empty($request->state_id)) {
+                        $data = $data->where("state_id", $request->state_id);
+                    }
+                    if (!empty($request->city_id)) {
+                        $data = $data->where("city_id", $request->city_id);
+                    }
+                    if (!empty($request->category)) {
+                        $data = $data->where("category", $request->category);
+                    }
+                    if (!empty($request->gender_id)) {
+                        $data = $data->where("gender_id", $request->gender_id);
+                    }
+                    if (!empty($request->admission_type_id)) {
+                        $data = $data->where("admission_type_id", $request->admission_type_id);
+                    }
+                    if (!empty($request->blood_group)) {
+                        $data = $data->where("blood_group", $request->blood_group);
+                    }
+                    if (!empty($request->transport)) {
+                        $data = $data->where("transport", $request->transport);
+                    }
+                    if ($request->has('status')) {
+                        if ($request->status !== '' && $request->status !== 'all') {
+                            $data = $data->where("status", $request->status);
+                        }
+                    } else {
+                        $data = $data->where("status", 1);
+                    }
+
+                    $perPage = $request->get('per_page', 25);
+                    if ($perPage === 'all' || $perPage == -1) {
+                        $perPage = 1000;
+                    } else {
+                        $perPage = (int) $perPage;
+                        if ($perPage <= 0) $perPage = 25;
+                    }
+
+                    $alladmission = $data->where('school', 1)
+                        ->orderBy('admissions.first_name', 'ASC')
+                        ->paginate($perPage)
+                        ->appends($request->all());
+
+                    if ($request->ajax()) {
+                        $table = DB::table('datatable_fields')->first();
+                        $dataTable = !empty($table->fields) ? explode(',', $table->fields) : [];
+                        $getAdmissionDatatableFields = Helper::getAdmissionDatatableFields();
+
+                        $tbodyHtml = view('students.admission.table_rows', [
+                            'data' => $alladmission,
+                            'dataTable' => $dataTable,
+                            'getAdmissionDatatableFields' => $getAdmissionDatatableFields,
+                            'search' => $search
+                        ])->render();
+
+                        $paginationHtml = view('students.admission.pagination', [
+                            'data' => $alladmission
+                        ])->render();
+
+                        return response()->json([
+                            'status' => 'success',
+                            'html' => $tbodyHtml,
+                            'pagination' => $paginationHtml,
+                            'total' => $alladmission->total(),
+                            'from' => $alladmission->firstItem() ?? 0,
+                            'to' => $alladmission->lastItem() ?? 0,
+                            'count' => $alladmission->count()
+                        ]);
+                    }
+
+                    return view('students.admission.view', ['data' => $alladmission, 'search' => $search]);
             }
             
             public function admissionView2(Request $request){
@@ -881,302 +885,57 @@ class StudentsAdmissionController extends Controller
 
             public function admissionEdit(Request $request, $id){
                 $data = Admission::find($id);
-                    if ($request->isMethod('post')) {
-                        $update_n_next = $request->update ?? '';
-                        $sessionId = Session::get('session_id');
-                        $request->validate([
-                            // 'admissionNo' => ['nullable',Rule::unique('admissions')->where(function ($query) use ($sessionId) {
-                            // $query->where('session_id', $sessionId);})->ignore($id)],
-                            // 'aadhaar' => 'unique:admissions,aadhaar',
-                            // 'mobile' => 'unique:admissions,mobile',
-                        ]);
-                        if ($request->file('student_img')) {
-                            $image = $request->file('student_img');
-                            $student_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                            $destinationPath = env('IMAGE_UPLOAD_PATH') . 'profile/';
-                            if (!file_exists($destinationPath)) {
-                                mkdir($destinationPath, 0755, true);
-                            }
-                            if (isset($data->image) && File::exists($destinationPath . $data->image)) {
-                                File::delete($destinationPath . $data->image);
-                            }
-                                $compressedImage = Image::make($image)
-                                    ->resize(600, null, function ($constraint) {
-                                $constraint->aspectRatio();
-                                $constraint->upsize();
-                            })
-                            ->encode('jpg', 80); // Adjust quality as needed
-                            $compressedImage->save($destinationPath . $student_image);
-                            $data->image = $student_image;
-                        }
-                
-                        if ($request->file('father_img')) {
-                            $image = $request->file('father_img');
-                            $father_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                            $destinationPath = env('IMAGE_UPLOAD_PATH') . 'father_image/';
-                            if (!file_exists($destinationPath)) {
-                                mkdir($destinationPath, 0755, true);
-                            }
-                            if (isset($data->father_image) && File::exists($destinationPath . $data->father_image)) {
-                                File::delete($destinationPath . $data->father_image);
-                            }
-                            $compressedImage = Image::make($image)
-                                ->resize(600, null, function ($constraint) {
-                                $constraint->aspectRatio();
-                                $constraint->upsize();
-                            })
-                            ->encode('jpg', 80); // Adjust quality as needed
-                            $compressedImage->save($destinationPath . $father_image);
-                            $data->father_img = $father_image;
-                        }
-                        if ($request->file('mother_img')) {
-                            $image = $request->file('mother_img');
-                            $mother_image = time() . uniqid() . '.' . $image->getClientOriginalExtension();
-                            $destinationPath = env('IMAGE_UPLOAD_PATH') . 'mother_image/';
-                            if (!file_exists($destinationPath)) {
-                                mkdir($destinationPath, 0755, true);
-                            }
-                            if (isset($data->mother_img) && File::exists($destinationPath . $data->mother_img)) {
-                                File::delete($destinationPath . $data->mother_img);
-                            }
-                            $compressedImage = Image::make($image)
-                            ->resize(600, null, function ($constraint) {
-                                $constraint->aspectRatio();
-                                $constraint->upsize();
-                            })
-                            ->encode('jpg', 80); // Adjust quality as needed
-                            $compressedImage->save($destinationPath . $mother_image);
-                            $data->mother_img = $mother_image;
-                        }
-                        /*if ($request->file('father_img')) {
-                            $image = $request->file('father_img');
-                            $path = $image->getRealPath();
-                            $father_image = time() . uniqid() . $image->getClientOriginalName();
-                            $destinationPath = env('IMAGE_UPLOAD_PATH') . 'father_image';
-                            $image->move($destinationPath, $father_image);
-                            $data->father_img = $father_image;
-                        }
-            
-                        if ($request->file('mother_img')) {
-                            $image = $request->file('mother_img');
-                            $path = $image->getRealPath();
-                            $mother_image = time() . uniqid() . $image->getClientOriginalName();
-                            $destinationPath = env('IMAGE_UPLOAD_PATH') . 'mother_image';
-                            $image->move($destinationPath, $mother_image);
-                            $data->mother_img = $mother_image;
-                        }*/
-                        $data->user_id = Session::get('id');
-                        $data->session_id = Session::get('session_id');
-                        $data->branch_id = Session::get('branch_id');
-                      //  $data->admissionNo = $request->admissionNo;
-                        $data->ledger_no = $request->ledger_no;
-                        //$data->school_name = $request->school_name;
-                        $data->roll_no = $request->roll_no;
-                        $data->admission_date = $request->admission_date;
-                        $data->admission_type_id = $request->admission_type_id;
-                        $data->rte_student = $request->rte_student;
-                        $data->class_type_id = $request->class_type_id;
-                        if(!empty($request->stream_subject)){
-                            $data->stream_subject = implode(',', $request->stream_subject);
-                        }
-                        $course_name = $request->course;
-                        if (empty($course_name) && !empty($request->class_type_id)) {
-                            $cType = ClassType::find($request->class_type_id);
-                            if ($cType && !empty($cType->course_id)) {
-                                $crs = \App\Models\Master\Course::find($cType->course_id);
-                                if ($crs) {
-                                    $course_name = $crs->name;
-                                }
-                            }
-                        }
-                        $data->course = $course_name;
-                        $data->student_type = $request->student_type;
-                        $data->batch = $request->batch;
-                        $data->first_name = $request->first_name;
-                        $data->last_name = $request->last_name;
-                        $data->aadhaar = $request->aadhaar;
-                        $data->jan_aadhaar = $request->jan_aadhaar;
-                        $data->previous_school = $request->previous_school;
-                        $data->email = $request->email;
-                        $data->mobile = $request->mobile;
-                        $data->father_name = $request->father_name;
-                        $data->mother_name = $request->mother_name;
-                        $data->father_mobile = $request->father_mobile;
-                        $data->dob = $request->dob;
-                        $data->gender_id = $request->gender_id;
-                        $data->admission_type_id = $request->admission_type_id;
-                        $data->blood_group = $request->blood_group;
-                        $data->medium = $request->medium;
-                        $data->address = $request->address;
-                        $data->country_id = $request->country;
-                        $data->village_city = $request->village_city;
-                        $data->family_id = $request->family_id;
-                        $data->srn = $request->srn;
-                        $data->religion = $request->religion;
-                        // $data->nationalty = $request->nationalty;
-                        $data->category = $request->category;
-                        $data->caste_category = $request->caste_category;
-                        $data->transport = $request->transport;
-                        $data->bus_number = $request->bus_number;
-                        $data->bus_route = $request->bus_route;
-                        $data->stoppage = $request->stoppage;
-                        $data->transpor_charges = $request->transpor_charges;
-                        $data->guardian_name = $request->guardian_name;
-                        $data->guardian_mobile = $request->guardian_mobile;
-                        $data->mother_mob = $request->mother_mob;
-                        $data->father_aadhaar = $request->father_aadhaar;
-                        $data->mother_aadhaar = $request->mother_aadhaar;
-                        $data->family_annual_income = $request->family_annual_income;
-                        $data->bank_account = $request->bank_account;
-                        $data->bank_name = $request->bank_name;
-                        $data->branch_name = $request->branch_name;
-                        $data->ifsc = $request->ifsc;
-                        $data->micr_code = $request->micr_code;
-                        $data->city_id = $request->city;
-                        $data->state_id = $request->state;
-                        $data->relation_student = $request->relation_student;
-                        $data->school_namestudied_last_year = $request->school_namestudied_last_year;
-                        $data->house = $request->house;
-                        $data->height = $request->height;
-                        $data->weight = $request->weight;
-                        $data->pincode = $request->pincode;
-                        $data->remark_1 = $request->remark_1;
-                        $data->bank_account_holder = $request->bank_account_holder;
-                        $data->optional_subject = $request->optional_subject;
-                        $data->urban = $request->urban;
-                        $data->district = $request->district;
-                        $data->tehsil = $request->tehsil;
-                        $data->father_pancard = $request->father_pancard;
-                        $data->mother_pancard = $request->mother_pancard;
-                        $data->income_tax_payee_father = $request->income_tax_payee_father;
-                        $data->income_tax_payee_mother = $request->income_tax_payee_mother;
-                        $data->bpl = $request->bpl;
-                        $data->bpl_certificate_no = $request->bpl_certificate_no;
-                        $data->father_occupation = $request->father_occupation;
-                        $data->mother_occupation = $request->mother_occupation;
-                        /*$session = Sessions::where('id',Session::get('session_id'))->first();
-                        $initials = substr($request->first_name, 0, 4);
-                        $birthYear = date('Y', strtotime($request->dob));
-                        $cleanedMobile = preg_replace('/[^0-9]/', '', $request->mobile);*/
-                        /*$username = 'Green_'.strtoupper($initials)  .'_'. substr($cleanedMobile, -4).'_'.$session->from_year;
-                        $data->userName = $username;
-                        $data->password = Hash::make('12345678');
-                        $data->confirm_password = '12345678';*/
-                        $data->save();
-                        $addadmission_id = $id;
-                        $this->unique_system_id($id);
-                        //     if($request->admission_type_id == 1){
-                        //     // $feesGroup = FeesAssign::where('admission_id', $id)->first();
-                        //     // if(!empty($feesGroup)){
-                        //     //     $feesGroup = $feesGroup;
-                        //     // }else{
-                        //     //     $feesGroup  = new FeesAssign();
-                        //     // }
-                        //     // $feesGroup->user_id = Session::get('id');
-                        //     // $feesGroup->session_id = Session::get('session_id');
-                        //     // $feesGroup->branch_id = Session::get('branch_id');
-                        //     // $feesGroup->admission_id = $addadmission_id;
-                        //     // // $feesGroup->total_amount = $request->total_amount;
-                        //     // //$feesGroup->dis_on_total_amt = $request->great_discount;
-                        //     // // $feesGroup->total_discount = $request->net_discount;
-                        //     // // $feesGroup->net_amount = $request->pay_amt;
-                        //     // $feesGroup->save();
-                        // //     $feesGroupId = $feesGroup->id;
-                        // //     $feesDetail_ids;
-                        // //   $fees_group_amount = 0;
-                        // //   $fees_group_discount = 0;
-                        // //  //  dd($request->unchecked);
-                        // //     if ($request->checked != "")
-                        // //     {
-                        // //         $checked_values = explode(',', $request->checked);
-                        // //         for ($count = 0; $count < count($request->fees_master_id); $count++) {
-                        // //             if (in_array($request->fees_master_id[$count], $checked_values))
-                        // //             {
-                        // //             // if (isset($request->fees_master_id[$count])) {
-                        // //                 $feesGroupDetail = FeesAssignDetail::where('fees_master_id',$request->fees_master_id[$count])->where('admission_id',$addadmission_id)->first();
-                        // //                 if(!empty($feesGroupDetail))
-                        // //                 {
-                        // //                      $feesDetail_ids[] = $request->fees_master_id[$count];
-                        // //                 $feesGroupDetail->user_id = Session::get('id');
-                        // //                 $feesGroupDetail->session_id = Session::get('session_id');
-                        // //                 $feesGroupDetail->branch_id = Session::get('branch_id');
-                        // //                 $feesGroupDetail->fees_group_id = $request->fees_group_id[$count];
-                        // //                 $feesGroupDetail->fees_group_amount = $request->fees_group_amount[$count];
-                        // //                 $fees_group_amount +=$request->fees_group_amount[$count];
-                        // //                 $feesGroupDetail->fees_master_id = $request->fees_master_id[$count];
-                        // //                 $feesGroupDetail->discount = $request->discount[$count];
-                        // //                 $fees_group_discount += $request->discount[$count];
-                        // //                 $feesGroupDetail->fees_breakdown = $request->fees_breakdown[$count];
-                        // //                 $feesGroupDetail->fees_assign_id = $feesGroupId;
-                        // //                 $feesGroupDetail->admission_id = $addadmission_id;
-                        // //                 $feesGroupDetail->save();
-                        // //                 }
-                        // //                 else
-                        // //                 {
-                        // //                 $feesDetails = new FeesAssignDetail;
-                        // //                 $feesDetails->user_id = Session::get('id');
-                        // //                 $feesDetails->session_id = Session::get('session_id');
-                        // //                 $feesDetails->branch_id = Session::get('branch_id');
-                        // //                 $feesDetails->fees_group_id = $request->fees_group_id[$count];
-                        // //                 $feesDetails->fees_group_amount = $request->fees_group_amount[$count];
-                        // //                 $feesDetails->class_type_id = $request->class_type_id ?? null;
-                        // //                 $fees_group_amount +=$request->fees_group_amount[$count];
-                        // //                 $feesDetails->fees_master_id = $request->fees_master_id[$count];
-                        // //                 $feesDetails->discount = $request->discount[$count];
-                        // //                 $fees_group_discount += $request->discount[$count];
-                        // //                 $feesDetails->fees_breakdown = $request->fees_breakdown[$count];
-                        // //                 $feesDetails->fees_assign_id = $feesGroupId;
-                        // //                 $feesDetails->admission_id = $addadmission_id;
-                        // //                 $feesDetails->save();
-                        // //                  $feesDetail_ids[] = $feesDetails->fees_master_id;
-                        // //                 }
-                        // //                 // }
-                        // //          }
-                        // //     }
-                        // //         }
-                        //         // if ($request->unchecked != "")
-                        //         // {
-                        //         //       $unchecked_values = explode(',', $request->unchecked);
-                        //         // foreach($unchecked_values as $id) 
-                        //         //  {
-                        //         //   $feesDetailsDataForDelete = FeesAssignDetail::where('admission_id',$addadmission_id)->where('fees_master_id',$id)->delete();    
-                        //         //  }  
-                        //         // }
-                        //         // $feesGroup->total_amount =$fees_group_amount;
-                        //         // $feesGroup->total_discount = $fees_group_discount;
-                        //         // $feesGroup->net_amount = $fees_group_amount-$fees_group_discount;
-                        //         //   $feesGroup->save();
-                        //     }
-                        //     else if($request->admission_type_id == 2)
-                        //     {
-                        //          FeesAssignDetail::where('admission_id',$id)->delete();  
-                        //          FeesAssign::where('admission_id',$id)->delete();  
-                        //          FeesCollect::where('admission_id',$id)->delete();  
-                        //          FeesDetail::where('admission_id',$id)->delete();  
-                        //     }
+                if (!$data) {
+                    return redirect::to('admissionView')->with('error', 'Student record not found.');
+                }
+
+                if ($request->isMethod('post')) {
+                    if ($request->file('student_img')) {
+                        $data->image = $this->handleStudentImageUpload($request->file('student_img'), 'profile', $data->image);
+                    }
+                    if ($request->file('father_img')) {
+                        $data->father_img = $this->handleStudentImageUpload($request->file('father_img'), 'father_image', $data->father_img);
+                    }
+                    if ($request->file('mother_img')) {
+                        $data->mother_img = $this->handleStudentImageUpload($request->file('mother_img'), 'mother_image', $data->mother_img);
+                    }
+
+                    $this->mapAdmissionAttributes($data, $request, true);
+                    $data->save();
+
+                    $this->unique_system_id($id);
+
+                    if (empty($request->update)) {
+                        return redirect::to('admissionView')->with('message', 'Admission Updated Successfully !');
+                    } else {
                         $value = Session::get('update_n_next_value');
-                        if($request->update == ""){
-                            
-                            return redirect::to('admissionView')->with('message', 'Admission Updated Successfully !');
-                        }else{
-                            session()->put('update_n_next_value', $value.','.$addadmission_id);
-                            session()->save();
-                            $updated_id = explode(',',Session::get('update_n_next_value'));
-                            $next_id = Admission::whereNotIn('id',$updated_id)->where('class_type_id',$request->class_type_id)
-                            ->where('session_id',Session::get('session_id'))
-                            ->where('branch_id',Session::get('branch_id'))
-                            ->get();
-                        if(count($next_id) > 0){
-                            return redirect::to('admissionEdit/'.$next_id[0]->id ?? '')->with('message', 'Admission Edit For : '.$next_id[0]->first_name ?? '');
-                        }
-                        else{
+                        session()->put('update_n_next_value', $value . ',' . $id);
+                        session()->save();
+                        $updated_id = explode(',', Session::get('update_n_next_value'));
+                        $next_id = Admission::whereNotIn('id', $updated_id)
+                            ->where('class_type_id', $request->class_type_id)
+                            ->where('session_id', Session::get('session_id'))
+                            ->where('branch_id', Session::get('branch_id'))
+                            ->first();
+
+                        if (!empty($next_id)) {
+                            return redirect::to('admissionEdit/' . $next_id->id)->with('message', 'Admission Edit For : ' . ($next_id->first_name ?? ''));
+                        } else {
                             return redirect::to('admissionView')->with('error', 'No more students for update in this class!');
                         }
                     }
                 }
-                $getstate = State::where('country_id', $data['country_id'])->get();
-                $getcitie = City::where('state_id', $data['state_id'])->get();
-                   return view('students.admission.edit', ['data' => $data, 'getState' => $getstate, 'getCity' => $getcitie]);
+
+                $getstate = State::where('country_id', $data->country_id ?? 0)->get();
+                $getcitie = City::where('state_id', $data->state_id ?? 0)->get();
+
+                return view('students.admission.add', [
+                    'data' => $data,
+                    'getState' => $getstate,
+                    'getCity' => $getcitie,
+                    'BillCounter' => $data->admissionNo ?? $data->id,
+                    'isEdit' => true
+                ]);
             }
 
             public function admissionDelete(Request $request){
@@ -1302,14 +1061,108 @@ class StudentsAdmissionController extends Controller
                 ->leftjoin('countries','countries.id','admissions.country_id')
                 ->leftjoin('states','states.id','admissions.state_id')
                 ->leftjoin('citys','citys.id','admissions.city_id')
-                ->with('ClassTypes')->find($id);
-                $feesassiggn=FeesAssign::where('admission_id',$id)->get()->first();
-                $feesDetail = FeesDetail::with('PaymentMode')
-                ->with('FeesCollect')
-                ->where('admission_id', $id)
-                ->where('branch_id', Session::get('branch_id'))
-                ->get();
-                return view('students.admission.studentDetail', ['data' => $studentDetail, 'feesDetail' => $feesDetail,'assignfees'=>$feesassiggn]);
+                ->with(['ClassTypes', 'Gender', 'Branch'])->find($id);
+
+                if (!$studentDetail) {
+                    return redirect('admissionView')->with('error', 'Student not found!');
+                }
+
+                $feesassiggn = null;
+                try {
+                    $feesassiggn = FeesAssign::where('admission_id', $id)->first();
+                } catch (\Exception $e) {}
+
+                $assignedFeeDetails = collect();
+                try {
+                    $assignedFeeDetails = DB::table('fees_assign_details')
+                        ->leftJoin('fees_group', 'fees_group.id', '=', 'fees_assign_details.fees_group_id')
+                        ->where('fees_assign_details.admission_id', $id)
+                        ->whereNull('fees_assign_details.deleted_at')
+                        ->select('fees_assign_details.*', 'fees_group.name as group_name')
+                        ->get();
+                } catch (\Exception $e) {}
+
+                $feesDetail = collect();
+                try {
+                    $feesDetail = FeesDetail::with(['PaymentMode', 'FeesCollect'])
+                        ->where('admission_id', $id)
+                        ->where('branch_id', Session::get('branch_id'))
+                        ->orderBy('date', 'DESC')
+                        ->orderBy('id', 'DESC')
+                        ->get();
+                } catch (\Exception $e) {}
+
+                $attendanceStats = (object)[
+                    'total_days' => 0,
+                    'present_days' => 0,
+                    'absent_days' => 0,
+                    'leave_days' => 0,
+                    'half_days' => 0,
+                    'holiday_days' => 0,
+                    'event_days' => 0
+                ];
+                try {
+                    $stats = DB::table('student_attendance')
+                        ->where('admission_id', $id)
+                        ->where('session_id', Session::get('session_id'))
+                        ->selectRaw('
+                            COUNT(id) as total_days,
+                            SUM(CASE WHEN attendance_status_id = 1 THEN 1 ELSE 0 END) as present_days,
+                            SUM(CASE WHEN attendance_status_id = 2 THEN 1 ELSE 0 END) as absent_days,
+                            SUM(CASE WHEN attendance_status_id = 3 THEN 1 ELSE 0 END) as leave_days,
+                            SUM(CASE WHEN attendance_status_id = 4 THEN 1 ELSE 0 END) as half_days,
+                            SUM(CASE WHEN attendance_status_id = 5 THEN 1 ELSE 0 END) as holiday_days,
+                            SUM(CASE WHEN attendance_status_id IN (13, 14) THEN 1 ELSE 0 END) as event_days
+                        ')
+                        ->first();
+                    if ($stats) {
+                        $attendanceStats = $stats;
+                    }
+                } catch (\Exception $e) {}
+
+                $recentAttendance = collect();
+                try {
+                    $recentAttendance = DB::table('student_attendance')
+                        ->leftJoin('attendance_status', 'attendance_status.id', '=', 'student_attendance.attendance_status_id')
+                        ->where('student_attendance.admission_id', $id)
+                        ->where('student_attendance.session_id', Session::get('session_id'))
+                        ->select('student_attendance.date', 'student_attendance.attendance_status_id', 'attendance_status.name as status_name')
+                        ->orderBy('student_attendance.date', 'DESC')
+                        ->limit(20)
+                        ->get();
+                } catch (\Exception $e) {}
+
+                $streamSubjectsList = [];
+                try {
+                    if (!empty($studentDetail->class_type_id)) {
+                        $streamSubjectsList = Helper::getStreamSubjects($studentDetail->class_type_id);
+                    }
+                } catch (\Exception $e) {}
+
+                $libraryDetails = collect();
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('library_assign')) {
+                        $libQuery = DB::table('library_assign')->where('library_assign.admission_id', $id)->whereNull('library_assign.deleted_at');
+                        if (\Illuminate\Support\Facades\Schema::hasTable('library_cabins')) {
+                            $libQuery->leftJoin('library_cabins', 'library_cabins.id', '=', 'library_assign.cabin_id')
+                                     ->select('library_assign.*', 'library_cabins.name as cabin_name');
+                        } else {
+                            $libQuery->select('library_assign.*');
+                        }
+                        $libraryDetails = $libQuery->get();
+                    }
+                } catch (\Exception $e) {}
+
+                return view('students.admission.studentDetail', [
+                    'data' => $studentDetail,
+                    'feesDetail' => $feesDetail,
+                    'assignfees' => $feesassiggn,
+                    'assignedFeeDetails' => $assignedFeeDetails,
+                    'attendanceStats' => $attendanceStats,
+                    'recentAttendance' => $recentAttendance,
+                    'streamSubjectsList' => $streamSubjectsList,
+                    'libraryDetails' => $libraryDetails
+                ]);
             }
     
             public function multiAdmissionEdit(Request $request){
@@ -1623,29 +1476,45 @@ class StudentsAdmissionController extends Controller
         {
             $search = [
                 'course' => $request->course,
+                'batch' => $request->batch,
                 'class_type_id' => $request->class_type_id,
                 'admissionNo' => $request->admissionNo,
                 'name' => $request->name,
                 'status' => $request->status,
+                'session_id' => $request->session_id ?? '',
             ];
-            $query = Admission::select('admissions.*', 'class.name as class_name')
-                ->leftJoin('class_types as class', 'class.id', '=', 'admissions.class_type_id')
-                ->where('admissions.branch_id', Session::get('branch_id'))
-                ->where('admissions.session_id', Session::get('session_id'))
+            $baseQuery = Admission::where('admissions.branch_id', Session::get('branch_id'))
                 ->where('admissions.status', '1');
                 
+            if (!empty($search['session_id'])) {
+                $baseQuery->where('admissions.session_id', $search['session_id']);
+            }
             if (!empty($search['course'])) {
-                $query->where('admissions.course', $search['course']);
+                $courseName = $search['course'];
+                $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                $courseClassIds = [];
+                if ($courseObj) {
+                    $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+                }
+                $baseQuery->where(function($q) use ($courseName, $courseClassIds) {
+                    $q->where('admissions.course', $courseName);
+                    if (!empty($courseClassIds)) {
+                        $q->orWhereIn('admissions.class_type_id', $courseClassIds);
+                    }
+                });
+            }
+            if (!empty($search['batch'])) {
+                $baseQuery->where('admissions.batch', $search['batch']);
             }
             if (!empty($search['class_type_id'])) {
-                $query->where('admissions.class_type_id', $search['class_type_id']);
+                $baseQuery->where('admissions.class_type_id', $search['class_type_id']);
             }
             if (!empty($search['admissionNo'])) {
-                $query->where('admissions.admissionNo', $search['admissionNo']);
+                $baseQuery->where('admissions.admissionNo', 'like', '%' . $search['admissionNo'] . '%');
             }
             if (!empty($search['name'])) {
                 $value = $search['name'];
-                $query->where(function($q) use ($value) {
+                $baseQuery->where(function($q) use ($value) {
                     $q->where('admissions.first_name', 'like', '%' . $value . '%')
                       ->orWhere('admissions.last_name', 'like', '%' . $value . '%')
                       ->orWhere('admissions.father_name', 'like', '%' . $value . '%')
@@ -1654,18 +1523,68 @@ class StudentsAdmissionController extends Controller
                       ->orWhere('admissions.email', 'like', '%' . $value . '%');
                 });
             }
+
+            // Calculate overall metrics from baseQuery matching filters (before status filter)
+            $totalStudents = (clone $baseQuery)->count();
+            $generatedCount = (clone $baseQuery)->whereNotNull('admissions.userName')->where('admissions.userName', '!=', '')->count();
+            $pendingCount = $totalStudents - $generatedCount;
+
+            // Apply status filter to the query
             if (!empty($search['status'])) {
-                if ($search['status'] == 'generated') {
-                    $query->whereNotNull('admissions.userName')->where('admissions.userName', '!=', '');
-                } elseif ($search['status'] == 'pending') {
-                    $query->where(function($q) {
+                if ($search['status'] == 'generated' || $search['status'] === '1') {
+                    $baseQuery->whereNotNull('admissions.userName')->where('admissions.userName', '!=', '');
+                } elseif ($search['status'] == 'pending' || $search['status'] === '0') {
+                    $baseQuery->where(function($q) {
                         $q->whereNull('admissions.userName')->orWhere('admissions.userName', '');
                     });
                 }
             }
-            
-            $data = $query->orderBy('admissions.first_name', 'ASC')->get();
-            return view('students.login_credential.view', ['search' => $search, 'data' => $data]);
+
+            $perPage = $request->get('per_page', 25);
+            if ($perPage === 'all' || $perPage == -1) {
+                $perPage = 1000;
+            } else {
+                $perPage = (int) $perPage;
+                if ($perPage <= 0) $perPage = 25;
+            }
+
+            $query = $baseQuery->select('admissions.*', 'class.name as class_name')
+                ->leftJoin('class_types as class', 'class.id', '=', 'admissions.class_type_id')
+                ->orderBy('admissions.first_name', 'ASC');
+
+            $data = $query->paginate($perPage)->appends($request->all());
+
+            if ($request->ajax()) {
+                $tbodyHtml = view('students.login_credential.table_rows', [
+                    'data' => $data,
+                    'search' => $search
+                ])->render();
+
+                $paginationHtml = view('students.login_credential.pagination', [
+                    'data' => $data
+                ])->render();
+
+                return response()->json([
+                    'status' => 'success',
+                    'html' => $tbodyHtml,
+                    'pagination' => $paginationHtml,
+                    'total' => $data->total(),
+                    'from' => $data->firstItem() ?? 0,
+                    'to' => $data->lastItem() ?? 0,
+                    'count' => $data->count(),
+                    'total_students' => $totalStudents,
+                    'generated_count' => $generatedCount,
+                    'pending_count' => $pendingCount
+                ]);
+            }
+
+            return view('students.login_credential.view', [
+                'search' => $search, 
+                'data' => $data,
+                'totalStudents' => $totalStudents,
+                'generatedCount' => $generatedCount,
+                'pendingCount' => $pendingCount
+            ]);
         }
 
         public function studentUserNameCreate(Request $request)
@@ -1690,7 +1609,6 @@ class StudentsAdmissionController extends Controller
                 ->leftJoin('class_types as class', 'class.id', '=', 'admissions.class_type_id')
                 ->whereIn('admissions.id', $ids)
                 ->where('admissions.branch_id', Session::get('branch_id'))
-                ->where('admissions.session_id', Session::get('session_id'))
                 ->get();
         
             foreach ($students as $student) {
@@ -1743,7 +1661,6 @@ class StudentsAdmissionController extends Controller
             ]);
 
             $student = Admission::where('branch_id', Session::get('branch_id'))
-                ->where('session_id', Session::get('session_id'))
                 ->find($request->student_id);
 
             if (!$student) {
@@ -1812,19 +1729,26 @@ class StudentsAdmissionController extends Controller
         {
             $course_name = $request->course;
             $course_id = $request->course_id;
+            $batch = $request->batch;
             $branch_id = Session::get('branch_id') ?? Session::get('admin_branch_id');
-            $session_id = Session::get('session_id');
+
+            $session_id = null;
+            if (!empty($batch)) {
+                $sessionObj = Sessions::where('from_year', $batch)->orWhere('from_year', 'like', $batch . '%')->first();
+                if ($sessionObj) {
+                    $session_id = $sessionObj->id;
+                }
+            }
+            if (empty($session_id) && !$request->has('ignore_session')) {
+                $session_id = $request->session_id ?: Session::get('session_id');
+            }
 
             $query = ClassType::query();
             if (!empty($branch_id)) {
                 $query->where('branch_id', $branch_id);
             }
             if (!empty($session_id)) {
-                $query->where(function($q) use ($session_id) {
-                    $q->where('session_id', $session_id)
-                      ->orWhereNull('session_id')
-                      ->orWhere('session_id', 0);
-                });
+                $query->where('session_id', $session_id);
             }
 
             if (!empty($course_id)) {
@@ -1868,7 +1792,154 @@ class StudentsAdmissionController extends Controller
             }
 
             $classes = $query->orderBy('orderBy', 'ASC')->orderBy('id', 'ASC')->get();
+            $classes = $classes->unique('name')->values();
             return response()->json($classes);
+        }
+
+        public function sendStudentPushNotification(Request $request)
+        {
+            $request->validate([
+                'admission_ids' => 'required|array',
+                'title' => 'required|string|max:150',
+                'message' => 'required|string|max:1000',
+            ]);
+
+            $admissionIds = $request->admission_ids;
+            $title = $request->title;
+            $message = $request->message;
+
+            $response = Helper::sendNotification(
+                $title,
+                $message,
+                'student',
+                $admissionIds,
+                null,
+                null,
+                [
+                    'notification_type' => 'student_notification',
+                    'title' => $title,
+                    'body' => $message
+                ],
+                'high'
+            );
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Push notifications sent successfully!',
+                'result' => $response
+            ]);
+        }
+
+        /**
+         * Calculate the next real-time admission number for a selected course.
+         */
+        public static function generateNextAdmissionNo($courseName, $courseId = null)
+        {
+            if (empty($courseName) && empty($courseId)) {
+                return '';
+            }
+
+            $classTypeIds = [];
+            if (!empty($courseId)) {
+                $classTypeIds = ClassType::where('course_id', $courseId)->pluck('id')->toArray();
+                if (empty($courseName)) {
+                    $courseObj = \App\Models\Master\Course::find($courseId);
+                    if ($courseObj) {
+                        $courseName = $courseObj->name;
+                    }
+                }
+            } elseif (!empty($courseName)) {
+                $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                if ($courseObj) {
+                    $courseId = $courseObj->id;
+                    $classTypeIds = ClassType::where('course_id', $courseId)->pluck('id')->toArray();
+                }
+            }
+
+            $query = Admission::query()
+                ->whereNotNull('admissionNo')
+                ->where('admissionNo', '!=', '');
+
+            $query->where(function ($q) use ($courseName, $classTypeIds) {
+                $hasCondition = false;
+                if (!empty($courseName)) {
+                    $q->where('course', $courseName)
+                      ->orWhere('course', 'like', $courseName . '%');
+                    $hasCondition = true;
+                }
+                if (!empty($classTypeIds)) {
+                    $q->orWhereIn('class_type_id', $classTypeIds);
+                    $hasCondition = true;
+                }
+                if (!$hasCondition) {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+
+            $admissionNos = $query->pluck('admissionNo');
+
+            $prefixCounts = [];
+            $numbersByPrefix = [];
+
+            foreach ($admissionNos as $admNo) {
+                $admNo = trim($admNo);
+                if (preg_match('/^([a-zA-Z0-9\.\s_-]+[\/\-_])(\d+)$/', $admNo, $matches)) {
+                    $prefix = strtoupper($matches[1]);
+                    $num = (int)$matches[2];
+
+                    $prefixCounts[$prefix] = ($prefixCounts[$prefix] ?? 0) + 1;
+                    if (!isset($numbersByPrefix[$prefix]) || $num > $numbersByPrefix[$prefix]) {
+                        $numbersByPrefix[$prefix] = $num;
+                    }
+                } elseif (preg_match('/^([a-zA-Z\.\s_-]+)(\d+)$/', $admNo, $matches)) {
+                    $prefix = strtoupper($matches[1]) . '/';
+                    $num = (int)$matches[2];
+
+                    $prefixCounts[$prefix] = ($prefixCounts[$prefix] ?? 0) + 1;
+                    if (!isset($numbersByPrefix[$prefix]) || $num > $numbersByPrefix[$prefix]) {
+                        $numbersByPrefix[$prefix] = $num;
+                    }
+                }
+            }
+
+            if (!empty($prefixCounts)) {
+                arsort($prefixCounts);
+                $dominantPrefix = array_key_first($prefixCounts);
+                $maxNum = $numbersByPrefix[$dominantPrefix] ?? 0;
+                $cleanPrefix = rtrim($dominantPrefix, '/') . '/';
+                return $cleanPrefix . ($maxNum + 1);
+            }
+
+            $cleanCourse = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$courseName));
+            if (empty($cleanCourse)) {
+                $cleanCourse = 'ADM';
+            }
+            return $cleanCourse . '/1';
+        }
+
+        /**
+         * AJAX endpoint to retrieve the next admission number dynamically.
+         */
+        public function getNextAdmissionNo(Request $request)
+        {
+            $courseName = $request->course;
+            $courseId = $request->course_id;
+
+            if (empty($courseName) && empty($courseId)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Course is required',
+                    'admissionNo' => ''
+                ]);
+            }
+
+            $admissionNo = self::generateNextAdmissionNo($courseName, $courseId);
+
+            return response()->json([
+                'status' => 'success',
+                'admissionNo' => $admissionNo,
+                'course' => $courseName
+            ]);
         }
 
     }

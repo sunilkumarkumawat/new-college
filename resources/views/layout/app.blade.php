@@ -1,5 +1,5 @@
 @php
-$setting = DB::table('settings')->where('branch_id',Session::get('branch_id'))->get()->first();
+$setting = DB::table('settings')->where('branch_id', Session::get('branch_id') ?: 1)->first() ?: DB::table('settings')->first();
 @endphp
 
 <!DOCTYPE html>
@@ -13,25 +13,16 @@ $setting = DB::table('settings')->where('branch_id',Session::get('branch_id'))->
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/adminlte.min.css') }}">    
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/all.min.css') }}">
-        <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/tempusdominus-bootstrap-4.min.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/icheck-bootstrap.min.css') }}">
-        <link rel="stylesheet" href="{{ asset('public/assets/school/css/jqvmap.min.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/mobilescreen.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/OverlayScrollbars.min.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/daterangepicker.css') }}">
-        <!--<link rel="stylesheet" href="{{ asset('public/assets/school/css/summernote-bs4.min.css') }}">-->
-        <link rel="stylesheet" href="{{ asset('public/assets/school/css/dataTables.bootstrap4.css') }}">
-        <!--<link rel="stylesheet" href="{{ asset('public/assets/school/css/responsive.bootstrap4.css') }}">-->
-        <link rel="stylesheet" href="{{ asset('public/assets/school/css/buttons.bootstrap4.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/common.css') }}">
-        <link rel="stylesheet" href="{{ asset('public/assets/school/css/richtexteditor.css') }}" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">     
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/select2.min.css') }}">
         <link rel="stylesheet" href="{{ asset('public/assets/school/css/select2-bootstrap4.min.css') }}">
-        <!--<link rel="stylesheet" href="https://adminlte.io/themes/v3/plugins/summernote/summernote-bs4.min.css">    -->
-    <script src="{{URL::asset('public/assets/school/js/jquery.min.js')}}"></script>
-        <!--<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>-->
+        <script src="{{URL::asset('public/assets/school/js/jquery.min.js')}}"></script>
         <script src="{{URL::asset('public/assets/school/js/form/submit-form.js')}}"></script>
     </head>
     <style>
@@ -75,9 +66,19 @@ $setting = DB::table('settings')->where('branch_id',Session::get('branch_id'))->
     
     
     @php
-    $cur_route = Route::getFacadeRoot()->current()->uri();
+    $cur_route = Route::getFacadeRoot()->current() ? Route::getFacadeRoot()->current()->uri() : '';
     @endphp
-    <body class="sidebar-mini layout-fixed sidebar-collapse">
+    <body class="sidebar-mini layout-fixed layout-navbar-fixed sidebar-no-expand">
+        <script>
+            (function() {
+                var sidebarState = localStorage.getItem('sidebar_state');
+                if (sidebarState === 'collapsed') {
+                    document.body.classList.add('sidebar-collapse');
+                } else if (sidebarState === 'expanded') {
+                    document.body.classList.remove('sidebar-collapse');
+                }
+            })();
+        </script>
         <div class="wrapper">
             @include('layout.header')
             @if(Session()->get('role_id') ==3)
@@ -88,89 +89,24 @@ $setting = DB::table('settings')->where('branch_id',Session::get('branch_id'))->
             @include('layout.message')
             @yield('content')
             @include('layout.footer')
-            <script>
-                /*$.ajaxSetup({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                });*/
-                //var URL  = "{{ url('/') }}";
-            </script>
             
             <script src="{{URL::asset('public/assets/school/js/jquery-ui.min.js')}}"></script>
             <script>
                 $.widget.bridge('uibutton', $.ui.button)
             </script>
-            <script src="{{URL::asset('public/assets/school/js/jquery.dataTables.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/dataTables.bootstrap4.js')}}"></script>
-            <!--<script src="{{URL::asset('public/assets/school/js/dataTables.responsive.js')}}"></script>-->
             <script src="{{URL::asset('public/assets/school/js/bootstrap.bundle.min.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/Chart.min.js')}}"></script>
-            <!--<script src="{{URL::asset('public/assets/school/js/sparkline.js')}}"></script>-->
-            <script src="{{URL::asset('public/assets/school/js/jquery.vmap.min.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/jquery.vmap.usa.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/jquery.knob.min.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/moment.min.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/daterangepicker.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/tempusdominus-bootstrap-4.min.js')}}"></script>
-            <!--<script src="{{URL::asset('public/assets/school/js/summernote-bs4.min.js')}}"></script>-->
             <script src="{{URL::asset('public/assets/school/js/jquery.overlayScrollbars.min.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/pdfmake.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/demo.js')}}"></script>
-            <!--<script src="{{URL::asset('public/assets/school/js/dashboard.js')}}"></script>-->
             <script src="{{URL::asset('public/assets/school/js/bootstrap5.js')}}"></script>   
-            
-            <!--<script src="{{URL::asset('public/assets/school/js/ckediter.js')}}"></script>-->
-<!--            <script src="{{URL::asset('public/assets/school/js/responsive.bootstrap4.js')}}"></script>
--->            <script src="{{URL::asset('public/assets/school/js/dataTables.buttons.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/buttons.bootstrap4.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/buttons.html5.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/buttons.print.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/buttons.colVis.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/jquery.validate.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/additional-methods.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/adminlte.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/toastr.min.js')}}"></script>
             <script src="{{URL::asset('public/assets/school/js/select2.full.min.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/jszip.min.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/vfs_fonts.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/richtexteditor.js')}}"></script>
-            <script src="{{URL::asset('public/assets/school/js/richtexteditor_all_plugins.js')}}"></script>
-
-            <!--<script nonce="13793727-1378-4506-ac7e-88e6851a25a2">(function(w,d){!function(a,e,t,r){a.zarazData=a.zarazData||{},a.zarazData.executed=[],a.zaraz={deferred:[]},a.zaraz.q=[],a.zaraz._f=function(e){return function(){var t=Array.prototype.slice.call(arguments);a.zaraz.q.push({m:e,a:t})}};for(const e of["track","set","ecommerce","debug"])a.zaraz[e]=a.zaraz._f(e);a.zaraz.init=()=>{var t=e.getElementsByTagName(r)[0],z=e.createElement(r),n=e.getElementsByTagName("title")[0];for(n&&(a.zarazData.t=e.getElementsByTagName("title")[0].text),a.zarazData.x=Math.random(),a.zarazData.w=a.screen.width,a.zarazData.h=a.screen.height,a.zarazData.j=a.innerHeight,a.zarazData.e=a.innerWidth,a.zarazData.l=a.location.href,a.zarazData.r=e.referrer,a.zarazData.k=a.screen.colorDepth,a.zarazData.n=e.characterSet,a.zarazData.o=(new Date).getTimezoneOffset(),a.zarazData.q=[];a.zaraz.q.length;){const e=a.zaraz.q.shift();a.zarazData.q.push(e)}z.defer=!0;for(const e of[localStorage,sessionStorage])Object.keys(e||{}).filter((a=>a.startsWith("_zaraz_"))).forEach((t=>{try{a.zarazData["z_"+t.slice(7)]=JSON.parse(e.getItem(t))}catch{a.zarazData["z_"+t.slice(7)]=e.getItem(t)}}));z.referrerPolicy="origin",z.src="/cdn-cgi/zaraz/s.js?z="+btoa(encodeURIComponent(JSON.stringify(a.zarazData))),t.parentNode.insertBefore(z,t)},["complete","interactive"].includes(e.readyState)?zaraz.init():a.addEventListener("DOMContentLoaded",zaraz.init)}(w,d,0,"script");})(window,document);</script>-->
     
         <script type="text/javascript">
-        
-            $(function () {
-                $("#example1").DataTable({
-                  "lengthChange": true, "autoWidth": false,
-                  "lengthMenu": [[10, 20, 50, 100, 200, 500, -1], [10, 20, 50, 100, 200, 500, 'All']],
-                 "buttons": ["copy", "csv",  {
-                            extend: "excelHtml5",
-                            text: "Excel",
-                            footer: true 
-                     }, "pdf", "print"
-                
-                 ]
-                }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
-                $('#example2').DataTable({
-                  "paging": true,
-                  "lengthChange": false,
-                  "searching": true,
-                  "ordering": true,
-                  "info": true,
-                  "autoWidth": false,
-                //   "responsive": true,
-                });
-            });
-            
-            $(document).ready(function(){
-                if ($(window).width() < 400) {
-                    $('#example1').addClass('table-responsive nowrap');
-                    $("#example1 tr td").css('padding', '10px');
-                }
-            });
-            
             function isNumber(evt){
                  var charCode = (evt.which) ? evt.which : event.keyCode
                  if (charCode > 31 && (charCode < 48 || charCode > 57))
@@ -186,10 +122,6 @@ $setting = DB::table('settings')->where('branch_id',Session::get('branch_id'))->
                   theme: 'bootstrap4'
                 })
             
-            })
-            
-            $(function () {
-               // $('#compose-textarea').summernote()
             })
             
             var calendarElement = $('<div>', {});
@@ -319,6 +251,26 @@ var interval = setInterval(function() {
         // }
         
     });
+
+// Synchronize and persist sidebar toggle state across all page redirects
+$(document).ready(function() {
+    $(document).on('collapsed.lte.pushmenu', function() {
+        localStorage.setItem('sidebar_state', 'collapsed');
+    });
+    $(document).on('shown.lte.pushmenu', function() {
+        localStorage.setItem('sidebar_state', 'expanded');
+    });
+
+    $(document).on('click', '[data-widget="pushmenu"]', function() {
+        setTimeout(function() {
+            if ($('body').hasClass('sidebar-collapse')) {
+                localStorage.setItem('sidebar_state', 'collapsed');
+            } else {
+                localStorage.setItem('sidebar_state', 'expanded');
+            }
+        }, 150);
+    });
+});
 </script>
 
 <script>

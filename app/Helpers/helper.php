@@ -12,7 +12,6 @@ use App\Models\fees\FeesCounter;
 use App\Models\User;
 use App\Models\SidebarSub;
 use App\Models\FailedMessages;
-use App\Models\Teacher;
 use App\Models\Admission;
 use App\Models\exam\digital\ChapterDigital;
 use App\Models\exam\digital\ExamResultDigital;
@@ -113,6 +112,8 @@ use App\Models\library\LibraryAssign;
 use App\Models\library\LibraryTimeSlot;
 use App\Models\ToDoList;
 use App\Models\MessageQueue;
+use App\Models\NotificationToken;
+use App\Services\FcmDirectService;
 use DateTime;
 use Response;
 use Illuminate\Support\Facades\Http;
@@ -131,6 +132,127 @@ class Helper{
    
     } 
     
+    public static function sendNotification($title, $body, $type = 'student', $ids = null, $image = null, $icon = null, $data = [], $priority = 'high')
+    {
+        if ($type === 'firebase') {
+            return self::sendFirebaseNotification($title, $body, $ids, $data, $priority, $image);
+        }
+
+        $query = NotificationToken::where('platform', 'android');
+        if ($type === 'student') {
+            $column = 'admission_id';
+        } elseif ($type === 'user') {
+            $column = 'user_id';
+        } else {
+            return ['success' => false, 'message' => 'Invalid type specified.'];
+        }
+
+        if (is_array($ids) && !empty($ids)) {
+            $query->whereIn($column, $ids);
+        } elseif (is_numeric($ids)) {
+            $query->where($column, $ids);
+        }
+
+        $tokens = $query->pluck('device_token')->filter()->unique()->values()->all();
+        if (empty($tokens)) {
+            return ['success' => true, 'skipped' => true, 'message' => 'No device tokens found.'];
+        }
+
+        $payloadData = is_array($data) ? $data : [];
+        $payloadData = array_merge(['customKey' => 'customValue'], $payloadData);
+
+        if (!empty($icon)) {
+            $payloadData['icon'] = (string) $icon;
+        }
+        if (!empty($image)) {
+            $payloadData['image'] = (string) $image;
+        }
+
+        $channelType = null;
+        foreach (['notification_type', 'notificationType', 'channel_id', 'channelId', 'type'] as $key) {
+            if (!isset($payloadData[$key]) || !is_string($payloadData[$key])) {
+                continue;
+            }
+            $candidate = str_replace([' ', '-'], '_', strtolower(trim($payloadData[$key])));
+            if ($candidate !== '') {
+                $channelType = $candidate;
+                break;
+            }
+        }
+
+        if (!empty($channelType)) {
+            $payloadData['notification_type'] = $channelType;
+            $payloadData['channel_id'] = $payloadData['channel_id'] ?? $channelType;
+            $payloadData['channelId'] = $payloadData['channelId'] ?? $channelType;
+        }
+
+        return self::sendFirebaseNotification($title, $body, $tokens, $payloadData, $priority, $image);
+    }
+
+    public static function sendFirebaseNotification($title, $body, $token, $data = [], $priority = 'high', $image = null)
+    {
+        $data = is_array($data) ? $data : [];
+        $tokens = is_array($token) ? $token : [$token];
+        $tokens = array_values(array_unique(array_filter(array_map(function ($item) {
+            if (is_object($item)) {
+                return trim((string) ($item->token ?? $item->device_token ?? ''));
+            }
+            return trim((string) $item);
+        }, $tokens))));
+
+        $data = array_map(function ($value) {
+            if (is_bool($value)) {
+                return $value ? 'true' : 'false';
+            }
+            if (is_scalar($value) || $value === null) {
+                return (string) $value;
+            }
+            return json_encode($value);
+        }, $data);
+
+        if (empty($tokens)) {
+            return ['success' => false, 'message' => 'No FCM token found.'];
+        }
+
+        $fcmService = new FcmDirectService();
+        $responses = [];
+        $failures = [];
+
+        foreach ($tokens as $fcmToken) {
+            $result = $fcmService->send($fcmToken, $data, $priority, $title, $body, $image);
+            $responses[] = ['token' => $fcmToken, 'result' => $result];
+
+            if (empty($result['success'])) {
+                $firebaseDetails = $result['firebase_details'] ?? [];
+                $firebaseErrorCode = $firebaseDetails['details'][0]['errorCode'] ?? null;
+                if ($firebaseErrorCode === 'UNREGISTERED') {
+                    NotificationToken::where('device_token', $fcmToken)->delete();
+                }
+                $failures[] = [
+                    'token' => $fcmToken,
+                    'error' => $result['error'] ?? 'Failed to send notification via Firebase.',
+                    'firebase_details' => $firebaseDetails ?: null,
+                ];
+            }
+        }
+
+        if (!empty($failures)) {
+            return [
+                'success' => false,
+                'message' => 'One or more notifications failed via Firebase.',
+                'failed' => $failures,
+                'data' => $responses,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Notification sent successfully via Firebase.',
+            'data' => $responses,
+            'message_id' => $responses[0]['result']['message_id'] ?? null,
+        ];
+    }
+
     public static function checkPayUTxnStatus($txnid){
 
         $key = env('PAYU_MERCHANT_KEY');
@@ -1021,14 +1143,14 @@ $params = json_decode($item->params, true);
    }
     
    
-   public static function classType($course = null){
+   public static function classType($course = null, $ignoreSession = false){
     $branch_id = Session::get('branch_id');
     $session_id = Session::get('session_id');
     $getTypeclass = ClassType::with('course')->orderBy('orderBy', 'ASC');
     if (!empty($branch_id)) {
         $getTypeclass->where('branch_id', $branch_id);
     }
-    if (!empty($session_id)) {
+    if (!empty($session_id) && !$ignoreSession) {
         $getTypeclass->where('session_id', $session_id);
     }
 
@@ -1062,8 +1184,7 @@ $params = json_decode($item->params, true);
     }
 
     if (Session::get('role_id') == 2) {
-        // Assuming TeacherSubject is not used in this code
-        $classes = Teacher::where('id', Session::get('teacher_id'))->get();
+        $classes = User::where('id', Session::get('id'))->get();
         $att = array();
 
         if (!$classes->isEmpty()) {
@@ -1110,6 +1231,26 @@ $params = json_decode($item->params, true);
        }
        return $query->orderBy('batch', 'ASC')->get();
     }
+
+    public static function formatReceiptNo($counter, $session_id = null){
+       $sessionId = $session_id ?? Session::get('session_id');
+       $session = !empty($sessionId) ? \App\Models\Sessions::find($sessionId) : null;
+       
+       $fyStr = '';
+       if ($session && !empty($session->from_year) && !empty($session->to_year)) {
+           $fromYear = $session->from_year;
+           $toYear = substr($session->to_year, -2);
+           $fyStr = $fromYear . '-' . $toYear;
+       } else {
+           $curYear = date('Y');
+           $nextYear = date('y', strtotime('+1 year'));
+           $fyStr = $curYear . '-' . $nextYear;
+       }
+       
+       $num = (int)$counter;
+       $numStr = sprintf('%04d', $num > 0 ? $num : 1);
+       return "REC-{$fyStr}-{$numStr}";
+    }
     
     public static function bloodGroupType(){
        $getTypeblood = BloodGroup::orderBy('id', 'ASC')->get();
@@ -1120,12 +1261,8 @@ $params = json_decode($item->params, true);
           $getTypeclass = ClassType::where('branch_id',Session::get('branch_id'))->where('session_id', Session::get('session_id'))->orderBy('orderBy', 'ASC');
         if(Session::get('role_id') == 2)
         {
-            
-            
-            $checkClassTeacher = Teacher::where('id',Session::get('teacher_id'))->first('class_type_id');
-         
-            $classes = TeacherSubject::where('teacher_id',Session::get('teacher_id'))->groupBy('class_type_id')->get();
-             $att = array();
+            $checkClassTeacher = User::where('id',Session::get('id'))->first('class_type_id');
+            $att = array();
               
               if(!empty($classes))
               {
@@ -1768,7 +1905,7 @@ $params = json_decode($item->params, true);
     }  
     
      public static function getAllTeachers(){
-       $getAllTeachers = Teacher::whereNull('deleted_at')->where('branch_id',Session::get('branch_id'))->get();
+       $getAllTeachers = User::where('branch_id',Session::get('branch_id'))->where('status', 1)->get();
        return $getAllTeachers;
    
     }
@@ -2195,6 +2332,7 @@ $params = json_decode($item->params, true);
 
         $array['SR.NO'] ='id';
         $array['Student Id'] ='admissionNo';
+        $array['Session'] ='session_id';
         $array['Image'] ='image';
         $array['Name'] ='first_name';
         $array['Course'] ='course';
@@ -2259,9 +2397,18 @@ $params = json_decode($item->params, true);
         $array['Mother Occupation'] ='mother_occupation';
         $array['Aadhar Verified'] ='aadhar_verified';
         $array['Medium'] ='medium';
+        $array['Enrollment No'] ='enrollment_no';
+        $array['Web Registration No'] ='web_registration_no';
+        $array['Agent'] ='agent_id';
         
         return $array;
     }
+
+    public static function getAgents()
+    {
+        return \App\Models\Agent::getActiveAgents();
+    }
+
     public static function getMonthWiseFeeCollection(){ 
         
     // Initialize arrays to store month names and values
@@ -2328,6 +2475,228 @@ for ($date = $startOfMonth; $date->lte($today); $date->addDay()) {
         'val2' => $values
     ];
    }
+
+    public static function getBatchSemesterFeeMasters($branch_id, $course_id, $targetClassId, $batch = null, $fallbackSessionId = null)
+    {
+        $targetClassObj = \App\Models\ClassType::find($targetClassId);
+        if (!$targetClassObj) {
+            return collect([]);
+        }
+        if (empty($course_id) && $targetClassObj->course_id) {
+            $course_id = $targetClassObj->course_id;
+        }
+
+        $siblingClassIds = \App\Models\ClassType::where('course_id', $course_id)
+            ->where(function($q) use ($targetClassObj) {
+                $q->where('orderBy', $targetClassObj->orderBy)
+                  ->orWhere('name', $targetClassObj->name);
+            })
+            ->whereNull('deleted_at')
+            ->pluck('id')
+            ->toArray();
+
+        // 1. Primary Priority: Fee structure defined specifically for this BATCH
+        if (!empty($batch)) {
+            // A. Look in the Batch's origin admission session (e.g. Batch 2026 -> Session with from_year 2026)
+            $originSession = \App\Models\Sessions::where('from_year', $batch)
+                ->orWhere('from_year', 'like', $batch . '%')
+                ->first();
+
+            if (!$originSession) {
+                $originSessionId = \App\Models\Admission::where('batch', $batch)->where('school', 1)->value('session_id');
+                if ($originSessionId) {
+                    $originSession = \App\Models\Sessions::find($originSessionId);
+                }
+            }
+
+            if ($originSession) {
+                $originClass = \App\Models\ClassType::where('course_id', $course_id)
+                    ->where('session_id', $originSession->id)
+                    ->where(function($q) use ($targetClassObj) {
+                        $q->where('orderBy', $targetClassObj->orderBy)
+                          ->orWhere('name', $targetClassObj->name);
+                    })
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if ($originClass) {
+                    $originHeads = \App\Models\FeesMaster::with('feesGroup')
+                        ->where('branch_id', $branch_id)
+                        ->where('class_type_id', $originClass->id)
+                        ->where('session_id', $originSession->id)
+                        ->where(function($q) use ($batch) {
+                            $q->where('batch', $batch)->orWhereNull('batch');
+                        })
+                        ->whereNull('deleted_at')
+                        ->get()
+                        ->filter(function($h) {
+                            return strtolower(trim(optional($h->feesGroup)->name ?? '')) !== 'previous dues';
+                        });
+
+                    // Merge any heads explicitly defined for this batch on sibling/target classes
+                    if (!empty($siblingClassIds)) {
+                        $batchSiblingHeads = \App\Models\FeesMaster::with('feesGroup')
+                            ->where('branch_id', $branch_id)
+                            ->whereIn('class_type_id', $siblingClassIds)
+                            ->where('batch', $batch)
+                            ->whereNull('deleted_at')
+                            ->get()
+                            ->filter(function($h) {
+                                return strtolower(trim(optional($h->feesGroup)->name ?? '')) !== 'previous dues';
+                            });
+
+                        $existingHeadNames = $originHeads->map(function($h) {
+                            return strtolower(trim(optional($h->feesGroup)->name ?? ''));
+                        })->toArray();
+
+                        foreach ($batchSiblingHeads as $bsh) {
+                            $bshName = strtolower(trim(optional($bsh->feesGroup)->name ?? ''));
+                            if (!in_array($bshName, $existingHeadNames)) {
+                                $originHeads->push($bsh);
+                                $existingHeadNames[] = $bshName;
+                            }
+                        }
+                    }
+
+                    if ($originHeads->isNotEmpty()) {
+                        return $originHeads->values();
+                    }
+                }
+            }
+
+            // B. Check any fee master across matching semesters for this course tagged with this exact batch
+            if (!empty($siblingClassIds)) {
+                $batchHeads = \App\Models\FeesMaster::with('feesGroup')
+                    ->where('branch_id', $branch_id)
+                    ->whereIn('class_type_id', $siblingClassIds)
+                    ->where('batch', $batch)
+                    ->whereNull('deleted_at')
+                    ->orderBy('session_id', 'ASC')
+                    ->get()
+                    ->filter(function($h) {
+                        return strtolower(trim(optional($h->feesGroup)->name ?? '')) !== 'previous dues';
+                    });
+
+                if ($batchHeads->isNotEmpty()) {
+                    return $batchHeads->values();
+                }
+            }
+        }
+
+        // 2. Secondary Priority: Fee structure on target class_type_id (optionally filtered by batch or null)
+        if (!empty($fallbackSessionId)) {
+            $sessionHeadsQuery = \App\Models\FeesMaster::with('feesGroup')
+                ->where('branch_id', $branch_id)
+                ->where('session_id', $fallbackSessionId)
+                ->where('class_type_id', $targetClassId)
+                ->whereNull('deleted_at');
+
+            if (!empty($batch)) {
+                $sessionHeadsQuery->where(function($q) use ($batch) {
+                    $q->where('batch', $batch)->orWhereNull('batch');
+                });
+            }
+
+            $sessionHeads = $sessionHeadsQuery->get()
+                ->filter(function($h) {
+                    return strtolower(trim(optional($h->feesGroup)->name ?? '')) !== 'previous dues';
+                });
+
+            if ($sessionHeads->isNotEmpty()) {
+                return $sessionHeads->values();
+            }
+        }
+
+        // 3. Fallback: Any fee master on target class_type_id
+        $fallbackHeads = \App\Models\FeesMaster::with('feesGroup')
+            ->where('branch_id', $branch_id)
+            ->where('class_type_id', $targetClassId)
+            ->whereNull('deleted_at')
+            ->get()
+            ->filter(function($h) {
+                return strtolower(trim(optional($h->feesGroup)->name ?? '')) !== 'previous dues';
+            });
+
+        return $fallbackHeads->values();
+    }
+
+    /**
+     * Resolves the active academic session ID dynamically based on current date's Financial Year (1 Apr - 31 Mar).
+     * If session doesn't exist in `sessions` table, automatically creates it matching table architecture.
+     * Also keeps `Setting` current_active_session_id in sync.
+     *
+     * @param int|null $branchId
+     * @return \App\Models\Sessions
+     */
+    public static function resolveCurrentFinancialSession($branchId = null)
+    {
+        $curMonth = (int)date('n');
+        $curYear = (int)date('Y');
+        if ($curMonth >= 4) {
+            $fromYear = $curYear;
+            $toYearFull = $curYear + 1;
+        } else {
+            $fromYear = $curYear - 1;
+            $toYearFull = $curYear;
+        }
+
+        $toYearShort = substr((string)$toYearFull, -2);
+        $fromYearStr = (string)$fromYear;
+
+        // 1. Search for existing session matching from_year and to_year (short '27' or full '2027')
+        $session = Sessions::where('from_year', $fromYearStr)
+            ->where(function($q) use ($toYearShort, $toYearFull) {
+                $q->where('to_year', (string)$toYearShort)
+                  ->orWhere('to_year', (string)$toYearFull);
+            })
+            ->whereNull('deleted_at')
+            ->first();
+
+        // 2. If not found, create new session matching sessions table schema
+        if (!$session) {
+            $session = new Sessions();
+            $session->user_id = Session::get('id') ?? 1;
+            $session->branch_id = $branchId ?? Session::get('branch_id') ?? 1;
+            $session->from_year = $fromYearStr;
+            $session->to_year = (string)$toYearShort;
+            $session->save();
+
+            // Initialize BillCounter records for all branches and counter types
+            try {
+                $branches = \App\Models\Master\Branch::all();
+                $existingCounterTypes = \App\Models\BillCounter::select('type')->distinct()->pluck('type');
+                if ($existingCounterTypes->isEmpty()) {
+                    $existingCounterTypes = collect(['Teacher', 'StudentRegistration', 'StudentAdmission', 'FeesSlip', 'LibraryId', 'HostelFees', 'Hostel', 'StoreReceipt', 'User']);
+                }
+                foreach ($branches as $br) {
+                    foreach ($existingCounterTypes as $cType) {
+                        $bill = new \App\Models\BillCounter();
+                        $bill->user_id = $session->user_id;
+                        $bill->branch_id = $br->id;
+                        $bill->session_id = $session->id;
+                        $bill->type = $cType;
+                        $bill->counter = 0;
+                        $bill->save();
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Error initializing BillCounter for new session: ' . $e->getMessage());
+            }
+        }
+
+        // 3. Keep Setting table current_active_session_id seamlessly synced
+        try {
+            if ($branchId) {
+                Setting::where('branch_id', $branchId)->update(['current_active_session_id' => $session->id]);
+            } else {
+                Setting::query()->update(['current_active_session_id' => $session->id]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error syncing Setting current_active_session_id: ' . $e->getMessage());
+        }
+
+        return $session;
+    }
 }
 
 

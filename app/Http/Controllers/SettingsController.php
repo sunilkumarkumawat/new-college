@@ -95,7 +95,7 @@ class SettingsController extends Controller
                      'mobile'  => 'required',
                     //  'tin_no'  => 'required',
                      'pincode'  => 'required',
-                     'current_active_session_id'  => 'required',
+                     'current_active_session_id'  => 'nullable',
                     //  'right_logo'  => 'required',
                     //  'seal_sign'  => 'required',
                     //  'left_logo'  => 'required',
@@ -193,7 +193,9 @@ class SettingsController extends Controller
                 		$data->pincode = $request->pincode;
                 		$data->address  = $request->address;
                 		$data->tin_no = $request->tin_no;
-                		$data->current_active_session_id = $request->current_active_session_id;
+                		$data->firebase_notification = $request->firebase_notification ?? 0;
+                		$dynamicSession = \App\Helpers\helper::resolveCurrentFinancialSession($data->branch_id);
+                		$data->current_active_session_id = $request->current_active_session_id ?: $dynamicSession->id;
                 	    $data->save();
         	    return redirect::to('viewSetting')->with('message', 'Setting Updated Successfully !');
             }

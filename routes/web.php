@@ -88,7 +88,7 @@ Route::match(['get', 'post'], 'sendWhatsapp', 'WhatsappController@sendWhatsapp')
 Route::match(['get', 'post'], 'todayWhatsappMessages', 'WhatsappController@todayWhatsappMessages');
 Route::match(['get', 'post'], 'validateOtpWhatsapp', 'WhatsappController@validateOtpWhatsapp');
 Route::match(['get', 'post'], 'WhatsAppMessageHistory', 'WhatsappController@WhatsAppMessageHistory');
-
+Route::match(['get', 'post'], 'firebase-notification', 'NotificationController@notification');
 
 // Chat Panel
 Route::match(['get', 'post'], 'chat/test', 'chat\ChatController@chatTest');
@@ -115,6 +115,8 @@ Route::match(['get', 'post'], 'editUser/{id}', 'UserController@editUser');
 Route::match(['get', 'post'], 'deleteUser', 'UserController@deleteUser');
 Route::match(['get', 'post'], 'userStatus', 'UserController@userStatus');
 Route::match(['get', 'post'], 'user/Attendance/view', 'UserController@userAttendanceView');
+Route::match(['get', 'post'], 'user_side_per', 'UserController@userSidePer');
+Route::post('quick_add_role', 'UserController@quickAddRole');
 
 //ReportController
 
@@ -144,6 +146,7 @@ Route::match(['get', 'post'], 'user/Attendance/view', 'UserController@userAttend
     Route::match(['get', 'post'], 'getClassesByCourse', 'StudentsAdmissionController@getClassesByCourse');
     Route::match(['get', 'post'], 'student_details', 'EnquiryController@studentDetails');
     Route::match(['get', 'post'], 'student/promote_add', 'EnquiryController@promoteAdd');
+    Route::match(['get', 'post'], 'getPromotionProgressionInfo', 'EnquiryController@getPromotionProgressionInfo');
    
     Route::match(['get', 'post'], 'studentsPromoteAdd', 'EnquiryController@studentsPromoteAdd');
     Route::match(['get', 'post'], 'enquiry_qr_generate', 'EnquiryController@enquiry_qr_generate');
@@ -156,13 +159,19 @@ Route::get('enquiry_qr_generate', function () {
   return view('qrCode');
     
 });
-// students Registration End... //
+// Agents Management
+Route::match(['get', 'post'], 'agents', 'AgentController@index');
+Route::match(['get', 'post'], 'agents/store', 'AgentController@store');
+Route::post('agents/quick-add', 'AgentController@quickAddAgent');
+Route::match(['get', 'post'], 'agents/delete', 'AgentController@delete');
+Route::match(['get', 'post'], 'agents/status', 'AgentController@status');
 
 //students Admission
 // Route::match(['get', 'post'], 'unique_system_id', 'StudentsAdmissionController@unique_system_id');
 Route::match(['get', 'post'], 'bulkIdPrint', 'StudentsAdmissionController@bulkIdPrint');
 Route::match(['get', 'post'], 'studentUserNameCreate', 'StudentsAdmissionController@studentUserNameCreate');
 Route::match(['get', 'post'], 'admissionAdd', 'StudentsAdmissionController@admissionAdd');
+Route::match(['get', 'post'], 'getNextAdmissionNo', 'StudentsAdmissionController@getNextAdmissionNo');
 Route::match(['get', 'post'], 'getStreamSubjects', 'StudentsAdmissionController@getStreamSubjects');
 Route::match(['get', 'post'], 'admissionView', 'StudentsAdmissionController@admissionView');
 Route::match(['get', 'post'], 'saveAdmissionDatatableFields', 'StudentsAdmissionController@saveAdmissionDatatableFields');
@@ -240,7 +249,16 @@ Route::match(['get', 'post'], 'expensePrint/{id}', 'ExpenseController@expensePri
 
 //Feed Group
 Route::match(['get', 'post'], 'feesGroup', 'fees\FeesController@feesGroup');
+Route::match(['get', 'post'], 'saveSemesterFeeHead', 'fees\FeesController@saveSemesterFeeHead');
+Route::match(['get', 'post'], 'updateSemesterFeeHead', 'fees\FeesController@updateSemesterFeeHead');
+Route::match(['get', 'post'], 'deleteSemesterFeeHead', 'fees\FeesController@deleteSemesterFeeHead');
+Route::match(['get', 'post'], 'copySemesterFees', 'fees\FeesController@copySemesterFees');
+Route::match(['get', 'post'], 'saveMasterFeeHead', 'fees\FeesController@saveMasterFeeHead');
+Route::match(['get', 'post'], 'deleteMasterFeeHead', 'fees\FeesController@deleteMasterFeeHead');
+Route::match(['get', 'post'], 'getSemesterFeeStatus', 'fees\FeesController@getSemesterFeeStatus');
 Route::match(['get', 'post'], 'getFeesGroup', 'fees\FeesController@getFeesGroup');
+Route::match(['get', 'post'], 'getFeesStructureSessionSummary', 'fees\FeesController@getFeesStructureSessionSummary');
+Route::match(['get', 'post'], 'cloneFeesStructure', 'fees\FeesController@cloneFeesStructure');
 Route::match(['get', 'post'], 'feesGroupEdit/{id}', 'fees\FeesController@feesGroupEdit');
 Route::match(['get', 'post'], 'feesGroupDelete', 'fees\FeesController@feesGroupDelete');
 Route::match(['get', 'post'], 'assignFeeHeadToClasses', 'fees\FeesController@assignFeeHeadToClasses');
@@ -254,7 +272,9 @@ Route::match(['get', 'post'], 'clearStudentFeeHeads', 'fees\FeesController@clear
 Route::match(['get', 'post'], 'getStudentFeeDetailsModal', 'fees\FeesController@getStudentFeeDetailsModal');
 Route::match(['get', 'post'], 'updateStudentFeeDetailInline', 'fees\FeesController@updateStudentFeeDetailInline');
 Route::match(['get', 'post'], 'updateStudentFeeDetailsBatch', 'fees\FeesController@updateStudentFeeDetailsBatch');
+Route::match(['get', 'post'], 'updateStudentFeeRemark', 'fees\FeesController@updateStudentFeeRemark');
 Route::match(['get', 'post'], 'checkStudentCollectedFees', 'fees\FeesController@checkStudentCollectedFees');
+Route::post('getStudentOverallLedger', 'fees\FeesController@getStudentOverallLedger');
 Route::match(['get', 'post'], 'getMasterData', 'fees\FeesController@getMasterData');
 Route::match(['get', 'post'], 'feesModification', 'fees\FeesController@feesModification');
 Route::match(['get', 'post'], 'deleteAssignedFees', 'fees\FeesController@deleteAssignedFees');
@@ -276,10 +296,6 @@ Route::match(['get', 'post'], 'mesterClassAmt', 'fees\FeesMasterController@meste
 
 Route::match(['get', 'post'], 'specialFeesMaster', 'fees\FeesMasterController@specialFeesMaster');
 Route::match(['get', 'post'], 'specialFeesMastercourseData', 'fees\FeesMasterController@specialFeesMastercourseData');
-//AdvanceFees
-Route::match(['get', 'post'], 'AdvanceFees', 'fees\AdvanceFeesController@AdvanceFees');
-Route::match(['get', 'post'], 'AddAdvanceFees', 'fees\AdvanceFeesController@AddAdvanceFees');
-Route::match(['get', 'post'], 'viewAdvanceFees', 'fees\AdvanceFeesController@viewAdvanceFees');
 //RefundFees
 Route::match(['get', 'post'], 'refund_fees', 'fees\RefundFeesController@RefundFees');
 Route::match(['get', 'post'], 'AddrefundFees', 'fees\RefundFeesController@AddRefundFees');
@@ -369,6 +385,7 @@ Route::match(['get', 'post'], 'noc_print/{id}', 'CertificateController@nocPrint'
 //FeesCollect
 	Route::match(['get', 'post'], 'fee_dashboard', 'fees\FeesController@feeDashboard');
 	Route::match(['get', 'post'], 'Fees/add', 'fees\FeesController@addFees');
+	Route::match(['get', 'post'], 'quick_add_assign_fees_group', 'fees\FeesController@quickAddAssignFeesGroup');
 	Route::match(['get', 'post'], 'student_fees_onclick', 'fees\FeesController@studentFeesOnclick');
 	Route::match(['get', 'post'], 'student_pay_submit', 'fees\FeesController@studentPaySubmit');
 	Route::match(['get', 'post'], 'inventoryPaySubmit', 'fees\FeesController@inventoryPaySubmit');
@@ -380,21 +397,18 @@ Route::match(['get', 'post'], 'noc_print/{id}', 'CertificateController@nocPrint'
 	Route::match(['get', 'post'], 'getSessionwiseFeesDetails', 'fees\FeesController@getSessionwiseFeesDetails');
 
 //fees Detail
-	Route::match(['get', 'post'], 'fees/index', 'fees\FeesController@viewFees');
 	Route::match(['get', 'post'], 'collect_fees_delete', 'fees\FeesController@collectFeesDelete');
 
 
 //Fees Ledger
 	Route::match(['get', 'post'], 'fees/ledger', 'fees\FeesController@feesLedger');
+	Route::get('fees/ledger/export/{format}', 'fees\FeesController@feesLedgerExport')->where('format', 'xlsx|csv');
 	Route::match(['get', 'post'], 'ledger_update', 'fees\FeesController@ledgerUpdate');
 	Route::match(['get', 'post'], 'ledger_save', 'fees\FeesController@ledgerSave');
 	Route::match(['get', 'post'], 'fees/ledger/collect', 'fees\FeesController@feesLedgerCollect');
 	Route::match(['get', 'post'], 'fees_ledger_view', 'fees\FeesController@fees_ledger_view');
 Route::match(['get', 'post'], 'fees_cheque', 'fees\FeesController@fees_cheque');
 Route::match(['get', 'post'], 'fees_ledger_print/{id}', 'fees\FeesController@feesLedgerPrint');
-
-	//Balance Report
-    Route::match(['get', 'post'], 'balanceReport', 'fees\FeesController@balanceReport');
 
 	
 
@@ -518,6 +532,7 @@ Route::match(['get', 'post'], 'student_admit_card/{id}', 'ExaminationController@
 	Route::match(['get', 'post'], 'all_students_search', 'DashboardController@allStudentsSearch');
 	Route::match(['get', 'post'], 'get_modules', 'DashboardController@getModules');
 	Route::match(['get', 'post'], 'stu_status', 'DashboardController@stuStatus');
+	Route::match(['get', 'post'], 'header/student/search', 'DashboardController@headerStudentSearch');
 
 
 	/*Route::match(['get', 'post'], 'add/task', 'ToDoListController@addTask');
@@ -566,22 +581,7 @@ Route::match(['get', 'post'], 'student_admit_card/{id}', 'ExaminationController@
 	Route::match(['get', 'post'], 'account_delete', 'AccountController@delete');
 
 
-	//staff
-	Route::get('staff_file', 'StaffController@staffFile');
-		Route::match(['get', 'post'], 'checkClassTeacher', 'StaffController@checkClassTeacher');
-		Route::match(['get', 'post'], 'removeClassTeacher', 'StaffController@removeClassTeacher');
-	Route::match(['get', 'post'], 'teachers/add', 'StaffController@add');
-	Route::get('joining_letter_print/{id}', 'StaffController@joiningLater');
-	Route::get('teachers_idCard/{id}', 'StaffController@teachersidCard');
-	Route::get('drop_teacher_letter/{id}', 'StaffController@dropTeacherPrint');
-	Route::match(['get', 'post'], 'teachers/index', 'StaffController@index');
-	Route::get('attendance_panel', 'StaffController@attendancePanel');
-	Route::get('fill_attendance', 'StaffController@fillAttendance');
-	Route::match(['get', 'post'], 'drop_index', 'StaffController@Dropindex');
-	Route::match(['get', 'post'], 'teachers/edit/{id}', 'StaffController@edit');
-	Route::match(['get', 'post'], 'delete_staff', 'StaffController@delete');
-	Route::match(['get', 'post'], 'teacher/image', 'StaffController@teacherUpdateImg');
-	
+	// Staff Attendance
 
 	Route::get('salary_generate', 'SalaryController@salaryGenerate');
 
@@ -660,9 +660,16 @@ Route::match(['get', 'post'], 'student_admit_card/{id}', 'ExaminationController@
 
 Route::match(['get', 'post'], 'parent_teacher_conversation', 'student_login\ComplaintController@parent_teacherConversation');
 
+// Route::match(['get', 'post'], 'student_complaints', 'student_login\StudentComplaintController@studentComplaints');
 
 
 
+
+// Student Complaints (student: apni complaints, admin: sabhi students ki)
+Route::match(['get', 'post'], 'student_complaints', 'student_login\StudentComplaintController@studentComplaints');
+Route::post('student_complaints_update', 'student_login\StudentComplaintController@update');
+Route::post('student_complaints_reply', 'student_login\StudentComplaintController@reply');
+Route::post('student_complaints_delete', 'student_login\StudentComplaintController@delete');
 
 
 
@@ -861,7 +868,48 @@ Route::match(['get', 'post'], 'registrationList', 'registration\RegistrationCont
 Route::match(['get', 'post'], 'counselling', 'registration\RegistrationController@counselling');
 Route::match(['get', 'post'], 'registrationListGroup', 'registration\RegistrationController@registrationListGroup');
 
+
 Route::match(['get', 'post'], 'registration_fees_ledger_view', 'registration\RegistrationController@registrationFeesLedgerView');
+
+    // ==========================================
+    // MODERN COLLEGE FEES MODULE (ISOLATED)
+    // ==========================================
+    Route::prefix('college/fees')->group(function () {
+        Route::get('/dashboard', 'CollegeFees\CollegeFeeController@dashboard')->name('college.fees.dashboard');
+        Route::get('/structures', 'CollegeFees\CollegeFeeController@structures')->name('college.fees.structures');
+        Route::post('/structures/save', 'CollegeFees\CollegeFeeController@saveStructure')->name('college.fees.structures.save');
+        Route::match(['get', 'post'], '/structures/delete/{id}', 'CollegeFees\CollegeFeeController@deleteStructure')->name('college.fees.structures.delete');
+        Route::post('/structures/copy', 'CollegeFees\CollegeFeeController@copyStructure')->name('college.fees.structures.copy');
+        Route::post('/structures/save-common', 'CollegeFees\CollegeFeeController@saveCommonStructure')->name('college.fees.structures.save_common');
+        Route::get('/structures/common-heads', 'CollegeFees\CollegeFeeController@getCommonStructures')->name('college.fees.structures.common_heads');
+        Route::match(['get', 'post'], '/structures/delete-common/{id}', 'CollegeFees\CollegeFeeController@deleteCommonHead')->name('college.fees.structures.delete_common_head');
+        Route::post('/structures/auto-assign', 'CollegeFees\CollegeFeeController@autoAssignStructure')->name('college.fees.structures.auto_assign');
+
+        // Student Fee Ledger Interactive Matrix Endpoints
+        Route::get('/ledger-matrix-data', 'CollegeFees\CollegeFeeController@getLedgerMatrixData')->name('college.fees.ledger_matrix_data');
+        Route::post('/update-cell-fee', 'CollegeFees\CollegeFeeController@updateCellFee')->name('college.fees.update_cell_fee');
+        Route::post('/add-head-to-student', 'CollegeFees\CollegeFeeController@addHeadToStudent')->name('college.fees.add_head_to_student');
+        Route::post('/remove-student-head', 'CollegeFees\CollegeFeeController@removeStudentHead')->name('college.fees.remove_student_head');
+        Route::post('/update-discount', 'CollegeFees\CollegeFeeController@updateDiscount')->name('college.fees.update_discount');
+        Route::post('/apply-bulk-discount', 'CollegeFees\CollegeFeeController@applyBulkDiscount')->name('college.fees.apply_bulk_discount');
+        Route::post('/save-batch-standard-fees', 'CollegeFees\CollegeFeeController@saveBatchStandardFees')->name('college.fees.save_batch_standard_fees');
+        Route::post('/assign-heads-to-selected', 'CollegeFees\CollegeFeeController@assignHeadsToSelectedStudents')->name('college.fees.assign_heads_to_selected');
+
+        Route::get('/student-ledger/{studentId}', 'CollegeFees\CollegeFeeController@getStudentLedger')->name('college.fees.student_ledger');
+        Route::get('/get-student-collect-data', 'CollegeFees\CollegeFeeController@getStudentCollectData')->name('college.fees.get_student_collect_data');
+        Route::post('/collect-payment', 'CollegeFees\CollegeFeeController@collectPayment')->name('college.fees.collect_payment');
+        Route::get('/receipt/{id}', 'CollegeFees\CollegeFeeController@printReceipt')->name('college.fees.receipt');
+        Route::get('/receipt/{id}/download', 'CollegeFees\CollegeFeeController@downloadReceipt')->name('college.fees.receipt_download');
+        Route::post('/cancel-receipt', 'CollegeFees\CollegeFeeController@cancelReceipt')->name('college.fees.cancel_receipt');
+        Route::get('/receipt/{id}/edit-data', 'CollegeFees\CollegeFeeController@getReceiptEditData')->name('college.fees.receipt_edit_data');
+        Route::post('/update-receipt', 'CollegeFees\CollegeFeeController@updateReceipt')->name('college.fees.update_receipt');
+
+        Route::get('/progression', 'CollegeFees\CollegeFeeController@progression')->name('college.fees.progression');
+        Route::get('/progression/detect-batch-sem', 'CollegeFees\CollegeFeeController@detectBatchActiveSemester')->name('college.fees.progression.detect_batch_sem');
+        Route::post('/progression/execute', 'CollegeFees\CollegeFeeController@executeProgression')->name('college.fees.progression.execute');
+
+        Route::get('/reports', 'CollegeFees\CollegeFeeController@reports')->name('college.fees.reports');
+    });
 
 });
 

@@ -19,1867 +19,1257 @@ $getSession = Helper::getSession();
 $courses = Helper::getCourses();
 $batches = Helper::getBatch();
 
+$table = DB::table('datatable_fields')->first();
+$dataTable = !empty($table->fields) ? explode(',', $table->fields) : [];
+
+$totalCount = ($data instanceof \Illuminate\Pagination\LengthAwarePaginator) ? $data->total() : count($data);
+$firstItem = ($data instanceof \Illuminate\Pagination\LengthAwarePaginator) ? ($data->firstItem() ?? 0) : 1;
+$lastItem = ($data instanceof \Illuminate\Pagination\LengthAwarePaginator) ? ($data->lastItem() ?? 0) : count($data);
 @endphp
 @extends('layout.app')
 @section('content')
 
 <style>
-    .fixed_item{
-        position:sticky !important;
-        right:-8px;
-        background-color:white;
-        z-index:111;
-        box-shadow: -6px 2px 6px #cecece;
+/* ========================================================
+   ADMISSION MASTER - STREAMLINED EXCEL GREEN THEME
+   ======================================================== */
+:root {
+    --green-excel: #217346;
+    --green-excel-dark: #185c37;
+    --green-excel-light: #eef6f0;
+    --green-excel-border: #8eb99b;
+    --line: #b8c8d5;
+    --line-subtle: #cbd5e1;
+}
+
+.content-wrapper {
+    background-color: #f4f6f9;
+}
+
+/* Card & Titlebar */
+.admission-card {
+    border: 1px solid #9aa7b1 !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+    background: #ffffff;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.admission-titlebar {
+    min-height: 42px;
+    padding: 6px 12px;
+    background: var(--green-excel) !important;
+    border-bottom: 1px solid var(--green-excel-dark) !important;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admission-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+}
+
+.admission-title small {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #e2f0d9;
+    margin-left: 6px;
+}
+
+.admission-titlebar .title-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-header-action {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 3px !important;
+    padding: 3px 9px !important;
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.btn-header-action:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+.btn-header-action.btn-header-add {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    color: #166534 !important;
+    font-weight: 700 !important;
+}
+
+/* Action Icons */
+.btn-row-action {
+    width: 24px;
+    height: 24px;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 3px !important;
+    font-size: 11px !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    border: 1px solid transparent !important;
+}
+.btn-row-action:hover { transform: scale(1.08); }
+.btn-action-view { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #166534 !important; }
+.btn-action-view:hover { background: #166534 !important; color: #ffffff !important; }
+.btn-action-print { background: #f0f9ff !important; border-color: #bae6fd !important; color: #0369a1 !important; }
+.btn-action-print:hover { background: #0284c7 !important; color: #ffffff !important; }
+.btn-action-edit { background: #eff6ff !important; border-color: #bfdbfe !important; color: #2563eb !important; }
+.btn-action-edit:hover { background: #2563eb !important; color: #ffffff !important; }
+.btn-action-fees { background: #fffbeb !important; border-color: #fde68a !important; color: #d97706 !important; }
+.btn-action-fees:hover { background: #d97706 !important; color: #ffffff !important; }
+.btn-action-delete { background: #fff1f2 !important; border-color: #fecdd3 !important; color: #e11d48 !important; }
+.btn-action-delete:hover { background: #e11d48 !important; color: #ffffff !important; }
+.btn-action-verify {
+    background: #fef2f2 !important;
+    border: 1px solid #f87171 !important;
+    color: #dc2626 !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    padding: 2px 7px !important;
+    height: 23px !important;
+    border-radius: 3px !important;
+}
+.btn-action-verify:hover { background: #dc2626 !important; color: #ffffff !important; }
+
+/* Table & Sticky Filter Headers */
+.admission-scroll {
+    height: calc(100vh - 180px);
+    min-height: 400px;
+    overflow: auto;
+    background: #ffffff;
+    border: 1px solid #b8c8d5 !important;
+    position: relative;
+}
+
+.admission-table {
+    margin: 0 !important;
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    font-size: 11.5px;
+    border-top: 1px solid #b8c8d5 !important;
+    border-left: 1px solid #b8c8d5 !important;
+}
+
+.admission-table tbody tr {
+    height: 32px !important;
+}
+
+.admission-table th,
+.admission-table td {
+    padding: 3px 6px !important;
+    border-right: 1px solid #b8c8d5 !important;
+    border-bottom: 1px solid #b8c8d5 !important;
+    vertical-align: middle !important;
+    box-sizing: border-box;
+}
+
+.admission-table thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--green-excel) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 11.5px;
+    white-space: nowrap;
+    text-align: center;
+    height: 32px !important;
+    line-height: 22px !important;
+    border-top: 0 !important;
+    border-right: 1px solid var(--green-excel-dark) !important;
+    border-bottom: 1px solid var(--green-excel-dark) !important;
+}
+
+.admission-table thead tr.admission-filter-row th {
+    position: sticky;
+    top: 32px;
+    z-index: 6;
+    background: var(--green-excel-light) !important;
+    color: #1e462d !important;
+    padding: 3px !important;
+    height: 33px !important;
+    border-right: 1px solid #b8c8d5 !important;
+    border-bottom: 2px solid var(--green-excel-border) !important;
+}
+
+.admission-table thead tr.admission-filter-row .form-control {
+    height: 26px !important;
+    min-height: 26px !important;
+    padding: 1px 4px !important;
+    border: 1px solid #9fb3c4 !important;
+    border-radius: 2px !important;
+    background: #ffffff !important;
+    font-size: 11px !important;
+    color: #0f172a !important;
+    width: 100%;
+}
+.admission-table thead tr.admission-filter-row .form-control:focus {
+    border-color: var(--green-excel) !important;
+    outline: none !important;
+}
+
+.admission-table tbody tr:nth-child(even) td { background-color: #fafafa; }
+.admission-table tbody tr:hover td { background-color: #fffde7 !important; }
+
+/* Sticky Action Column */
+.admission-table .fixed_item {
+    position: sticky !important;
+    right: 0;
+    background-color: #ffffff;
+    z-index: 2;
+    border-left: 1px solid #b8c8d5 !important;
+    border-right: 1px solid #b8c8d5 !important;
+    border-bottom: 1px solid #b8c8d5 !important;
+}
+.admission-table tbody tr:nth-child(even) .fixed_item { background-color: #fafafa !important; }
+.admission-table tbody tr:hover .fixed_item { background-color: #fffde7 !important; }
+.admission-table th.fixed_item {
+    background-color: var(--green-excel) !important;
+    color: #ffffff !important;
+    z-index: 7 !important;
+    border-left: 1px solid var(--green-excel-dark) !important;
+    border-right: 1px solid var(--green-excel-dark) !important;
+    border-bottom: 1px solid var(--green-excel-dark) !important;
+}
+.admission-table thead tr.admission-filter-row th.fixed_item {
+    background-color: var(--green-excel-light) !important;
+    z-index: 8 !important;
+    border-left: 1px solid #b8c8d5 !important;
+    border-right: 1px solid #b8c8d5 !important;
+    border-bottom: 2px solid var(--green-excel-border) !important;
+}
+
+/* Empty State Full Table Center */
+.admission-table tbody tr.admission-empty-row {
+    height: calc(100vh - 270px) !important;
+    min-height: 380px !important;
+    background: #ffffff !important;
+}
+.admission-table tbody tr.admission-empty-row:hover td {
+    background-color: #ffffff !important;
+}
+.admission-table tbody tr.admission-empty-row td.admission-empty-cell {
+    height: calc(100vh - 270px) !important;
+    min-height: 380px !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: 0 !important;
+    vertical-align: middle !important;
+    background: #ffffff !important;
+    text-align: left !important;
+    position: relative !important;
+}
+.empty-state-sticky-container {
+    position: sticky;
+    left: 0;
+    width: calc(100vw - 280px);
+    max-width: 100%;
+    min-height: 360px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px 15px;
+    box-sizing: border-box;
+    margin: 0;
+}
+@media (max-width: 991px) {
+    .empty-state-sticky-container {
+        width: 100vw !important;
     }
-    th.fixed_item{
-        background-color: #1f2d3d !important;
-        color: white !important;
-    }
-    
-    .dropdown-menu.show {
-        left: -79px !important;
-    }
-    
-    .flex_centered{
-        display:flex;
-        align-items:center;
-        /*justify-content: space-between;*/
-        height: 55px;
-    }
-    
-    .flex_centered a{
-        margin-left:10px;
-    }
-    
-    .nowrap{
-        white-space:nowrap;
-        font-size:14px;
-    }
-    
-    .colored_table thead tr{
-        background-color:#002c54;
-        color:white;
-    }
-    .colored_table thead tr th{
-        padding:10px;
-    }
-    
-    .overflow_scroll{
-        height:250px;
-        overflow:scroll;
-    }
+}
+.empty-state-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: 460px;
+    background: transparent;
+    margin: 0 auto;
+}
+.empty-state-icon-wrap {
+    width: 58px;
+    height: 58px;
+    background: #eef6f0;
+    color: var(--green-excel);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin-bottom: 12px;
+    border: 1px solid var(--green-excel-border);
+}
+.empty-state-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 5px;
+}
+.empty-state-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 15px;
+}
+.btn-empty-reset {
+    background: var(--green-excel) !important;
+    color: #ffffff !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    padding: 5px 16px !important;
+    border-radius: 4px !important;
+    border: 1px solid var(--green-excel-dark) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.15s ease-in-out;
+}
+.btn-empty-reset:hover {
+    background: var(--green-excel-dark) !important;
+    color: #ffffff !important;
+}
+
+/* Loading & Pagination */
+.admission-table.table-loading { opacity: 0.45; pointer-events: none; }
+.admission-loader-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--green-excel);
+    z-index: 10;
+    display: none;
+}
+
+.admission-pagination-footer {
+    padding: 6px 14px;
+    background: #f8fafc;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.admission-pagination .pagination { margin: 0; }
+.admission-pagination .page-item .page-link {
+    font-size: 11px;
+    padding: 3px 8px;
+    color: #1e293b;
+    border: 1px solid var(--line-subtle);
+}
+.admission-pagination .page-item.active .page-link {
+    background-color: var(--green-excel) !important;
+    border-color: var(--green-excel) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+/* Modals */
+.modal-content {
+    border: 1px solid #9eacb7 !important;
+    border-radius: 3px !important;
+    overflow: hidden;
+    background: #ffffff !important;
+}
+.modal-header {
+    padding: 8px 14px !important;
+    background: #f1f4f6 !important;
+    color: #1e2d39 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+.modal-title {
+    margin: 0 !important;
+    color: #1e2d39 !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.btn-close-modal {
+    background: transparent !important;
+    border: 0 !important;
+    font-size: 18px !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    padding: 0 4px !important;
+    line-height: 1;
+}
+.modal-body { padding: 14px 16px !important; background: #ffffff !important; }
+.modal-footer {
+    padding: 8px 14px !important;
+    background: #f1f4f6 !important;
+    border-top: 1px solid #cbd5e1 !important;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.btn-modal-cancel {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    border-radius: 2px !important;
+    padding: 3px 12px !important;
+}
+.btn-modal-submit {
+    background: var(--green-excel) !important;
+    border: 1px solid var(--green-excel-dark) !important;
+    color: #ffffff !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    border-radius: 2px !important;
+    padding: 3px 14px !important;
+}
+
+/* Column Configuration Modal */
+.column-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    padding: 5px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    cursor: pointer !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+}
+.column-card:hover { border-color: var(--green-excel) !important; background: #f0fdf4 !important; }
+.column-card.active-selected { border-color: var(--green-excel) !important; background: #ecfdf5 !important; }
+.column-chk { accent-color: var(--green-excel) !important; width: 14px !important; height: 14px !important; margin: 0 !important; }
+.column-label { font-size: 11.5px !important; font-weight: 600 !important; color: #1e293b !important; margin: 0 !important; }
+
+/* Modal Search & WhatsApp styles */
+.modal-search-group {
+    width: 280px;
+    display: flex !important;
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid #a7d0b8 !important;
+    border-radius: 3px !important;
+}
+.modal-search-icon { padding: 4px 7px; color: var(--green-excel); font-size: 11px; }
+.modal-search-input { border: none !important; height: 26px !important; padding: 2px 6px !important; font-size: 11.5px !important; width: 100%; outline: none; }
+.tag-badge {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.tag-badge:hover { background: #e2f0d9; color: var(--green-excel); }
+.recipients-scroll, .history-scroll { max-height: 200px; overflow-y: auto; border: 1px solid #cbd5e1; background: #ffffff; }
+.wa-table { margin: 0 !important; font-size: 11px; }
+.badge-status-pending { background-color: #fef3c7; color: #92400e; font-size: 10px; }
+.badge-status-sending { background-color: #e0f2fe; color: #0369a1; font-size: 10px; }
+.badge-status-sent { background-color: #dcfce7; color: #15803d; font-size: 10px; font-weight: 700; }
+.badge-status-failed { background-color: #fee2e2; color: #b91c1c; font-size: 10px; }
+.badge-status-missing { background-color: #f1f5f9; color: #64748b; font-size: 10px; }
 </style>
 
-<div class="content-wrapper">
-  <section class="content pt-3">
-    <div class="container-fluid">
-      <div class="row">
-        <div class="col-12 col-md-12">
-          <div class="card card-outline card-orange">
-            <div class="card-header bg-primary flex_items_toggel">
-              <h3 class="card-title"><i class="fa fa-address-book-o"></i> &nbsp;{{ __('student.View Students Admission') }}</h3>
-              <div class="card-tools">
-                <a href="{{url('admissionAdd')}}" class="btn btn-primary  btn-sm"><i class="fa fa-plus"></i><span class="Display_none_mobile"> {{ __('common.Add') }} </span></a>
-                <a href="{{url('studentsDashboard')}}" class="btn btn-primary  btn-sm"><i class="fa fa-arrow-left"></i><span class="Display_none_mobile"> {{ __('common.Back') }} </span></a>
-              </div>
-
-            </div>
-            
-        <div class="row m-2">
-
-            <form id="quickForm" action="{{ url('admissionView') }}" method="post" class="w-100">
-              @csrf
-              
-              <div class="row">
-
-                <div class="col-md-2 col-6">
-                  <div class="form-group">
-                    <label>{{ __('Course') }}</label>
-                    <select class="form-control select2" id="course" name="course">
-                      <option value="">{{ __('common.Select') }}</option>
-                      @if(!empty($courses))
-                      @foreach($courses as $course)
-                      <option value="{{ $course->name ?? '' }}" {{ ($course->name == ($search['course'] ?? '')) ? 'selected' : '' }}>{{ $course->name ?? '' }}</option>
-                      @endforeach
-                      @endif
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-md-2 col-6">
-                  <div class="form-group">
-                    <label>{{ __('Class / Semester') }}</label>
-                    <select class="form-control select2" id="class_type_id" name="class_type_id">
-                      <option value='' >{{ __('common.Select') }}</option>
-                      @if(!empty($classType))
-                      @foreach($classType as $type)
-                      <option value="{{ $type->id ?? ''  }}" {{ ($type->id == ($search['class_type_id'] ?? '')) ? 'selected' : '' }}>{{ $type->name ?? ''  }}</option>
-                      @endforeach
-                      @endif
-                    </select>
-                  </div>
-                </div>
-
-                <div class="col-md-1 col-6">
-                    <div class="form-group">
-                        <label>{{ __('Batch') }}</label>
-                        <select class="form-control select2" id="batch" name="batch">
-                            <option value="">{{ __('common.Select') }}</option>
-                            @if(!empty($batches))
-                                @foreach($batches as $batch)
-                                <option value="{{ $batch->name ?? ''  }}" {{ (($batch->name ?? '') == ($search['batch'] ?? '')) ? 'selected' : '' }}>{{ $batch->name ?? ''  }}</option>
-                                @endforeach
-                            @endif
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-1 col-6">
-                    <div class="form-group">
-                        <label>{{ __('Session') }}</label>
-                        <select class="form-control select2" id="session_id" name="session_id">
-                            <option value="">{{ __('All') }}</option>
-                            @if(!empty($getSession))
-                                @foreach($getSession as $s)
-                                    <option value="{{ $s->id }}" {{ ($s->id == ($search['session_id'] ?? Session::get('session_id'))) ? 'selected' : '' }}>
-                                        {{ $s->from_year }}-{{ $s->to_year }}
-                                    </option>
-                                @endforeach
-                            @endif
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-1 col-6">
-                  <div class="form-group">
-                    <label for="admissionNo">{{ __('student.Admission No.') }}</label>
-                     <input type="text" class="form-control" id="admissionNo" name="admissionNo" placeholder="{{ __('student.Admission No.') }}" value="{{ $search['admissionNo'] ?? '' }}">
-                  </div>
-                </div>
-
-                <div class="col-md-1 col-6">
-					<div class="form-group">
-						<label>Status</label>
-						<select class="form-control select2" id="status" name="status">
-						    	<option value="">{{ __('common.Select') }}</option>
-						    	@if(($search['status'] ?? null) == null)
-								<option value="1"  selected>{{ __('Continue') }}</option>
-							<option class='text-danger' value="0">{{ __('Discontinue') }}</option>
-							@else
-								<option value="1"  {{($search['status'] ?? '') == 1 ? 'selected' : '' }}>{{ __('Continue') }}</option>
-							<option class='text-danger' value="0" {{($search['status'] ?? '') == 0 ? 'selected' : '' }}>{{ __('Discontinue') }}</option>
-							@endif
-				       </select>
-					</div>
-				</div>
-                
-                <div class="col-md-1 col-6">
-					<div class="form-group">
-						<label>{{ __('common.Gender') }}</label>
-						<select class="form-control invalid select2" id="gender_id" name="gender_id">
-							<option value="">{{ __('common.Select') }}</option>
-							@if(!empty($getgenders))
-							@foreach($getgenders as $value)
-							<option value="{{ $value->id}}" {{ ($value->id == ($search['gender_id'] ?? '')) ? 'selected' : '' }}>{{ $value->name ?? ''  }}</option>
-							@endforeach
-							@endif
-						</select>
-					</div>
-				</div>
-								
-                <div class="col-md-2 col-6">
-                  <div class="form-group">
-                    <label>{{ __('common.Search By Keywords') }}</label>
-                    <input type="text" class="form-control" id="name" name="name" placeholder="{{ __('common.Ex. Name, Mobile, Email, Aadhaar etc.') }}" value="{{ $search['name'] ?? '' }}">
-                  </div>
-                </div>
-                
-                <div class="col-md-1 col-12">
-                  <label class="text-white d-none d-md-block">{{ __('common.Search') }}</label>
-                  <button type="submit" class="btn btn-primary btn-block">{{ __('common.Search') }}</button>
-                </div>
-              
-              </div>
-            </form>
-            
-        </div>
+<div class="content-wrapper admission-ledger-page">
+  <section class="content pt-2 pb-3">
+    <div class="container-fluid px-2">
+      <div class="card admission-card">
         
-        <hr class="m-0 ml-2 mr-2">
-            <div class="row m-2">
-              <div class="col-12" style="overflow-x:scroll;">
-                <table id="studentList" class="table table-bordered table-striped dataTable dtr-inline nowrap">
-                  <thead id='main_thead' class="bg-primary">
-                    <tr role="row">
-                      <th></th>
-                      <th>{{ __('common.SR.NO') }}</th>
-                      @php
-                          $table = DB::table('datatable_fields')->first();
-                          $dataTable = explode(',',$table->fields);
-                      @endphp
-                      
-                      @if($dataTable)
-                      @foreach($dataTable as $val)
-                      
-                        <th class="text-center  {{$val == 'Mobile' && Session::get('role_id') != 1 ? 'd-none' : ''}}">{{ $val }}</th>
-                      @endforeach
-                      @endif
-                     
-                      <!--  <th class="text-center">{{ __('Student.Ad. No') }}</th>-->
-                      <!--<th class="text-center">Image</th>-->
-                      <!--  <th>{{ __('Ledger No') }}</th>-->
-                      <!--  <th>{{ __('Srn') }}</th>-->
-                      <!--<th>{{ __('common.Name') }}</th>-->
-                      <!--<th>{{ __('common.F Name') }}</th>-->
-                      <!--<th>{{ __('common.M Name') }}</th>-->
-                      <!--<th>{{ __('common.Class') }}</th>-->
-                      <!--<th>{{ __('common.Mobile') }}</th>-->
-                      <!--<th>D.O.B.</th>-->
-                      <!--<th>State</th>-->
-                      <!--<th>City</th>-->
-                      <!--<th>Village</th>-->
-                      <!--<th>Address</th>-->
-                      <!--<th>Pincode</th>-->
-                      <!--<th>{{ __('Caste Category') }}</th>-->
-                       <!-- <th>{{ __('Id Proof') }}</th>
-                      <!--  <th>{{ __('Id Number') }}</th>-->
-                      <!--  <th>{{ __('Blood Group') }}</th>-->
-                      <!--  <th>{{ __('House') }}</th>-->
-                      <!--  <th>{{ __('Height') }}</th>-->
-                      <!--  <th>{{ __('Weight') }}</th>-->
-                      <!--  <th>Family Income</th>-->
-                      <!--  <th>{{ __('Email') }}</th>-->
-                      <!--  <th>Family Id</th>-->
-                      <!--  <th>Religion</th>-->
-                      <!--  <th>Category</th>-->
-                      <!--  <th>Aadhar</th>-->
-                      <!--  <th>Gender</th>-->
-                      <!--  <th>Father Mobile</th>-->
-                      <!--  <th>Father Aadhaar</th>-->
-                      <!--  <th>Mother Mobile</th>-->
-                      <!--  <th>Mother Aadhaar</th>-->
-                      <!--  <th>Guardian Name</th>-->
-                      <!--  <th>Guardian Mobile</th>-->
-                      <!--  <th>Admission Type</th>-->
-                      <!--  <th>Bus No.</th>-->
-                      <!--  <th>Bus Route</th>-->
-                      <!--  <th>Stoppage</th>-->
-                      <!--  <th>Transport Charge</th>-->
-                      <!--  <th>Bank Name</th>-->
-                      <!--  <th>Bank Account</th>-->
-                      <!--  <th>Branch Name</th>-->
-                      <!--  <th>IFSC</th>-->
-                      <!--  <th>MICR Code</th>-->
-                      <!--  <th>Remark</th>-->
-                      <!--<th>{{ __('student.Ad. Date') }}</th>-->
-                      <!--<th>Transport</th>-->
-                      <th class="fixed_item">{{ __('common.Action') }}</th>
-                    </tr>
-                  </thead>
-                  <tbody id="product_list_show">
-
-                    @if(!empty($data))
-                    @php
-                    $i=1;
-                    @endphp
-                    @foreach ($data as $item)
-                        @php
-
-                            $blood_group = DB::table('blood_groups')->whereNull('deleted_at')->where('id',$item->blood_group)->first();
-                            $genderName = DB::table('gender')->whereNull('deleted_at')->where('id',$item->gender_id)->first();
-                        @endphp
-                    <tr>
-                        <td><input type='checkbox' class='checkbox_id' data-admission_no="{{$item['admissionNo'] ?? ''}}" data-name="{{ $item['first_name'] ?? '' }} {{ $item['last_name'] ?? '' }}" data-mobile="{{$item['mobile'] ?? ''}}" data-father_name="{{$item['father_name'] ?? ''}}" value='{{$item->id}}'></td>                   
-                      <td>{{$item->id}}</td>
-                      
-                    @if($dataTable)
-                    @foreach($dataTable as $val)
-                  
-                    @if($val == 'Image')
-                        <td class="text-center">
-                            <img width='50px'height='50px' style='border-radius:3px;padding:1px' class="profileImg pointer deleteImage" data-id="{{ $item->id ?? '' }}" src="{{ env('IMAGE_SHOW_PATH').'profile/'.$item['image'] }}" onerror="this.src='{{ env('IMAGE_SHOW_PATH').'default/user_image.jpg' }}'" data-img="@if(!empty($item->image)) {{ env('IMAGE_SHOW_PATH').'profile/'.$item['image'] }} @endif" >
-                        </td>
-                        @elseif($val == 'Name')
-                        <td class="myBtn  editables" style="cursor:pointer;" data-id="{{$item->id ?? ''}}"data-field='first_name' data-modal='Admission'>{{ $item['first_name'] ?? '' }} {{ $item['last_name'] ?? '' }}</td>
-                        @elseif($val == 'D.O.B.')
-                        <td>@if(!empty($item['dob'])) {{ date('d-m-Y', strtotime($item['dob'])) ?? '' }}@endif</td>
-                        @elseif($val == 'State')
-                        <td>{{ $item['State']['name'] ?? '-' }}</td>
-                        @elseif($val == 'City')
-                        <td>{{ $item['City']['name'] ?? '-' }}</td>
-                        @elseif($val == 'Blood Group')
-                        <td>{{ $blood_group->name ?? '-' }}</td>
-                        @elseif($val == 'Gender')
-                        <td>{{ $genderName->name ?? '-' }}</td>
-                        @elseif($val == 'Admission Type')
-                    
-                            <td class="text-center">
-                                @if($item['admission_type_id'] == 1)
-                                    <p>Non RTE</p>
-                                       
-                                @elseif($item['admission_type_id'] == 2)
-                                  
-                                    <p>RTE</p>
-                                @endif
-                            </td>
-                        @elseif($val == 'Ad. Date')
-                        <td>
-                            @if(!empty($item['admission_date']))
-                          
-                                {{date('d-m-Y', strtotime($item['admission_date'])) ?? '' }}
-                      
-                            @endif
-                        </td>
-                        @elseif($val == 'Course')
-                            <td class="text-center">{{ $item['course'] ?? '-' }}</td>
-                        @elseif($val == 'Class')
-                            <td class="text-center">{{ $item['ClassTypes']['name'] ?? '-' }}</td>
-                        @elseif($val == 'Batch')
-                            <td class="text-center"><span class="badge badge-info">{{ $item['batch'] ?? '-' }}</span></td>
-                        @elseif($val == 'Student Type')
-                            <td class="text-center">{{ $item['student_type'] ?? '-' }}</td>
-                        @elseif($val == 'Mobile')
-                        
-                        @if(Session::get('role_id') == 1)
-                         <td class="text-center">{{ $item['mobile'] ?? '-' }}</td>
-                        @endif
-                          
-                        @else
-                        <td class="text-center "  data-id="{{$item->id ?? ''}}" data-field='{{$getAdmissionDatatableFields[$val]}}' data-modal='Admission'>{{ $item[$getAdmissionDatatableFields[$val]] ?? ''}} </td>
-                    @endif
-                    @endforeach
-                    @endif
-                    
-                    <td class="fixed_item"> 
-                        <div class="flex_centered">
-                            <a href="{{ url('studentDetail') }}/{{ $item['id'] ?? '' }}">
-                                <button class="btn btn-success btn-xs" title="Admission View"><i class="fa fa-eye"></i></button>
-                            </a>
-                            @if($item->status != 3)
-                            <a href="{{url('admissionStudentPrint')}}/{{$item->id}}" target="blank">
-                                <button class="btn btn-success btn-xs" title="Admission Form"><i class="fa fa-print"></i></button>
-                            </a>
-                            
-                            <!-- <a href="{{url('admissionStudentIdPrint',$item->id)}}" target="blank">
-                                <button class="btn btn-success btn-xs" title="Admission ID"><i class="fa fa-credit-card"></i></button>
-                            </a> -->
-                            
-                            <a href="{{url('admissionEdit')}}/{{$item->id}}" target="blank">
-                                <button class="btn btn-primary btn-xs" title="Admission Edit"><i class="fa fa-edit"></i></button>
-                            </a>
-                            
-                            <a href="javascript:;" data-id='{{$item->id}}' data-bs-toggle="modal" data-bs-target="#Modal_id" class="deleteData">
-                                <button class="btn btn-danger btn-xs" title="Admission Delete"><i class="fa fa-trash-o"></i></button>
-                            </a>
-                            @else
-                            <button class="btn btn-outline-danger ml-2 verify_admission" data-session_id="{{ $item->session_id }}" data-id="{{ $item->id }}" title="Verified Admission">Verified Admission</button>
-                            @endif
-                        </div>
-                        <!--@if(empty($item->student_id_pdf_name))
-                        <a href="{{ url('studentId_generator') }}/{{ $item['id'] ?? '' }}" class="btn btn-info btn-xs"><i class="fa fa-file-pdf-o"></i></a>
-                        @else
-                        <a href="{{ $item->student_id_pdf_name ?? '' }}" class="btn btn-success btn-xs">View PDF</a>
-                        @endif-->
-
-                      </td>    
-
-                    </tr>
-                    @endforeach
-                    @endif
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            </div>
-            </div>
-            </div>
-            </div>
-            </section>
-</div>
-
-<div class="modal fade" id="verify_modal">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-      
-        <!-- Modal Header -->
-        <div class="modal-header">
-          <h4 class="modal-title">Verifying....</h4>
-          <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
-        </div>
-        
-        <form action="{{ url('verify_admission') }}" method="post">
-            @csrf
-        
-        <div class="modal-body">
-            <p>Are you sure you want to move this registration to the admission list?</p>
-            <div class="row">
-                <div class="col-md-6">
-                    <input type="hidden" name="id" id="id">
-                    <div class="form-group">
-                        <label>Session</label>
-                        <select class="form-control" name="session_id" id="sessionId" required>
-                            <option value="">Select</option>
-                            @if(!empty($getSession))
-                                @foreach($getSession as $item)
-                                    <option value="{{ $item->id }}">{{ $item->from_year ?? '' }} - {{ $item->to_year ?? '' }}</option>
-                                @endforeach
-                            @endif
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Modal footer -->
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="submit" class="btn btn-success">Yes</button>
-        </div>
-        </form>
-        
-      </div>
-    </div>
-</div>
-
-
-
-
-
-            <!-- The Modal -->
-            <div class="modal" id="Modal_id">
-              <div class="modal-dialog">
-                <div class="modal-content" style="background: #555b5beb;">
-
-                  <!-- Modal Header -->
-                  <div class="modal-header">
-                    <h4 class="modal-title text-white">Delete Confirmation</h4>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"><i class="fa fa-times" aria-hidden="true"></i></button>
-                  </div>
-
-                  <!-- Modal body -->
-                  <form action="{{ url('admissionDelete') }}" method="post">
-                    @csrf
-                    <div class="modal-body">
-
-
-
-                      <input type=hidden id="delete_id" name=delete_id>
-                      <h5 class="text-white">Are you sure you want to delete ?</h5>
-
-                    </div>
-
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-default waves-effect remove-data-from-delete-form" data-bs-dismiss="modal">Close</button>
-                      <button type="submit" class="btn btn-danger waves-effect waves-light">Delete</button>
-                    </div>
-                  </form>
-
-                </div>
-              </div>
-            </div>
-
-
-        <div class="modal fade" id="myModal">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-body">
-                        <form id="quickForm" action="{{ url('admissionView') }}" method="post">
-                      @csrf
-                      <div class="row m-2">
-        
-                        <div class="col-md-2">
-                          <div class="form-group">
-                            <label for="State" class="required">{{ __('student.Admission No.') }}</label>
-                             <input type="text" class="form-control" id="admissionNo" name="admissionNo" placeholder="{{ __('student.Admission No.') }}" value="{{ $search['admissionNo'] ?? '' }}">
-                          </div>
-                        </div>
-                        <div class="col-md-2 col-6">
-                          <div class="form-group">
-                            <label for="State" class="required">{{ __('messages.State') }}</label>
-                            <select class="form-control select2" id="state_id" name="state_id">
-                              <option value="">{{ __('messages.Select') }}</option>
-                              @if(!empty($getState))
-                              @foreach($getState as $state)
-                              <option value="{{ $state->id ?? ''}}" {{ ($state->id == $search['state_id']) ? 'selected' : '' }}>{{ $state->name ?? ''}}</option>
-                              @endforeach
-                              @endif
-        
-                            </select>
-                          </div>
-                        </div>
-                        <div class="col-md-2 col-6">
-                          <div class="form-group">
-                            <label for="City">{{ __('messages.City') }}</label>
-                            <select class="form-control select2" name="city_id" id="city_id">
-                              <option value="">{{ __('messages.Select') }}</option>
-                              @if(!empty($getCity))
-                              @foreach($getCity as $cities)
-                              <option value="{{ $cities->id ?? ''}}" {{ ($cities->id == $search['city_id']) ? 'selected' : '' }}>{{ $cities->name ?? ''  }}</option>
-                              @endforeach
-                              @endif
-                            </select>
-                          </div>
-                        </div>
-                        @if(Session::get('role_id') == 1)
-                        <div class="col-md-2 col-6">
-                          <div class="form-group">
-                            <label>{{ __('messages.Class') }}</label>
-                            <select class="form-control select2" id="class_type_id" name="class_type_id">
-                              <option value="">{{ __('messages.Select') }}</option>
-                              @if(!empty($classType))
-                              @foreach($classType as $type)
-                              <option value="{{ $type->id ?? ''  }}" {{ ($type->id == $search['class_type_id']) ? 'selected' : '' }}>{{ $type->name ?? ''  }}</option>
-                              @endforeach
-                              @endif
-                            </select>
-                          </div>
-                        </div>
-                       
-                        @endif
-                        <div class="col-md-3">
-                          <div class="form-group">
-                            <label>{{ __('messages.Search By Keywords') }}</label>
-                            <input type="text" class="form-control" id="name" name="name" placeholder="{{ __('messages.Ex. Name, Mobile, Email, Aadhaar etc.') }}" value="{{ $search['name'] ?? '' }}">
-                          </div>
-                        </div>
-                        <div class="col-md-1 text-center">
-                          <button type="submit" class="btn btn-primary">{{ __('messages.Search') }}</button>
-                        </div>
-        
-                      </div>
-                    </form>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
-              </div>
-            </div>
+        <!-- 1. Executive Titlebar -->
+        <div class="admission-titlebar">
+          <h1 class="admission-title">
+            <i class="fa fa-users text-warning"></i> 
+            <span>{{ __('student.View Students Admission') }}</span>
+            <small id="totalStudentsBadge">({{ $totalCount }} Students)</small>
+          </h1>
+          <div class="title-actions">
+            <button type="button" class="btn-header-action" id="btn-whatsapp" title="Send WhatsApp Message">
+              <i class="fa fa-whatsapp text-success mr-1"></i> WhatsApp
+            </button>
+            <button type="button" class="btn-header-action" id="btn-checkall" data-status="0" title="Select / Deselect All">
+              <i class="fa fa-square-o mr-1" id="check_box_icon"></i> Select All
+            </button>
+            <button type="button" class="btn-header-action" data-toggle="modal" data-target="#datatableFieldsModal" title="Configure visible columns">
+              <i class="fa fa-columns text-primary mr-1"></i> Columns
+            </button>
+            <a href="{{ url('admissionAdd') }}" class="btn-header-action btn-header-add" title="Add New Admission">
+              <i class="fa fa-plus text-success mr-1"></i> {{ __('common.Add') }}
+            </a>
+            <a href="{{ url('studentsDashboard') }}" class="btn-header-action" title="Back to Dashboard">
+              <i class="fa fa-arrow-left mr-1"></i> {{ __('common.Back') }}
+            </a>
           </div>
         </div>
-        <!--image pop-up modal-->
-<div id="profileImgModal" class="modal fade" role="dialog">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <img id="profileImg" src="" width="100%" height="100%">
-      </div>
-      <div class="modal-footer" style="display:flex;justify-content:space-between;">
-              <a href="javascript:;" data-id='' data-bs-toggle="modal" data-bs-target="#Modal_image" class="">
-                                <button class="btn btn-danger btn-xs" title="Image Delete"><i class="fa fa-trash-o"></i> Delete Image</button>
-                            </a>
-           <a href="" id="downloadLink" download>
-               <button class="btn btn-primary btn-xs" title="Image Delete"><i class="fa fa-download" aria-hidden="true"></i> Download Image</button>
-                    
-                </a>
-        <!--<button type="button" class="btn btn-default" data-bs-dismiss="modal">Close</button>-->
-      </div>
-    </div>
 
-  </div>
-</div>        
+        <!-- 2. Main Filter Form & Table -->
+        <form id="admissionFilterForm" action="{{ url('admissionView') }}" method="get" class="w-100">
+          <input type="hidden" name="page" id="admissionCurrentPage" value="{{ ($data instanceof \Illuminate\Pagination\LengthAwarePaginator) ? $data->currentPage() : 1 }}">
 
-<!--image delete Confirmation modal -->
-  <div class="modal" id="Modal_image">
-              <div class="modal-dialog">
-                <div class="modal-content" style="background: #555b5beb;">
+          <!-- Table Container with Sticky Thead Filter Row -->
+          <div class="admission-scroll">
+            <div id="admissionTableLoader" class="admission-loader-bar"></div>
+            
+            <table id="studentList" class="admission-table">
+              <thead>
+                <!-- 1st Header Row (Column Titles) -->
+                <tr>
+                  <th style="width: 36px;" class="text-center">#</th>
+                  <th style="width: 50px;" class="text-center">{{ __('common.SR.NO') }}</th>
+                  <th style="width: 50px;" class="text-center">{{ __('AD.NO') }}</th>
+                  @if(!empty($dataTable))
+                    @foreach($dataTable as $val)
+                      @if($val == 'Session' || $val == 'Class') @continue @endif
+                      <th class="text-center {{ $val == 'Mobile' && Session::get('role_id') != 1 ? 'd-none' : '' }}">{{ $val }}</th>
+                    @endforeach
+                  @endif
+                  <th class="fixed_item text-center" style="width: 130px;">{{ __('common.Action') }}</th>
+                </tr>
 
-                  <!-- Modal Header -->
-                  <div class="modal-header">
-                    <h4 class="modal-title text-white">Delete Confirmation</h4>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"><i class="fa fa-times" aria-hidden="true"></i></button>
-                  </div>
- 
-                  <!-- Modal body -->
-                  <form action="{{ url('imageDelete') }}" method="post">
-                    @csrf
-                    <div class="modal-body">
-                      <input type="hidden" id="delete_image" name="delete_image">
-                      <h5 class="text-white">Are you sure you want to delete ?</h5>
+                <!-- 2nd Header Row: Exact 1-to-1 Respective Filter Row -->
+                <tr class="admission-filter-row">
+                  <!-- Under # -->
+                  <th class="text-center" style="width: 36px;">
+                    <button type="button" id="admissionResetBtn" class="btn-row-action" title="Reset All Filters" style="background:#ffffff; border:1px solid #cbd5e1; color:#64748b; margin:0 auto;">
+                      <i class="fa fa-refresh"></i>
+                    </button>
+                  </th>
 
-                    </div>
+                  <!-- Under SR.NO -->
+                  <th class="text-center" style="width: 50px;">
+                    <input type="text" class="form-control form-control-sm live-adm-input text-center" name="admission_id" value="{{ $search['admission_id'] ?? '' }}" placeholder="ID">
+                  </th>
+                  <th class="text-center" style="width: 50px;">
+                    <input type="text" class="form-control form-control-sm live-adm-input text-center" name="admissionNo" value="{{ $search['admissionNo'] ?? '' }}" placeholder="AD. NO.">
+                  </th>
 
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-default waves-effect remove-data-from-delete-form" data-bs-dismiss="modal">Close</button>
-                      <button type="submit" class="btn btn-danger waves-effect waves-light">Delete</button>
-                    </div>
-                  </form>
+                  <!-- Under each Dynamic Column Header -->
+                  @if(!empty($dataTable))
+                    @foreach($dataTable as $val)
+                      @if($val == 'Session' || $val == 'Class') @continue @endif
+                      @if($val == 'Name')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="name" value="{{ $search['name'] ?? '' }}" placeholder="Name..." style="min-width: 105px;"></th>
+                      @elseif($val == 'Course')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" id="course" name="course" style="min-width: 95px;">
+                            <option value="">All</option>
+                            @if(!empty($courses))
+                              @foreach($courses as $c)
+                                <option value="{{ $c->name ?? '' }}" {{ (($c->name ?? '') == ($search['course'] ?? '')) ? 'selected' : '' }}>{{ $c->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'Batch')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" id="batch" name="batch" style="min-width: 85px;">
+                            <option value="">All</option>
+                            @if(!empty($batches))
+                              @foreach($batches as $b)
+                                <option value="{{ $b->name ?? '' }}" {{ (($b->name ?? '') == ($search['batch'] ?? '')) ? 'selected' : '' }}>{{ $b->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'F Name')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="father_name" value="{{ $search['father_name'] ?? '' }}" placeholder="F Name..." style="min-width: 100px;"></th>
+                      @elseif($val == 'M Name')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="mother_name" value="{{ $search['mother_name'] ?? '' }}" placeholder="M Name..." style="min-width: 95px;"></th>
+                      @elseif($val == 'Mobile')
+                        <th class="{{ Session::get('role_id') != 1 ? 'd-none' : '' }}">
+                          @if(Session::get('role_id') == 1)
+                            <input type="text" class="form-control form-control-sm live-adm-input" name="mobile" value="{{ $search['mobile'] ?? '' }}" placeholder="Mobile..." style="min-width: 90px;">
+                          @endif
+                        </th>
+                      @elseif($val == 'Aadhar')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="aadhaar" value="{{ $search['aadhaar'] ?? '' }}" placeholder="Aadhar..." style="min-width: 95px;"></th>
+                      @elseif($val == 'Student Id' || $val == 'Student.Ad. No')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="admissionNo" value="{{ $search['admissionNo'] ?? '' }}" placeholder="Adm No." style="min-width: 80px;"></th>
+                      @elseif($val == 'Gender')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" name="gender_id" style="min-width: 75px;">
+                            <option value="">All</option>
+                            @if(!empty($getgenders))
+                              @foreach($getgenders as $g)
+                                <option value="{{ $g->id }}" {{ ($g->id == ($search['gender_id'] ?? '')) ? 'selected' : '' }}>{{ $g->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'State')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" name="state_id" style="min-width: 85px;">
+                            <option value="">All</option>
+                            @if(!empty($getState))
+                              @foreach($getState as $st)
+                                <option value="{{ $st->id }}" {{ ($st->id == ($search['state_id'] ?? '')) ? 'selected' : '' }}>{{ $st->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'City')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" name="city_id" style="min-width: 85px;">
+                            <option value="">All</option>
+                            @if(!empty($getcitie))
+                              @foreach($getcitie as $ct)
+                                <option value="{{ $ct->id }}" {{ ($ct->id == ($search['city_id'] ?? '')) ? 'selected' : '' }}>{{ $ct->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'Blood Group')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" name="blood_group" style="min-width: 75px;">
+                            <option value="">All</option>
+                            @if(!empty($bloodGroupType))
+                              @foreach($bloodGroupType as $bg)
+                                <option value="{{ $bg->id }}" {{ ($bg->id == ($search['blood_group'] ?? '')) ? 'selected' : '' }}>{{ $bg->name ?? '' }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @elseif($val == 'Category')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="category" value="{{ $search['category'] ?? '' }}" placeholder="Category..." style="min-width: 80px;"></th>
+                      @elseif($val == 'Admission Type')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" name="admission_type_id" style="min-width: 80px;">
+                            <option value="">All</option>
+                            <option value="1" {{ ($search['admission_type_id'] ?? '') == '1' ? 'selected' : '' }}>Non RTE</option>
+                            <option value="2" {{ ($search['admission_type_id'] ?? '') == '2' ? 'selected' : '' }}>RTE</option>
+                          </select>
+                        </th>
+                      @elseif($val == 'D.O.B.')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="dob" value="{{ $search['dob'] ?? '' }}" placeholder="DOB..." style="min-width: 85px;"></th>
+                      @elseif($val == 'Ad. Date')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="admission_date" value="{{ $search['admission_date'] ?? '' }}" placeholder="Date..." style="min-width: 85px;"></th>
+                      @elseif($val == 'Student Type')
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="student_type" value="{{ $search['student_type'] ?? '' }}" placeholder="Type..." style="min-width: 75px;"></th>
+                      @elseif($val == 'Image')
+                        <th></th>
+                      @elseif($val == 'Agent')
+                        <th>
+                          <select class="form-control form-control-sm live-adm-select" id="agent_id" name="agent_id" style="min-width: 95px;">
+                            <option value="">All</option>
+                            @php
+                              $activeAgents = \App\Models\Agent::getActiveAgents();
+                            @endphp
+                            @if(!empty($activeAgents))
+                              @foreach($activeAgents as $ag)
+                                <option value="{{ $ag->id }}" {{ ($ag->id == ($search['agent_id'] ?? '')) ? 'selected' : '' }}>{{ $ag->name }}</option>
+                              @endforeach
+                            @endif
+                          </select>
+                        </th>
+                      @else
+                        @php $fKey = $getAdmissionDatatableFields[$val] ?? ''; @endphp
+                        <th><input type="text" class="form-control form-control-sm live-adm-input" name="{{ $fKey }}" value="{{ $search[$fKey] ?? '' }}" placeholder="{{ $val }}..." style="min-width: 80px;"></th>
+                      @endif
+                    @endforeach
+                  @endif
 
-                </div>
+                  <!-- Under Action -->
+                  <th class="fixed_item text-center" style="width: 130px;">
+                    <select class="form-control form-control-sm live-adm-select" id="status" name="status" style="width: 100%; height: 25px; font-size: 11px;" title="Filter by Status">
+                      <option value="all" {{ ($search['status'] ?? '') === 'all' ? 'selected' : '' }}>All Status</option>
+                      <option value="1" {{ ($search['status'] ?? '1') == '1' ? 'selected' : '' }}>Active</option>
+                      <option value="0" {{ ($search['status'] ?? '') === '0' ? 'selected' : '' }}>Discontinue</option>
+                    </select>
+                  </th>
+                </tr>
+              </thead>
+
+              <!-- Dynamic Rows Container -->
+              <tbody id="product_list_show">
+                @include('students.admission.table_rows', [
+                  'data' => $data,
+                  'dataTable' => $dataTable,
+                  'getAdmissionDatatableFields' => $getAdmissionDatatableFields
+                ])
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 3. Pagination & Per-Page Footer -->
+          <div class="admission-pagination-footer">
+            <div class="d-flex align-items-center gap-2">
+              <span id="admissionEntriesInfo" class="small text-muted font-weight-bold">
+                Showing {{ $firstItem }} to {{ $lastItem }} of {{ $totalCount }} students
+              </span>
+              <div class="d-flex align-items-center ml-3">
+                <label class="small text-muted mb-0 mr-1">Show</label>
+                <select id="admissionPerPage" name="per_page" class="form-control form-control-sm live-adm-select" style="width: 70px; height: 28px; padding: 2px 6px;">
+                  <option value="25" {{ ($search['per_page'] ?? '25') == '25' ? 'selected' : '' }}>25</option>
+                  <option value="50" {{ ($search['per_page'] ?? '') == '50' ? 'selected' : '' }}>50</option>
+                  <option value="100" {{ ($search['per_page'] ?? '') == '100' ? 'selected' : '' }}>100</option>
+                  <option value="250" {{ ($search['per_page'] ?? '') == '250' ? 'selected' : '' }}>250</option>
+                  <option value="all" {{ ($search['per_page'] ?? '') == 'all' ? 'selected' : '' }}>All</option>
+                </select>
+                <label class="small text-muted mb-0 ml-1">per page</label>
               </div>
             </div>
+            
+            <div id="admissionPaginationContainer">
+              @include('students.admission.pagination', ['data' => $data])
+            </div>
+          </div>
 
-<div id="datatableFieldsModal" class="modal fade" role="dialog">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header">
-            <div class="form-group clearfix">
-                <div class="icheck-success d-inline">
-                <input type="checkbox" id="master_checkbox">
-                    <label for="master_checkbox">Select All</label>
-                </div>
-            </div>
-        <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form action="{{url('saveAdmissionDatatableFields')}}" method='post'>
-            @csrf
-        <div class="row">
-            @if(!empty($getAdmissionDatatableFields))
-            @foreach($getAdmissionDatatableFields as $key => $dataFields)
-            @if($key != 'SR.NO')
-                <div class="col-md-3">
-                    <div class="form-group clearfix">
-                        <div class="icheck-success d-inline">
-                        <input type="checkbox" class="checkbox" id="field_{{ $dataFields ?? '' }}" name='fields[]' {{ in_array($key, $dataTable) ? 'checked' : ''}} value="{{ $key ?? '' }}">
-                            <label for="field_{{ $dataFields ?? '' }}">{{ $key ?? '' }}</label>
-                        </div>
-                    </div>
-                </div>
-                @endif
-            @endforeach
-            @endif
-            <div class="col-md-12 text-center">
-                <button class='btn btn-primary' type='submit'>Save</button>
-            </div>
-        </div>
         </form>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-bs-dismiss="modal">Close</button>
-      </div>
     </div>
+  </section>
+</div>
 
+<!-- ============================================================== -->
+<!-- 1️⃣ VERIFY ADMISSION MODAL -->
+<!-- ============================================================== -->
+<!-- 1️⃣ VERIFY ADMISSION MODAL -->
+<!-- ============================================================== -->
+<div class="modal fade" id="verify_modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa fa-check-circle text-success mr-1"></i> Verify Admission
+        </h5>
+        <button type="button" class="close btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <form action="{{ url('verify_admission') }}" method="post">
+        @csrf
+        <div class="modal-body p-3">
+          <div class="d-flex align-items-start mb-3">
+            <div class="mr-3" style="width: 40px; height: 40px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <i class="fa fa-user-plus text-success" style="font-size: 19px;"></i>
+            </div>
+            <div>
+              <strong class="d-block text-dark" style="font-size: 13.5px; line-height: 1.3;">Confirm Student Admission</strong>
+              <span class="text-muted" style="font-size: 12px;">Move this registration into confirmed students admission list.</span>
+            </div>
+          </div>
+
+          <input type="hidden" name="id" id="verify_id">
+          <div class="form-group mb-0">
+            <label class="small font-weight-bold text-dark mb-1">Target Academic Session <span class="text-danger">*</span></label>
+            <select class="form-control form-control-sm" name="session_id" id="verifySessionId" required>
+              <option value="">Select Session</option>
+              @if(!empty($getSession))
+                @foreach($getSession as $item)
+                  <option value="{{ $item->id }}">{{ $item->from_year ?? '' }} - {{ $item->to_year ?? '' }}</option>
+                @endforeach
+              @endif
+            </select>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn-modal-cancel" data-dismiss="modal" data-bs-dismiss="modal">{{ __('common.Close') }}</button>
+          <button type="submit" class="btn-modal-submit"><i class="fa fa-check mr-1"></i> Confirm & Move</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
-
-<!-- Modal -->
-<div class="modal fade" id="myLargeModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+<!-- ============================================================== -->
+<!-- 2️⃣ DELETE CONFIRMATION MODAL -->
+<!-- ============================================================== -->
+<div class="modal fade" id="Modal_id" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="myModalLabel">Compose Message</h5>
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
+        <h5 class="modal-title text-danger">
+          <i class="fa fa-trash-o mr-1"></i> {{ __('common.Delete Confirmation') }}
+        </h5>
+        <button type="button" class="close btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
         </button>
       </div>
 
-        <div class="modal-body">
-            
-            
-          <div class="row">
-          <div class="col-md-12">
-                <button class="btn btn-primary btn-xs message-button" data-message="Hello {#name#},
-
-This is Administrator from {#school_name#}. I hope this message finds you well.
-
-We are pleased to provide you with your credentials to access our schoolâ€™s online platform:
-
-APK: https://demo3.rusoft.in/schoolimage/default/GreenGarden.apk
-Username: {#user_name#}
-Password: {#password#}
-Please ensure you keep these credentials secure and do not share them with others. If you have any questions or need further assistance, feel free to contact us at {#school_mobile#}.
-
-Thank you and have a great day!
-
-Best regards,
-Administrator
-{#school_name#}
-{#school_mobile#}">Credentials</button>
-                <button class="btn btn-info btn-xs message-button" data-message="Hello {#name#},
-
-This is Administrator from {#school_name#}. I hope this message finds you well.
-
-
-
-
-
-
-If you have any questions or need further assistance, feel free to contact us at {#school_mobile#}.
-
-Thank you and have a great day!
-
-Best regards,
-Administrator
-{#school_name#}
-{#school_mobile#}">Message Format</button>
-
-
-                <button class="btn btn-success btn-xs message-button" data-message="Hello {#name#} ðŸŽ‰âœ¨,
-
-This is Administrator from {#school_name#}. I hope this message finds you well.
-
-We are delighted to extend our warmest wishes to you and your family on this joyous occasion of Diwali ðŸª”. May the festival of lights bring you peace, prosperity, and happiness.
-
-Please enjoy the celebrations safely and cherish these special moments with your loved ones ðŸŽ‡ðŸŽ†. If you have any questions or need further assistance, feel free to contact us at {#school_mobile#}.
-
-Thank you and have a great day! ðŸŒŸ
-
-Best regards,
-Administrator
-{#school_name#}
-{#school_mobile#}">Diwali Wishes</button>
-                <button class="btn btn-dark btn-xs message-button" data-message="Hello {#name#},
-
-This is Administrator from {#school_name#}. I hope this message finds you well.
-
-We are excited to extend our heartfelt wishes to you and your family on the vibrant festival of Holi. May your life be filled with the colors of joy, happiness, and love.
-
-Please enjoy the festivities safely and create beautiful memories with your loved ones. If you have any questions or need further assistance, feel free to contact us at {#school_mobile#}.
-
-Thank you and have a great day!
-
-Best regards,
-Administrator
-{#school_name#}
-{#school_mobile#}">Holi Wishes</button>
-             
-              
-              </div>
-              </div>
-          <div class="row">
-            <div class="col-md-4">
-              <!-- Message Input -->
-              <div class="form-group">
-                <label for="message-text" class="col-form-label">Message:</label>
-                <textarea class="form-control" id="message-text" rows='10'required></textarea>
-              </div> 
-
-              <!-- Attachment Input -->
-              <div class="form-group">
-                  <div class='d-flex text-center'>
-                  <div class='mr-3'>
-                  <img id='img_preview' style='border:1px solid #888;border-radius:5px;padding:5px' src='https://demo3.rusoft.in/schoolimage/default/6605525.jpg' width='80px' height='80px'/>
-            </div>
-            <div class='text-left'>
-                <label for="attachment-file" class="col-form-label">Attachment:</label>
-                <input type="file" class="form-control" id="attachment-file" accept="image/*">
-                </div>
-                </div>
-              </div>
-               
-            </div>
-
-            <!-- Right Column (col-md-8) -->
-            <div class="col-md-8 overflow_scroll">
-    <span class='text-danger' style='font-size:11px'>Note: In the event that a mobile number is not available,the system will omit that particular user from processing.  <br></span>
-       
-              <table class="table table-striped table-bordered">
-                <thead id='secondary_thead'>
-               <tr>
-                   <th>{{ __('student.Admission No.') }}</th>
-                   <th>Name</th>
-                   <th>F Name</th>
-                   <th>Mobile</th>
-                   <th>Status</th>
-               </tr>
-                </thead>
-                <tbody id='secondary_tbody'>
-                 
-                </tbody>
-              </table>
-              
-               </div>
+      <form action="{{ url('admissionDelete') }}" method="post">
+        @csrf
+        <div class="modal-body p-3">
+          <input type="hidden" id="delete_id" name="delete_id">
+          <p class="mb-0 text-dark font-weight-normal" style="font-size: 13px;">
+            {{ __('common.Are you sure you want to delete') }}? This student record will be archived.
+          </p>
+        </div>
         
-            <div class="col-md-12">
-                   <hr class=" border-muted">
-            <h5 class="modal-title mb-1" id="myModalLabel">Today's Sent Messages</h5>
-              <!-- Table for Rows -->
-              <table class="table table-striped table-bordered">
-                <thead >
-               <tr>
-                   <th>Message Id</th>
-                   <th>Message</th>
-                   <th>Attachment</th>
-                   <th>Action</th>
-               </tr>
-                </thead>
-                <tbody id='third_tbody'>
-                 
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
         <div class="modal-footer">
-            <div class='text-left'><span style='display:none' class='previousIds'><input type='checkbox' id='previousIds' /> Do Not Use Previous Id's</span><br>
-            <button type="button" class="btn btn-info" id="reset_modal">Reset</button>
-            <button type="button" class="btn btn-secondary" id="close_modal">Close</button>
-          <button type="submit" class="btn btn-primary" id='sendButton'>Send</button>
-            </div>
-          
+          <button type="button" class="btn-modal-cancel" data-dismiss="modal" data-bs-dismiss="modal">{{ __('common.Close') }}</button>
+          <button type="submit" class="btn btn-danger btn-sm px-3" style="font-size: 12px; font-weight: 600;">
+            <i class="fa fa-trash mr-1"></i> {{ __('common.Delete') }}
+          </button>
         </div>
-     
+      </form>
     </div>
   </div>
 </div>
 
+<!-- ============================================================== -->
+<!-- 3️⃣ PROFILE IMAGE PREVIEW MODAL -->
+<!-- ============================================================== -->
+<div class="modal fade" id="profileImgModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 360px;" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title" style="font-size: 13.5px;"><i class="fa fa-user-circle mr-1"></i> Student Photograph</h5>
+        <button type="button" class="close btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body text-center p-3">
+        <img id="profileImg" src="" style="width: 100%; max-height: 380px; object-fit: contain; border-radius: 4px; border: 1px solid #cbd5e1;">
+      </div>
+      <div class="modal-footer py-2">
+        <a id="downloadLink" class="btn btn-primary btn-sm" href="" download><i class="fa fa-download mr-1"></i> Download</a>
+        <button type="button" class="btn-modal-cancel" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- 4️⃣ DELETE IMAGE MODAL -->
+<!-- ============================================================== -->
+<div class="modal fade" id="deleteImageModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger"><i class="fa fa-image mr-1"></i> Remove Photograph</h5>
+        <button type="button" class="close btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <form action="{{ url('deleteStudentImage') }}" method="post">
+        @csrf
+        <div class="modal-body p-3">
+          <input type="hidden" id="delete_image" name="id">
+          <p class="mb-0 text-dark" style="font-size: 13px;">Are you sure you want to delete this student photo?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal-cancel" data-dismiss="modal" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm px-3">Delete Photo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- 5️⃣ DATATABLE COLUMNS CONFIGURATION MODAL -->
+<!-- ============================================================== -->
+<div id="datatableFieldsModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center">
+          <h5 class="modal-title">
+            <i class="fa fa-columns text-success mr-1"></i> Visible Columns Setup
+          </h5>
+          <label class="mb-0 ml-3 small pointer font-weight-bold text-dark d-flex align-items-center" style="cursor: pointer;">
+            <input type="checkbox" class="mr-1" id="master_checkbox" style="width: 15px; height: 15px; accent-color: #217346; cursor: pointer;"> Select All Columns
+          </label>
+        </div>
+        <button type="button" class="close btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Real-time Column Search Filter Toolbar -->
+      <div class="px-3 py-2 bg-white border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="modal-search-group">
+          <span class="modal-search-icon"><i class="fa fa-search"></i></span>
+          <input type="text" id="column_filter_search" class="modal-search-input" placeholder="Type column name to filter..." autocomplete="off">
+          <span id="clear_col_search_btn" class="modal-search-clear" style="display: none;" title="Clear filter">
+            <i class="fa fa-times"></i>
+          </span>
+        </div>
+        <div id="column_match_count_wrap">
+          <span class="column-match-badge" id="column_match_count">Showing all columns</span>
+        </div>
+      </div>
+
+      <form action="{{ url('saveAdmissionDatatableFields') }}" method="post">
+        @csrf
+        <div class="modal-body p-3" style="max-height: 60vh; overflow-y: auto; background: #f8fafc;">
+          <div class="row g-2" id="column_cards_container">
+            @if(!empty($getAdmissionDatatableFields))
+              @foreach($getAdmissionDatatableFields as $key => $dataFields)
+                @if($key != 'SR.NO' && $key != 'Session' && $key != 'Class')
+                  @php $isChecked = in_array($key, $dataTable); @endphp
+                  <div class="col-md-3 col-sm-4 col-6 mb-2 column-card-col">
+                    <label class="column-card {{ $isChecked ? 'active-selected' : '' }}" for="field_{{ $dataFields ?? '' }}">
+                      <input type="checkbox" class="column-chk" id="field_{{ $dataFields ?? '' }}" name="fields[]" {{ $isChecked ? 'checked' : '' }} value="{{ $key ?? '' }}">
+                      <span class="column-label">{{ $key ?? '' }}</span>
+                    </label>
+                  </div>
+                @endif
+              @endforeach
+            @endif
+          </div>
+
+          <div id="no_columns_matched" class="no-matched-box" style="display: none;">
+            <div class="no-matched-icon-wrap">
+              <i class="fa fa-search"></i>
+            </div>
+            <div class="no-matched-title">No Matching Columns Found</div>
+            <p class="no-matched-subtitle">Try searching with another keyword or reset filter.</p>
+            <button type="button" class="btn-reset-search" id="btn_reset_col_search">
+              <i class="fa fa-refresh mr-1"></i> Reset Search Filter
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal-cancel" data-dismiss="modal" data-bs-dismiss="modal">{{ __('common.Close') }}</button>
+          <button type="submit" class="btn-modal-submit"><i class="fa fa-save mr-1"></i> Save Layout</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- 6️⃣ WHATSAPP BULK MESSAGING MODAL -->
+<!-- ============================================================== -->
+<div class="modal fade" id="myLargeModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center">
+          <h5 class="modal-title">
+            <i class="fa fa-whatsapp text-success mr-2" style="font-size: 16px;"></i> Bulk WhatsApp Broadcast
+          </h5>
+          <span class="badge border text-dark ml-3 px-2 py-1" id="wa_total_badge" style="background: #e2f0d9; color: #166534 !important; border-color: #a7d0b8 !important;">0 Selected</span>
+        </div>
+        <button type="button" class="close btn-close-modal" id="close_modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Live Broadcast Progress Bar (shows during/after send) -->
+      <div id="wa_progress_container" class="px-3 py-2 border-bottom" style="display: none; background: #f0fdf4; border-color: #d1e7dd !important;">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="small font-weight-bold text-dark" id="wa_progress_label">
+            <i class="fa fa-paper-plane text-success mr-1"></i> Broadcasting in progress...
+          </span>
+          <span class="small font-weight-bold text-success" id="wa_progress_percent">0%</span>
+        </div>
+        <div class="progress mb-1" style="height: 7px;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="wa_progress_bar" role="progressbar" style="width: 0%;"></div>
+        </div>
+        <div class="d-flex align-items-center gap-3 small text-muted font-weight-bold mt-1">
+          <span>Total: <b class="text-dark" id="wa_stat_total">0</b></span>
+          <span>Sent: <b class="text-success" id="wa_stat_sent">0</b></span>
+          <span>Failed: <b class="text-danger" id="wa_stat_failed">0</b></span>
+          <span>Pending: <b class="text-warning" id="wa_stat_pending">0</b></span>
+        </div>
+      </div>
+
+      <div class="modal-body p-3" style="background: #f8fafc;">
+        <div class="row g-3">
+          <!-- Left Column: Compose Message -->
+          <div class="col-md-7 border-right pr-md-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="small font-weight-bold text-dark mb-0">Compose WhatsApp Message *</label>
+              <span class="small text-muted font-weight-bold" id="wa_char_counter">0 chars</span>
+            </div>
+
+            <!-- Variable Tags -->
+            <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+              <span class="small text-muted mr-1 font-weight-bold">Insert:</span>
+              <span class="tag-badge insert-tag" data-tag="{#name#}" title="Insert Student Name">Name</span>
+              <span class="tag-badge insert-tag" data-tag="{#user_name#}" title="Insert Username">Username</span>
+              <span class="tag-badge insert-tag" data-tag="{#password#}" title="Insert Password">Password</span>
+              <span class="tag-badge insert-tag" data-tag="{#email#}" title="Insert Email">Email</span>
+              <span class="tag-badge insert-tag" data-tag="{#school_name#}" title="Insert College Name">College</span>
+            </div>
+
+            <div class="form-group mb-2">
+              <textarea class="form-control" id="message-text" rows="5" placeholder="Type message here... Click tags above to insert dynamic student details." style="font-size: 12px; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Attachment Section -->
+            <div class="form-group mb-2">
+              <label class="small font-weight-bold text-dark mb-1">Attachment (Optional Image):</label>
+              <div class="img-upload-box">
+                <input type="file" class="form-control-file" id="attachment-file" accept="image/*" style="cursor: pointer;">
+                <div class="mt-2 text-center" id="img_preview_wrap" style="display: none;">
+                  <img id="img_preview" src="" style="max-height: 100px; border-radius: 4px; border: 1px solid #cbd5e1;" class="shadow-sm">
+                  <button type="button" class="btn btn-xs btn-outline-danger ml-2" id="btn_remove_img" title="Remove image">
+                    <i class="fa fa-trash mr-1"></i> Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Broadcast Controls -->
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-2 border-top">
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" id="sendButton" class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm">
+                  <i class="fa fa-paper-plane mr-1"></i> Start Broadcast
+                </button>
+                <button type="button" id="btn_stop_broadcast" class="btn btn-outline-danger btn-sm font-weight-bold px-2" style="display: none;">
+                  <i class="fa fa-stop-circle mr-1"></i> Stop
+                </button>
+              </div>
+              <div class="form-check previousIds mb-0" style="display: none;">
+                <input type="checkbox" class="form-check-input" id="previousIds" style="margin-top: 2px;">
+                <label class="form-check-label small text-muted font-weight-bold" for="previousIds">Skip already sent</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Selected Recipients Queue -->
+          <div class="col-md-5 pl-md-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="small font-weight-bold text-dark mb-0">Recipients Queue</label>
+              <input type="text" id="search_queue_input" class="form-control form-control-sm" placeholder="Filter queue..." style="height: 24px; font-size: 10.5px; width: 130px; padding: 1px 6px;">
+            </div>
+
+            <div class="recipients-scroll shadow-sm">
+              <table class="table table-sm wa-table table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 25px;" class="text-center">#</th>
+                    <th style="width: 75px;">Adm No</th>
+                    <th>Name</th>
+                    <th style="width: 85px;">Mobile</th>
+                    <th style="width: 75px;" class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="secondary_tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Broadcast History Section -->
+        <hr class="my-3">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <h6 class="font-weight-bold text-dark small mb-0">
+            <i class="fa fa-history text-secondary mr-1"></i> Today's Broadcast History
+          </h6>
+          <button type="button" class="btn btn-xs border" id="btn_refresh_history" title="Refresh history" style="background: #ffffff; color: #166534; border-color: #cbd5e1;">
+            <i class="fa fa-refresh text-success mr-1"></i> Refresh
+          </button>
+        </div>
+
+        <div class="history-scroll shadow-sm">
+          <table class="table table-sm wa-table table-hover">
+            <thead>
+              <tr>
+                <th style="width: 90px;" class="text-center">Msg ID</th>
+                <th>Message Snippet</th>
+                <th style="width: 80px;" class="text-center">Media</th>
+                <th style="width: 70px;" class="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="third_tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer py-2">
+        <button type="button" class="btn-modal-cancel" id="btn_close_wa_modal" data-dismiss="modal" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
-$(document).ready(function() {
-    $('.message-button').click(function() {
-        var message = $(this).data('message');
+$(function(){
+    var filterTimer, admissionRequest;
+    var baseUrl = '{{ url("admissionView") }}';
+
+    // 1. Serialize parameters for real-time AJAX filtering
+    function getFilterParams(targetPage) {
+        var formData = $('#admissionFilterForm').serializeArray();
+        var params = new URLSearchParams();
+        $.each(formData, function(_, item) {
+            if ($.trim(item.value) !== '' && item.name !== '_token') {
+                params.set(item.name, item.value);
+            }
+        });
         
-        $('#message-text').val(message);
-    });
-});
-</script>
-       
-            <script>
-              $('.deleteData').click(function() {
-                var delete_id = $(this).data('id');
+        var perPage = $('#admissionPerPage').val();
+        if (perPage) params.set('per_page', perPage);
 
-                $('#delete_id').val(delete_id); 
-              });
-              
-                $('.profileImg').click(function(){
-                    var profileImgUrl = $(this).data('img');
-                    if(profileImgUrl != ''){
-                        $('#profileImgModal').modal('toggle');
-                        $('#profileImg').attr('src',profileImgUrl); 
-                         $('#downloadLink').attr('href', profileImgUrl);  // Set download link
-                    }
-                });
-                $('.deleteImage').click(function() {
-                var delete_image = $(this).data('id');
-                $('#delete_image').val(delete_image); 
-              });
-                
-                
-                
-               
-                $('#reset_modal').click(function(){
-                $('#studentList_wrapper').find('#btn-whatsapp').trigger('click');
-                    // $('#myLargeModal').modal('hide');
-                  
-                });
-                
-                
-                
-                
-                
-                $( document ).ready(function() {
-                    
-               var dataCount = parseInt('{{count($data)}}');
-                    
-    $("#studentList").DataTable({
-           "processing": true, // Show processing indicator
-            "serverSide": false, 
-                  "lengthChange": false, "autoWidth": false,"lengthChange": true, // Default number of rows per page
-                "lengthMenu": [10, 20, 50,dataCount] ,
-                 "buttons": [ {
-                    text: 'Column Visibility',
-                    action: function (e, dt, node, config) {
-                        $('#datatableFieldsModal').modal('show');
-                    }
-                },{
-                    extend: 'excelHtml5',
-                      exportOptions: {
-            columns: ':visible:not(:last-child)' // Export only visible columns except the last one
-        },
-                    customize: function (xlsx) {
-                         var cellName ='';
-                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                        var rows = sheet.getElementsByTagName('row');
-                        $('row:first c', sheet).attr( 's', '2' ); // first row is bold
-                        // Create a new row after A1
-                        var newRow = '<row r="2"><c t="inlineStr" r="A2"><is><t></t></is></c></row>';
-                        var newNode = $.parseXML(newRow).documentElement;
-
-                        // Adjust the row numbers for subsequent rows
-                        for (var i = 1; i < rows.length; i++) {
-                            var row = rows[i];
-                            var rowIndex = parseInt(row.getAttribute('r'), 10);
-                            row.setAttribute('r', rowIndex + 1);
-                            
-
-                            // Adjust cell references within the row
-                            var cells = row.getElementsByTagName('c');
-                            for (var j = 0; j < cells.length; j++) {
-                                var cell = cells[j];
-                                var cellRef = cell.getAttribute('r');
-                                var newCellRef = cellRef.replace(/(\d+)/, function(match) {
-                                    return parseInt(match, 10) + 1;
-                                });
-                                cell.setAttribute('r', newCellRef);
-                            }
-                        }
-
-                        // Insert the new row after the first row
-                        sheet.getElementsByTagName('row')[0].parentNode.insertBefore(newNode, rows[1]);
-
-                        // Modify all header cells' background color, font size, color, and border
-                        var styles = xlsx.xl['styles.xml'];
-                        var fills = styles.getElementsByTagName('fills')[0];
-                        var fonts = styles.getElementsByTagName('fonts')[0];
-                        var borders = styles.getElementsByTagName('borders')[0];
-
-                        // Add new fill
-                        var fillIndex = fills.childNodes.length;
-                        var fill = $.parseXML('<fill><patternFill patternType="solid"><fgColor rgb="6639b5"/></patternFill></fill>').documentElement;
-                        fills.appendChild(fill);
-
-                        // Add new font
-                        var fontIndex = fonts.childNodes.length;
-                        var font = $.parseXML('<font><sz val="14"/><color rgb="ffffff"/></font>').documentElement;
-                        fonts.appendChild(font);
-
-                        // Add new border
-                        var borderIndex = borders.childNodes.length;
-                        var border = $.parseXML('<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/></border>').documentElement;
-                        borders.appendChild(border);
-
-                        // Add new xf for the cell
-                        var cellXfs = styles.getElementsByTagName('cellXfs')[0];
-                        var xfIndex = cellXfs.childNodes.length;
-                        var xf = $.parseXML('<xf applyFill="1" applyFont="1" applyBorder="1" fontId="' + fontIndex + '" fillId="' + fillIndex + '" borderId="' + borderIndex + '">'+'<alignment vertical="center"/>'+'</xf>').documentElement;
-                        cellXfs.appendChild(xf);
-
-                        // Apply the style to all header cells
-                        var headerCells = sheet.querySelectorAll('row:first-of-type c');
-                        headerCells.forEach(function(cell) {
-                            cell.setAttribute('s', xfIndex);
-                        });
-
-var dataCells = sheet.querySelectorAll('row:not(:first-of-type) c');
-var dataValidations = sheet.getElementsByTagName('dataValidations')[0];
-    if (!dataValidations) {
-        dataValidations = sheet.createElement('dataValidations');
-        sheet.getElementsByTagName('worksheet')[0].appendChild(dataValidations);
-    }
-
-    // Iterate through the rows and add data validation to each V4 cell
-    var numberOfRows = dataCells.length; 
-                        // Apply the same style to cells with text from <th>
-                        var tableHeaders = $('#studentList thead th');
-                    var count=-1;
-                       var head = '';
-                        tableHeaders.each(function(index, th) {
-                            count++;
-                            var thText = $(th).text();
-                            var headerCells = sheet.querySelectorAll('row c[r^="' + String.fromCharCode(65 + index) + '"] is t');
-                                head = thText;
-                               
-                               
-                            headerCells.forEach(function(headerCell) {
-                              
-                                if (headerCell.textContent === thText) {
-                        
-                                   // headerCell.parentElement.parentElement.setAttribute('s', xfIndex);
-                                }
-                            });
-                             function indexToColumnName(index) {
-    let columnName = '';
- while (index >= 0) {
-        columnName = String.fromCharCode((index % 26) + 65) + columnName;
-        index = Math.floor(index / 26) - 1;
-    }
-    
-    return columnName;
-}
-
-                if(head ==='Class')
-                {
-             for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$class}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-     
-                }
-                
-                 if(head ==='Gender')
-                {
-                for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$gender}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                    
-                }
-                
-                 if(head ==='State')
-                {
-                    
-                    for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$stateList}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                    
-                }
-                
-                
-                 if(head ==='City')
-                {
-                    
-                    for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$cityList}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                    
-                }                
-
-
-                 if(head ==='Blood Group')
-                {
-                    
-                    for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$bloodgroupList}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                    
-                }   
-                
-                 if(head ==='Admission Type')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Non RTE,RTE"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                
-                 if(head ==='Income Tax Payee Father')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Yes,No"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                
-                 if(head ==='Income Tax Payee Mother')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Yes,No"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                
-                 if(head ==='Income Tax Payee Mother')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Yes,No"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                
-                 if(head ==='BPL')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Yes,No"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                
-                 if(head ==='Religion')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"HINDU,ISLAM,SIKH,BUDDHISM,ADIVASI,JAIN,CHRISTIANITY,OTHER"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-                 if(head ==='Category')
-                {
-                    for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"OBC,SC,ST,BC,GEN,SBC,Other"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }
-
-                 if(head ==='Transport')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"Yes,No"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }                
-                 if(head ==='Village')
-                {
-                      for (var rowIndex = 4; rowIndex <= numberOfRows; rowIndex++) {
-        var cellRef = indexToColumnName(count) + rowIndex;
-        var dataValidation = sheet.createElement('dataValidation');
-        dataValidation.setAttribute('type', 'list');
-        dataValidation.setAttribute('allowBlank', '1');
-        dataValidation.setAttribute('showInputMessage', '1');
-        dataValidation.setAttribute('showErrorMessage', '1');
-        dataValidation.setAttribute('sqref', cellRef); // Apply to the current V cell
-        var formula1 = sheet.createElement('formula1');
-        formula1.textContent = '"{{$villageList}}"'; // Options for the dropdown
-        dataValidation.appendChild(formula1);
-        dataValidations.appendChild(dataValidation);
-    }
-                    
-                }                
-                
-                 dataValidations.setAttribute('count', dataValidations.childNodes.length);
-  
-                        });
-
-                        // Remove the style from cells with text from <td>
-                       // var dataCells = sheet.querySelectorAll('row:not(:first-of-type) c');
-                        dataCells.forEach(function(cell) {
-                            var textNode = cell.querySelector('is t');
-                            if (textNode) {
-                                var text = textNode.textContent;
-                                var tdTexts = $('#studentList tbody td').map(function() { return $(this).text(); }).get();
-                                if (tdTexts.includes(text)) {
-                                    cell.removeAttribute('s');
-                                }
-                            }
-                        });
-                        
-                        $('row', sheet).first().attr('ht', '150').attr('customHeight', "1");
-    
-                       
-                       var cellA1 = sheet.querySelector('c[r="A1"]');
-
-    // If cell A1 does not exist, create it
-    if (!cellA1) {
-        cellA1 = sheet.createElement('c');
-        cellA1.setAttribute('r', 'A1');
-        cellA1.setAttribute('t', 'inlineStr');
-
-        var worksheet = sheet.getElementsByTagName('worksheet')[0];
-        var sheetData = worksheet.getElementsByTagName('sheetData')[0];
-
-        if (!sheetData) {
-            sheetData = sheet.createElement('sheetData');
-            worksheet.appendChild(sheetData);
+        var page = targetPage || $('#admissionCurrentPage').val() || 1;
+        if (page && page > 1) {
+            params.set('page', page);
         }
 
-        var row1 = sheet.querySelector('row[r="1"]');
-        if (!row1) {
-            row1 = sheet.createElement('row');
-            row1.setAttribute('r', '1');
-            sheetData.appendChild(row1);
+        return params;
+    }
+
+    // 2. Real-time AJAX Data Fetch without reload
+    function loadAdmissions(updateUrl, targetPage) {
+        if (targetPage !== undefined) {
+            $('#admissionCurrentPage').val(targetPage);
+        } else {
+            if (updateUrl) {
+                $('#admissionCurrentPage').val(1);
+            }
         }
 
-        row1.appendChild(cellA1);
-    }
+        var params = getFilterParams(targetPage);
+        var queryString = params.toString();
+        var fullUrl = baseUrl + (queryString ? '?' + queryString : '');
 
-    // Find or create the text element for cell A1
-    var isNode = cellA1.querySelector('is');
-    if (!isNode) {
-        isNode = sheet.createElement('is');
-        cellA1.appendChild(isNode);
-    }
-
-    var tNode = isNode.querySelector('t');
-    if (!tNode) {
-        tNode = sheet.createElement('t');
-        isNode.appendChild(tNode);
-    } 
-
-    // Set the new text content
-     tNode.textContent = '{{$setting->name}}\nAddress:{{$setting->address}}\nMobile:{{$setting->mobile}} Email:{{$setting->gmail}}\nDate:{{date("d-M-Y")}}';
-                    }
-                },'pdf'
-                ]
-                }).buttons().container().appendTo('#studentList_wrapper .col-md-6:eq(0)');
-        // $('#studentList').DataTable({
-        //     dom: 'Bfrtip',
-        //     buttons: [
-        //         {
-        //             extend: 'excelHtml5',
-        //              exportOptions: {
-        //     columns: 'th:not(:last-child)'
-        //  },
-        //             customize: function (xlsx) {
-        //                 var sheet = xlsx.xl.worksheets['sheet1.xml'];
-        //                 var rows = sheet.getElementsByTagName('row');
-        //                 $('row:first c', sheet).attr( 's', '2' ); // first row is bold
-        //                 // Create a new row after A1
-        //                 var newRow = '<row r="2"><c t="inlineStr" r="A2"><is><t>New Cell Content</t></is></c></row>';
-        //                 var newNode = $.parseXML(newRow).documentElement;
-
-        //                 // Adjust the row numbers for subsequent rows
-        //                 for (var i = 1; i < rows.length; i++) {
-        //                     var row = rows[i];
-        //                     var rowIndex = parseInt(row.getAttribute('r'), 10);
-        //                     row.setAttribute('r', rowIndex + 1);
-                            
-
-        //                     // Adjust cell references within the row
-        //                     var cells = row.getElementsByTagName('c');
-        //                     for (var j = 0; j < cells.length; j++) {
-        //                         var cell = cells[j];
-        //                         var cellRef = cell.getAttribute('r');
-        //                         var newCellRef = cellRef.replace(/(\d+)/, function(match) {
-        //                             return parseInt(match, 10) + 1;
-        //                         });
-        //                         cell.setAttribute('r', newCellRef);
-        //                     }
-        //                 }
-
-        //                 // Insert the new row after the first row
-        //                 sheet.getElementsByTagName('row')[0].parentNode.insertBefore(newNode, rows[1]);
-
-        //                 // Modify all header cells' background color, font size, color, and border
-        //                 var styles = xlsx.xl['styles.xml'];
-        //                 var fills = styles.getElementsByTagName('fills')[0];
-        //                 var fonts = styles.getElementsByTagName('fonts')[0];
-        //                 var borders = styles.getElementsByTagName('borders')[0];
-
-        //                 // Add new fill
-        //                 var fillIndex = fills.childNodes.length;
-        //                 var fill = $.parseXML('<fill><patternFill patternType="solid"><fgColor rgb="6639b5"/></patternFill></fill>').documentElement;
-        //                 fills.appendChild(fill);
-
-        //                 // Add new font
-        //                 var fontIndex = fonts.childNodes.length;
-        //                 var font = $.parseXML('<font><sz val="14"/><color rgb="ffffff"/></font>').documentElement;
-        //                 fonts.appendChild(font);
-
-        //                 // Add new border
-        //                 var borderIndex = borders.childNodes.length;
-        //                 var border = $.parseXML('<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/></border>').documentElement;
-        //                 borders.appendChild(border);
-
-        //                 // Add new xf for the cell
-        //                 var cellXfs = styles.getElementsByTagName('cellXfs')[0];
-        //                 var xfIndex = cellXfs.childNodes.length;
-        //                 var xf = $.parseXML('<xf applyFill="1" applyFont="1" applyBorder="1" fontId="' + fontIndex + '" fillId="' + fillIndex + '" borderId="' + borderIndex + '">'+'<alignment vertical="center"/>'+'</xf>').documentElement;
-        //                 cellXfs.appendChild(xf);
-
-        //                 // Apply the style to all header cells
-        //                 var headerCells = sheet.querySelectorAll('row:first-of-type c');
-        //                 headerCells.forEach(function(cell) {
-        //                     cell.setAttribute('s', xfIndex);
-        //                 });
-
-        //                 // Apply the same style to cells with text from <th>
-        //                 var tableHeaders = $('#studentList thead th');
-        //                 tableHeaders.each(function(index, th) {
-        //                     var thText = $(th).text();
-        //                     var headerCells = sheet.querySelectorAll('row c[r^="' + String.fromCharCode(65 + index) + '"] is t');
-        //                     headerCells.forEach(function(headerCell) {
-        //                         if (headerCell.textContent === thText) {
-        //                             headerCell.parentElement.parentElement.setAttribute('s', xfIndex);
-        //                         }
-        //                     });
-        //                 });
-
-        //                 // Remove the style from cells with text from <td>
-        //                 var dataCells = sheet.querySelectorAll('row:not(:first-of-type) c');
-        //                 dataCells.forEach(function(cell) {
-        //                     var textNode = cell.querySelector('is t');
-        //                     if (textNode) {
-        //                         var text = textNode.textContent;
-        //                         var tdTexts = $('#studentList tbody td').map(function() { return $(this).text(); }).get();
-        //                         if (tdTexts.includes(text)) {
-        //                             cell.removeAttribute('s');
-        //                         }
-        //                     }
-        //                 });
-                        
-        //                 $('row', sheet).first().attr('ht', '60').attr('customHeight', "1");
-                       
-                       
-        //             }
-        //         }
-        //     ]
-        // });
-});
-             
-              
-            </script>
-            
-            <script>
-               $(document).ready(function(){
-                   checkmaster();
-                   function checkmaster(){
-                       var CheckboxLength = parseInt($('.checkbox').length);
-                       var checkedCheckboxLength = parseInt($('.checkbox:checked').length);
-                       
-                       if(CheckboxLength == checkedCheckboxLength){
-                           $('#master_checkbox').prop('checked',true);
-                       }else{
-                           $('#master_checkbox').prop('checked',false);
-                       }
-                   }
-                   
-                   
-                   $('#master_checkbox').click(function(){
-                        if($(this).is(':checked')){
-                            $('.checkbox').prop('checked',true);
-                        }else{
-                            $('.checkbox').prop('checked',false);   
-                        } 
-                        
-                        checkmaster();
-                    }); 
-                    
-                    $('.checkbox').click(function(){
-                       checkmaster(); 
-                    });
-               });
-            </script>
-            
-            <script>
-                function todayWhatsappMessages(){
-                        $('#third_tbody').html('');
-                    var baseUrl = "{{ url('/') }}";
-                    $.ajax({
-                        headers: {'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')},
-                        url: baseUrl +'/todayWhatsappMessages',
-                        method: 'POST',
-                        success: function(response) {
-                            if(response.status){ 
-                                response.data.forEach(function(item) {
-                                     var attachmentContent = item.attachment ? `<a target="_blank" href="${item.attachment}" ><img src="${item.attachment}" width="40px" height="40px"/></a>` : "";
-
-                                     var newRow = `<tr>
-                              <td class='messageId'>${item.message_id}</td>
-                              <td class='old_message'>${item.message}</td>
-                                <td class='attachment'>${attachmentContent}</td>
-                    
-                              <td ><a class="useMe"data-ids="${response.ids[item.message_id]}" style="cursor:pointer;  text-decoration: underline; color:blue">Use Me</a></td>
-                            </tr>`;
-                            $('#third_tbody').append(newRow);
-                                    
-                               
-                                });
-                            }
-                        },
-                        
-                        error: function(error) {
-                            console.error('Error sending data:', error);
-                        }
-                    });
-                }
-            
-            
-    $(document).ready(function() {
-        
-function generateRandom8DigitNumber() {
-    let min = 10000000; // minimum 8-digit number (10000000)
-    let max = 99999999; // maximum 8-digit number (99999999)
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-
-
-        
-        var messageId = '';
-        var attachment2 = '';
-        var id = [];
-        var i =0;
-        var filter = [];
-        var arr =[];
-             var previousIds =[]; 
-        var notUsePreviousIds =false;
-        var sending = true;
-        var customElement = $('<div>', {
-            id: 'custom-element',
-            class: 'custom-element-class'
-        });
-
-
-
-        // Load the buttons into the custom element
-        customElement.load('{{ url("messangerButtons") }} #custom-buttons', function() {
-            // Append the custom element to the wrapper after loading the buttons
-            $('#studentList_wrapper .col-md-6:eq(1)').append(customElement);
-        });
-
-           $('#studentList_wrapper').on('click', '#btn-sms', function() {
-           toastr.error('Service is unavailabe')
-            // Add your SMS handling code here
-        });
-        
-        
-         $('#close_modal').click(function(){
-                    sending = false;
-                    $('#myLargeModal').modal('hide');
-                });
-        
-        $('#studentList_wrapper').on('click', '#btn-checkall', function() {
-            var status = parseInt($(this).attr('data-status'));
-         
-            if(status == 0){
-                $(this).attr('data-status',1); 
-                $(this).removeAttr('class');
-                $(this).attr('class','btn btn-secondary btn-sm');
-                $('#check_box_icon').removeAttr('class');
-                $('#check_box_icon').attr('class','fa fa-check-square');
-                $('.checkbox_id').prop('checked',true);
-            }else{
-                $(this).attr('data-status',0);
-                $(this).removeAttr('class');
-                $(this).attr('class','btn btn-outline-secondary btn-sm');
-                $('#check_box_icon').removeAttr('class');
-                $('#check_box_icon').attr('class','fa fa-square-o');
-                $('.checkbox_id').prop('checked',false);
-            }
-        });
-
-        $('#studentList_wrapper').on('click', '#btn-whatsapp', function() {
-            
-            $('#img_preview').attr('src','https://demo3.rusoft.in/schoolimage/default/6605525.jpg')
-            var length = $('.checkbox_id:checked').length;
-            if(length > 0){
-                messageId =generateRandom8DigitNumber();
-            id =[];
-            previousIds =[];
-notUsePreviousIds =false;
-sending = true;
-
-     if ($('#previousIds').is(':checked')) 
- {
-    $('#previousIds').prop('checked', false);
- }
- $('.previousIds').hide();
-
-            todayWhatsappMessages();
-            $('#message-text').val(''); 
-            
-           $('#myLargeModal').modal('show');
-           $('#secondary_tbody').html('');
-           $(".checkbox_id").each(function( index ) {
-                if (this.checked) {
-                    var admission_no = $(this).data('admission_no');
-                    var name = $(this).data('name');
-                    var mobile = $(this).data('mobile');
-                    var f_name = $(this).data('father_name');
-                    var status = mobile ? 'Pending' : 'Mobile Missing';
-                    var ids = $(this).val() 
-                    
-                    
-                    if(mobile != '')
-                    {
-                    id.push({id:ids,mobile:mobile});
-                    }
-                    
-                    var newRow = `<tr>
-                              <td>${admission_no}</td>
-                              <td>${name}</td>
-                               <td>${f_name}</td>
-                              <td>${mobile}</td>
-                              <td class='status_action' id="status_${ids}">${status}</td> 
-                            </tr>`;
-                           
-                        $('#secondary_tbody').append(newRow);
-                }
-           
-            });
-            }else{
-                toastr.error('Please Select Students');
-            }
-        });
-        
-   
-         $('#sendButton').click(function() {
-              i=0;
-             
-            arr = [];
-             if(notUsePreviousIds)
-             {
-                  filter = $.grep(id, function (item) {
-                return $.inArray(parseInt(item.id), previousIds) === -1;
-            });
-            
-            arr = filter;
-          
-             }
-             else
-             {
-                 arr = id;
-             }
-             
-             
-             
- function processNext(){
-     //toastr.info('done');
- }
-           //  $('#sendButton').css('display','none')
-             for(i=0; i<arr.length; i++)
-             {
-                 
-              
-             if(sending)
-             {
-                
-                 
-         sendPostRequest(arr[i]);
-               
-             }
-             setTimeout(processNext, 1000);
-             }
-             
-//              if(i == arr.length)
-//              {
-//                 setTimeout(todayWhatsappMessages, 3000)
-
-// $('.status_action').each(function() {
-//     if ($(this).text().trim() === "Pending") {
- 
-//         $(this).text("Skipped").addClass('text-info');
-//     }
-// });
-
-//              }
-             
-    
-             
-             if(arr.length == 0)
-             {
-                 $('.status_action').each(function() {
-                    
-    if ($(this).text().trim() === "Pending") {
-        
-     
-        $(this).text("Skipped").addClass('text-info');
-    }
-});
-             }
-             
-        });
-        
-    function sendPostRequest(data) {
-        var baseUrl = "{{ url('/') }}";
-        var message = $('#message-text').val(); 
-        var fileInput = $('#attachment-file')[0];
-        var file = fileInput.files[0];
-    
-        var formData = new FormData();
-        formData.append('message_id', messageId);
-        formData.append('id', data.id);
-        formData.append('message', message);
-        formData.append('modal', 'Admission');
-        formData.append('mobile', data.mobile);
-        formData.append('attachment2', attachment2);
-        if (file) {
-            formData.append('image', file);
+        if (updateUrl !== false) {
+            history.replaceState({ admission: true }, '', fullUrl);
         }
-    
-        $.ajax({
-            headers: {
-                'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
-            },
-            url: baseUrl + '/sendWhatsapp',
-            method: 'POST',
-            data: formData,
-            processData: false, // Prevent jQuery from automatically transforming the data into a query string
-            contentType: false, // Prevent jQuery from overriding the Content-Type header
-            success: function(response) {
-                if (response.status) {
-                    $('#status_' + response.id).addClass('text-success');
-                    $('#status_' + response.id).text('Sent');
+
+        if (admissionRequest) {
+            admissionRequest.abort();
+        }
+
+        $('#studentList').addClass('table-loading');
+        $('#admissionTableLoader').show();
+
+        admissionRequest = $.ajax({
+            url: fullUrl,
+            type: 'GET',
+            dataType: 'json',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .done(function(response) {
+            if (response && response.status === 'success') {
+                $('#product_list_show').html(response.html);
+                $('#admissionPaginationContainer').html(response.pagination);
+
+                var total = response.total || 0;
+                var from = response.from || 0;
+                var to = response.to || 0;
+                
+                $('#totalStudentsBadge').text('(' + total + ' Students)');
+                if (total > 0) {
+                    $('#admissionEntriesInfo').text('Showing ' + from + ' to ' + to + ' of ' + total + ' students');
+                } else {
+                    $('#admissionEntriesInfo').text('Showing 0 to 0 of 0 students');
                 }
-                if (!response.status) {
-                    $('#status_' + response.id).addClass('text-danger');
-                    $('#status_' + response.id).text(response.message);
-                }
-                             if(i == arr.length)
-             {
-                setTimeout(todayWhatsappMessages, 3000)
-
-$('.status_action').each(function() {
-    if ($(this).text().trim() === "Pending") {
- 
-        $(this).text("Skipped").addClass('text-info');
-    }
-});
-
-             }
-            },
-            error: function(error) {
-                console.error('Error sending data:', error);
-                // Handle error - e.g., display an error message
             }
-        });
-    }
-
-        $('#studentList_wrapper').on('click', '#btn-email', function() {
-           toastr.error('Service is unavailabe')
-            // Add your Email handling code here 
-        });
-          $('#third_tbody').on('click', '.useMe', function() {
-               $('.status_action').each(function() {
-            
-            if ($(this).text().trim() !== "Mobile Missing") {
-        
-        $(this).text("Pending");
-        $(this).attr('class','');
-        $(this).addClass('status_action');
-    }
-               });
-            
-
-            var preId = $(this).data('ids');
-            
-            previousIds = preId.split(',').map(Number);
-    
-            previousIds  = previousIds.filter(item => item !== 0); 
-                
-                var text = $(this).closest('tr').find('.old_message').text();
-                var text1 = $(this).closest('tr').find('.messageId').text();
-                var url =  $(this).closest('tr').find('.attachment a').attr('href');
-                $('#message-text').val(text); 
-                
-                messageId = text1;
-                $('.previousIds').show();
-                 $('#attachment-file').val('');
-                attachment2 = url;
-                $('#img_preview').attr('src',url);
-                toastr.info('Message applied in the textarea')
-            
-            
-        });
-             $('#previousIds').click(function() {
-            
-             if (this.checked) {
-                 
-         notUsePreviousIds = true;
-             }else
-             {
-                 notUsePreviousIds = false;
-             }
-            
-        });
-        
-        
-        
-         $('#attachment-file').on('change', function(event) {
-         
-        var file = event.target.files[0];
-       if (file) {
-            if (file.type.match('image.*')) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    $('#img_preview').attr('src', e.target.result);
-                };
-                reader.readAsDataURL(file);
-            } else{
-                toastr.error('Please select a valid image file.');
-                $(this).val(''); // Clear the input
-                $('#img_preview').attr('src', 'https://demo3.rusoft.in/schoolimage/default/6605525.jpg'); // Clear the image preview
+        })
+        .fail(function(xhr, status) {
+            if (status !== 'abort') {
+                console.error('Error loading admission records:', xhr);
+                $('#product_list_show').html('<tr class="admission-empty-row"><td colspan="100" class="admission-empty-cell"><div class="empty-state-sticky-container"><div class="empty-state-wrap"><div class="empty-state-icon-wrap" style="background:#fef2f2; color:#dc2626; border-color:#fca5a5;"><i class="fa fa-exclamation-triangle"></i></div><div class="empty-state-title">Failed to load student data</div><p class="empty-state-subtitle">An error occurred while fetching records. Please try again.</p><button type="button" class="btn-empty-reset" onclick="$(\'#admissionResetBtn\').trigger(\'click\');"><i class="fa fa-refresh mr-1"></i> Retry / Reset</button></div></div></td></tr>');
             }
-       }
-    });
-    });
-    
-    
-    $(document).ready(function(){
-       $('.verify_admission').click(function(){
-           var id = $(this).data('id');
-           var session_id = $(this).data('session_id');
-           
-           $('#id').val(id);
-           $('#sessionId').val(session_id);
-           
-          $('#verify_modal').modal('show'); 
-       }); 
-    });
-    
- 
-</script>
-
-
-<script>
-        $(document).ready(function(){
-            $('#downloadZip').on('click', function(){
-                    $(this).text('Generating Please Wait...')
-                var data = @json($data);
-                
-                var urls =[];
-                var admissionNo =[];
-                
-                data.forEach(function(item) {
-                    if(item.image != '')
-                    {
-        // urls.push('https://demo3.rusoft.in/schoolimage/profile/'+item.image)
-        // urls.push('{{ env('IMAGE_SHOW_PATH').'profile/'.$item['image'] }}'+item.image)
-        urls.push('{{ env('IMAGE_SHOW_PATH').'profile/' }}' + item.image);
-        admissionNo.push(item.admissionNo)
-                    }
-                        
-                    });
-               
-             $(this).text('Downloading ...');
-                var zip = new JSZip();
-                var count = 0;
-                var zipFilename = "{{$setting->name}}.zip";
-
-                urls.forEach(function(url, i){
-                    var filename = admissionNo[i]+".jpg"; // Change the filename as needed
-                    
-                    fetch(url)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        zip.file(filename, blob, {binary: true});
-                        count++;
-                        if(count === urls.length){
-                            zip.generateAsync({type:'blob'}).then(function(content) {
-                                saveAs(content, zipFilename);
-                            });
-                        }
-                          setTimeout(function() {
-                            $('#downloadZip').text('Bulk Images Download [Zip]');
-                        }, 3000); // 3000 milliseconds = 3 seconds
-                    })
-                    .catch(function(error) {
-                        console.log("Error fetching image:", error);
-                    });
-                });
-                
-               
-            });
+        })
+        .always(function() {
+            $('#studentList').removeClass('table-loading');
+            $('#admissionTableLoader').hide();
+            alignEmptyState();
         });
-    </script>
-    
-<script src="https://stuk.github.io/jszip/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.2/dist/FileSaver.min.js"></script>
+    }
 
-<script>
-$(document).ready(function(){
+    function alignEmptyState() {
+        var scrollBox = $('.admission-scroll');
+        if (scrollBox.length) {
+            var visW = scrollBox.width();
+            if (visW > 50) {
+                $('.empty-state-sticky-container').css('width', visW + 'px');
+            }
+        }
+    }
+
+    $(window).on('resize orientationchange', function() {
+        alignEmptyState();
+    });
+
+    // 3. Live Event Listeners (Debounced input & immediate select changes)
+    $('.live-adm-input').on('input', function() {
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(function() {
+            loadAdmissions(true);
+        }, 350);
+    });
+
+    $(document).on('change', '.live-adm-select', function() {
+        // Prevent course trigger from firing twice when course updates class select
+        if ($(this).attr('id') !== 'course') {
+            loadAdmissions(true);
+        }
+    });
+
+    // 4. AJAX Pagination Switch (Page change in real-time)
+    $(document).on('click', '.admission-pagination .page-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+        if (!page) {
+            var href = $(this).attr('href');
+            if (href) {
+                var match = href.match(/page=(\d+)/);
+                if (match) page = match[1];
+            }
+        }
+        if (page) {
+            loadAdmissions(true, page);
+            $('.admission-scroll').scrollTop(0);
+        }
+    });
+
+    // 5. Reset All Filters
+    $('#admissionResetBtn').on('click', function() {
+        $('#admissionFilterForm')[0].reset();
+        $('#admissionFilterForm select').val('');
+        $('#admissionFilterForm input[type="text"]').val('');
+        $('#status').val('1');
+        $('#admissionPerPage').val('25');
+        $('#admissionCurrentPage').val(1);
+        loadAdmissions(true);
+    });
+
+    // 6. Dynamic Course -> Class/Semester Cascade
     function updateClassDropdown(classSelect, data) {
         classSelect.empty();
-        classSelect.append('<option value="">{{ __("common.Select") }}</option>');
+        classSelect.append('<option value="">All Semesters</option>');
         if (data && data.length > 0) {
             $.each(data, function(key, val) {
                 classSelect.append('<option value="' + val.id + '">' + val.name + '</option>');
             });
         }
-        if (classSelect.hasClass("select2-hidden-accessible")) {
-            classSelect.select2('destroy');
-        }
-        classSelect.select2();
-        classSelect.val('').trigger('change');
+        loadAdmissions(true);
     }
 
     $(document).on('change', '#course', function() {
@@ -1909,7 +1299,432 @@ $(document).ready(function(){
             updateClassDropdown(classSelect, defaultClasses);
         }
     });
+
+    // 9. Browser Navigation (Back / Forward State)
+    window.addEventListener('popstate', function() {
+        loadAdmissions(false);
+    });
+
+    // 10. Delegated Action Handlers (Delete, Verify, Profile Img, Checkboxes)
+    $(document).on('click', '.deleteData', function() {
+        var delete_id = $(this).data('id');
+        $('#delete_id').val(delete_id);
+    });
+
+    $(document).on('click', '.profileImg', function() {
+        var profileImgUrl = $(this).data('img');
+        if (profileImgUrl) {
+            $('#profileImgModal').modal('show');
+            $('#profileImg').attr('src', profileImgUrl);
+            $('#downloadLink').attr('href', profileImgUrl);
+        }
+    });
+
+    $(document).on('click', '.deleteImage', function() {
+        var delete_image = $(this).data('id');
+        $('#delete_image').val(delete_image);
+    });
+
+    $(document).on('click', '.verify_admission', function() {
+        var id = $(this).data('id');
+        var session_id = $(this).data('session_id');
+        $('#verify_id').val(id);
+        $('#verifySessionId').val(session_id);
+        $('#verify_modal').modal('show');
+    });
+
+    // 11. Master Column Visibility Checkbox & Real-time Column Search
+    function checkmasterColumn() {
+        var visibleCards = $('.column-card-col:visible .column-chk');
+        var total = visibleCards.length;
+        var checked = visibleCards.filter(':checked').length;
+        $('#master_checkbox').prop('checked', total > 0 && total === checked);
+    }
+
+    $(document).on('click', '#master_checkbox', function() {
+        var isChecked = $(this).is(':checked');
+        $('.column-card-col:visible .column-chk').prop('checked', isChecked);
+        $('.column-card-col:visible .column-card').toggleClass('active-selected', isChecked);
+    });
+
+    $(document).on('change', '.column-chk', function() {
+        $(this).closest('.column-card').toggleClass('active-selected', $(this).is(':checked'));
+        checkmasterColumn();
+    });
+
+    // Real-time Column Filter Search in Modal
+    $(document).on('input', '#column_filter_search', function() {
+        var query = $.trim($(this).val()).toLowerCase();
+        if (query.length > 0) {
+            $('#clear_col_search_btn').show();
+        } else {
+            $('#clear_col_search_btn').hide();
+        }
+
+        var visibleCount = 0;
+        var totalCount = 0;
+
+        $('.column-card-col').each(function() {
+            totalCount++;
+            var colName = $(this).find('.column-label').text().toLowerCase();
+            if (query === '' || colName.indexOf(query) !== -1) {
+                $(this).show();
+                visibleCount++;
+            } else {
+                $(this).hide();
+            }
+        });
+
+        if (query === '') {
+            $('#column_match_count').text('Showing all (' + totalCount + ') columns');
+            $('#no_columns_matched').hide();
+        } else {
+            $('#column_match_count').text('Found ' + visibleCount + ' of ' + totalCount + ' columns');
+            if (visibleCount === 0) {
+                $('#no_columns_matched').show();
+            } else {
+                $('#no_columns_matched').hide();
+            }
+        }
+        checkmasterColumn();
+    });
+
+    $(document).on('click', '#clear_col_search_btn, #btn_reset_col_search', function() {
+        $('#column_filter_search').val('').trigger('input').focus();
+    });
+
+    $('#datatableFieldsModal').on('shown.bs.modal', function() {
+        $('#column_filter_search').val('').trigger('input').focus();
+    });
+    checkmasterColumn();
+
+    // 12. High-Performance Bulk WhatsApp Broadcast System
+    function generateRandom8DigitNumber() {
+        return Math.floor(10000000 + Math.random() * 90000000);
+    }
+
+    var messageId = '';
+    var attachment2 = '';
+    var waQueue = [];
+    var isBroadcasting = false;
+    var broadcastStats = { total: 0, sent: 0, failed: 0, pending: 0 };
+    var activeWorkers = 0;
+    var maxConcurrency = 2; // Optimal concurrency to prevent server/gateway choking
+
+    // Insert Tag at cursor position
+    $(document).on('click', '.insert-tag', function() {
+        var tag = $(this).data('tag');
+        var textarea = document.getElementById('message-text');
+        if (!textarea) return;
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+        var text = textarea.value;
+        textarea.value = text.substring(0, start) + tag + text.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+        textarea.focus();
+        updateWaCharCounter();
+    });
+
+    function updateWaCharCounter() {
+        var len = $('#message-text').val().length;
+        $('#wa_char_counter').text(len + ' chars');
+    }
+    $(document).on('input', '#message-text', updateWaCharCounter);
+
+    // Image Attachment Preview Handler
+    $(document).on('change', '#attachment-file', function(e) {
+        var file = e.target.files[0];
+        if (file) {
+            var objUrl = URL.createObjectURL(file);
+            $('#img_preview').attr('src', objUrl);
+            $('#img_preview_wrap').show();
+            attachment2 = '';
+        } else {
+            $('#img_preview_wrap').hide();
+        }
+    });
+
+    $(document).on('click', '#btn_remove_img', function() {
+        $('#attachment-file').val('');
+        $('#img_preview').attr('src', '');
+        $('#img_preview_wrap').hide();
+        attachment2 = '';
+    });
+
+    // Queue Filter Search
+    $(document).on('input', '#search_queue_input', function() {
+        var q = $.trim($(this).val()).toLowerCase();
+        $('#secondary_tbody tr').each(function() {
+            var text = $(this).text().toLowerCase();
+            $(this).toggle(q === '' || text.indexOf(q) !== -1);
+        });
+    });
+
+    // Check All Students Action
+    $(document).on('click', '#btn-checkall', function() {
+        var status = parseInt($(this).attr('data-status'));
+        if (status === 0) {
+            $(this).attr('data-status', 1);
+            $('#check_box_icon').removeClass('fa-square-o').addClass('fa-check-square');
+            $('.checkbox_id').prop('checked', true);
+        } else {
+            $(this).attr('data-status', 0);
+            $('#check_box_icon').removeClass('fa-check-square').addClass('fa-square-o');
+            $('.checkbox_id').prop('checked', false);
+        }
+    });
+
+    // Open WhatsApp Broadcast Modal
+    $(document).on('click', '#btn-whatsapp', function() {
+        var checked = $('.checkbox_id:checked');
+        if (checked.length === 0) {
+            toastr.warning('Please select at least one student from the list.');
+            return;
+        }
+
+        messageId = generateRandom8DigitNumber();
+        waQueue = [];
+        isBroadcasting = false;
+        attachment2 = '';
+        $('#attachment-file').val('');
+        $('#img_preview_wrap').hide();
+        $('#message-text').val('');
+        updateWaCharCounter();
+
+        $('#wa_progress_container').hide();
+        $('#btn_stop_broadcast').hide();
+        $('#sendButton').prop('disabled', false).html('<i class="fa fa-paper-plane mr-1"></i> Start Broadcast');
+
+        var tbodyHtml = '';
+        var validCount = 0;
+        var idx = 1;
+
+        checked.each(function() {
+            var sid = $(this).val();
+            var admNo = $(this).data('admission_no') || '-';
+            var name = $(this).data('name') || '-';
+            var mobile = $.trim($(this).data('mobile') || '');
+            var fName = $(this).data('father_name') || '';
+
+            var statusBadge = '';
+            if (mobile && mobile.length >= 10) {
+                statusBadge = '<span class="badge badge-status-pending" id="status_' + sid + '">Pending</span>';
+                waQueue.push({ id: sid, mobile: mobile, name: name, admNo: admNo });
+                validCount++;
+            } else {
+                statusBadge = '<span class="badge badge-status-missing" id="status_' + sid + '">No Mobile</span>';
+            }
+
+            tbodyHtml += '<tr>' +
+                '<td class="text-center text-muted font-weight-bold">' + (idx++) + '</td>' +
+                '<td class="font-weight-bold text-dark">' + admNo + '</td>' +
+                '<td>' + name + '</td>' +
+                '<td>' + (mobile || '<span class="text-danger">-</span>') + '</td>' +
+                '<td class="text-center">' + statusBadge + '</td>' +
+            '</tr>';
+        });
+
+        $('#secondary_tbody').html(tbodyHtml);
+        $('#wa_total_badge').text(validCount + ' of ' + checked.length + ' Valid');
+        $('#myLargeModal').modal('show');
+        todayWhatsappMessages();
+    });
+
+    // Load Today's History
+    function todayWhatsappMessages() {
+        $('#third_tbody').html('<tr><td colspan="4" class="text-center py-2 text-muted"><i class="fa fa-spinner fa-spin mr-1"></i> Loading history...</td></tr>');
+        $.ajax({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            url: "{{ url('todayWhatsappMessages') }}",
+            method: 'POST',
+            dataType: 'json',
+            success: function(response) {
+                if (response && response.status && response.data && response.data.length > 0) {
+                    var rows = '';
+                    response.data.forEach(function(item) {
+                        var att = item.attachment 
+                            ? '<a target="_blank" href="' + item.attachment + '" class="d-inline-block"><img src="' + item.attachment + '" style="width:28px; height:28px; object-fit:cover; border-radius:3px; border:1px solid #cbd5e1;"/></a>' 
+                            : '<span class="text-muted">-</span>';
+                        
+                        var snippet = item.message ? (item.message.length > 60 ? item.message.substring(0, 60) + '...' : item.message) : '';
+                        var fullMsg = (item.message || '').replace(/"/g, '&quot;');
+
+                        rows += '<tr>' +
+                            '<td class="text-center font-weight-bold text-muted" style="font-size:10.5px;">#' + item.message_id + '</td>' +
+                            '<td class="text-dark">' + snippet + '</td>' +
+                            '<td class="text-center">' + att + '</td>' +
+                            '<td class="text-center"><button type="button" class="btn btn-xs btn-outline-success useMe font-weight-bold" data-msg="' + fullMsg + '" data-att="' + (item.attachment || '') + '"><i class="fa fa-copy mr-1"></i> Reuse</button></td>' +
+                        '</tr>';
+                    });
+                    $('#third_tbody').html(rows);
+                } else {
+                    $('#third_tbody').html('<tr><td colspan="4" class="text-center py-2 text-muted">No broadcasts sent today yet.</td></tr>');
+                }
+            },
+            error: function() {
+                $('#third_tbody').html('<tr><td colspan="4" class="text-center py-2 text-danger">Failed to load history.</td></tr>');
+            }
+        });
+    }
+
+    $(document).on('click', '#btn_refresh_history', function() {
+        todayWhatsappMessages();
+    });
+
+    // Reuse message from history
+    $(document).on('click', '.useMe', function() {
+        var msg = $(this).data('msg') || '';
+        var att = $(this).data('att') || '';
+        $('#message-text').val(msg);
+        updateWaCharCounter();
+
+        if (att) {
+            attachment2 = att;
+            $('#img_preview').attr('src', att);
+            $('#img_preview_wrap').show();
+        }
+        toastr.info('Message copied to composer.');
+    });
+
+    // Start Broadcast Queue Runner
+    $(document).on('click', '#sendButton', function() {
+        var msg = $.trim($('#message-text').val());
+        if (!msg) {
+            toastr.error('Please enter a WhatsApp message before sending.');
+            $('#message-text').focus();
+            return;
+        }
+
+        if (waQueue.length === 0) {
+            toastr.error('No valid recipients with mobile numbers found in queue.');
+            return;
+        }
+
+        isBroadcasting = true;
+        broadcastStats = {
+            total: waQueue.length,
+            sent: 0,
+            failed: 0,
+            pending: waQueue.length
+        };
+
+        $('#sendButton').prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Broadcasting...');
+        $('#btn_stop_broadcast').show();
+        $('#wa_progress_container').slideDown(150);
+        updateProgressUI();
+
+        // Launch concurrent queue workers
+        var queueIndex = 0;
+        activeWorkers = 0;
+
+        function runNext() {
+            if (!isBroadcasting || queueIndex >= waQueue.length) {
+                if (activeWorkers === 0) {
+                    finishBroadcast();
+                }
+                return;
+            }
+
+            var item = waQueue[queueIndex++];
+            activeWorkers++;
+
+            $('#status_' + item.id).html('<i class="fa fa-spinner fa-spin"></i> Sending').attr('class', 'badge badge-status-sending');
+
+            var fileInput = $('#attachment-file')[0];
+            var file = fileInput ? fileInput.files[0] : null;
+
+            var formData = new FormData();
+            formData.append('message_id', messageId);
+            formData.append('id', item.id);
+            formData.append('message', msg);
+            formData.append('modal', 'Admission');
+            formData.append('mobile', item.mobile);
+            formData.append('attachment2', attachment2);
+            if (file) formData.append('image', file);
+
+            $.ajax({
+                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                url: "{{ url('sendWhatsapp') }}",
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                timeout: 30000
+            })
+            .done(function(resp) {
+                if (resp && resp.status) {
+                    broadcastStats.sent++;
+                    $('#status_' + item.id).html('<i class="fa fa-check"></i> Sent').attr('class', 'badge badge-status-sent');
+                } else {
+                    broadcastStats.failed++;
+                    var reason = (resp && resp.message) ? resp.message : 'Failed';
+                    $('#status_' + item.id).text(reason).attr('class', 'badge badge-status-failed').attr('title', reason);
+                }
+            })
+            .fail(function(xhr) {
+                broadcastStats.failed++;
+                $('#status_' + item.id).text('Error').attr('class', 'badge badge-status-failed').attr('title', 'Network/Server Error');
+            })
+            .always(function() {
+                broadcastStats.pending--;
+                activeWorkers--;
+                updateProgressUI();
+                if (isBroadcasting) {
+                    runNext();
+                }
+            });
+        }
+
+        // Spawn workers up to maxConcurrency
+        var workersToSpawn = Math.min(maxConcurrency, waQueue.length);
+        for (var w = 0; w < workersToSpawn; w++) {
+            runNext();
+        }
+    });
+
+    function updateProgressUI() {
+        var completed = broadcastStats.sent + broadcastStats.failed;
+        var total = broadcastStats.total || 1;
+        var pct = Math.round((completed / total) * 100);
+
+        $('#wa_stat_total').text(broadcastStats.total);
+        $('#wa_stat_sent').text(broadcastStats.sent);
+        $('#wa_stat_failed').text(broadcastStats.failed);
+        $('#wa_stat_pending').text(broadcastStats.pending);
+
+        $('#wa_progress_bar').css('width', pct + '%');
+        $('#wa_progress_percent').text(pct + '%');
+    }
+
+    function finishBroadcast() {
+        isBroadcasting = false;
+        $('#sendButton').prop('disabled', false).html('<i class="fa fa-check mr-1"></i> Broadcast Completed');
+        $('#btn_stop_broadcast').hide();
+        $('#wa_progress_label').html('<i class="fa fa-check-circle text-success mr-1"></i> Broadcast Finished (' + broadcastStats.sent + ' Sent, ' + broadcastStats.failed + ' Failed)');
+        toastr.success('WhatsApp broadcast completed: ' + broadcastStats.sent + ' sent successfully.');
+        todayWhatsappMessages();
+    }
+
+    $(document).on('click', '#btn_stop_broadcast', function() {
+        isBroadcasting = false;
+        $(this).hide();
+        $('#sendButton').prop('disabled', false).html('<i class="fa fa-paper-plane mr-1"></i> Resume Broadcast');
+        $('#wa_progress_label').html('<i class="fa fa-pause-circle text-warning mr-1"></i> Broadcast Paused');
+        toastr.warning('Broadcast paused.');
+    });
+
+    // 13. Universal Modal Close / Dismiss Handler (Foolproof across Bootstrap 4/5)
+    $(document).on('click', '[data-dismiss="modal"], [data-bs-dismiss="modal"], .btn-close-modal, .btn-modal-cancel, #close_modal, #btn_close_wa_modal', function(e) {
+        var $targetModal = $(this).closest('.modal');
+        if ($targetModal.length) {
+            $targetModal.modal('hide');
+        }
+    });
+
+    $('#myLargeModal').on('hidden.bs.modal', function() {
+        isBroadcasting = false;
+    });
 });
 </script>
 
-            @endsection
+@endsection

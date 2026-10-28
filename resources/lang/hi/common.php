@@ -43,6 +43,7 @@ return [
 	'Delete' => 'मिटाना',
 	'Back' => 'पीछे',
 	'Close' => 'बंद करना',
+	'Cancel' => 'रद्द करें',
 	'Are you sure you want to delete' => 'क्या आप आश्वस्त है कि आपको डिलीट करना है',
 	'Delete Confirmation' => 'पुष्टिकरण हटाएँ',
 	'Status Change Confirmation' => 'स्थिति परिवर्तन की पुष्टि',

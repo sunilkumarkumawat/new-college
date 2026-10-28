@@ -1,4 +1,4 @@
-﻿/node_modules
+/node_modules
 /public/hot
 /public/storage
 /storage/*.key
@@ -12,3 +12,21 @@
 .phpunit.result.cache
 *.sql
 *.log
+
+# Temporary helper scripts and dumps
+/scratch/
+/scripts/
+/storage/backups/
+/*.csv
+/*.txt
+/*.py
+check_*.php
+describe_*.php
+ensure_*.php
+extract_*.php
+find_*.php
+import_*.php
+init_*.php
+inspect_*.php
+list_*.php
+save_*.php

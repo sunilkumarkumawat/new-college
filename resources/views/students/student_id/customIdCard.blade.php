@@ -57,14 +57,19 @@ $branch = Helper::getAllBranch();
     <div class="container-fluid">
       <div class="row">
         <div class="col-12 col-md-12">
-          <div class="card card-outline card-orange">
-            <div class="card-header bg-primary flex_items_toggel">
-              <h3 class="card-title"><i class="fa fa-address-book-o"></i> &nbsp;Id Card</h3>
-              <div class="card-tools">
-              <a href="{{ env('IMAGE_SHOW_PATH') . 'Id Card Format.xlsx' }}" class="btn btn-primary  btn-sm" download><i class="fa fa-download"></i><span class="Display_none_mobile"> Download Blank Excel </span></a>
-                <a href="{{url('studentsDashboard')}}" class="btn btn-primary  btn-sm"><i class="fa fa-arrow-left"></i><span class="Display_none_mobile"> {{ __('common.Back') }} </span></a>
+          <div class="card card-outline card-orange" style="border-top: 3px solid #ff8a00 !important; border: 1px solid #b8c8d5;">
+            <div class="card-header" style="background: #002c54 !important; color: #ffffff !important; min-height: 48px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <h3 class="card-title" style="margin: 0; font-size: 15.5px; font-weight: 700; color: #ffffff !important; display: flex; align-items: center; gap: 8px;">
+                <i class="fa fa-id-card-o"></i> Student ID Cards Generator & Print
+              </h3>
+              <div class="card-tools d-flex gap-2">
+                <a href="{{ env('IMAGE_SHOW_PATH') . 'Id Card Format.xlsx' }}" class="btn btn-light btn-sm" download style="font-size: 11.5px; font-weight: 600; padding: 4px 10px; border: 1px solid #cbd5e1;">
+                  <i class="fa fa-download text-success mr-1"></i><span class="Display_none_mobile"> Download Blank Excel </span>
+                </a>
+                <a href="{{url('studentsDashboard')}}" class="btn btn-light btn-sm" style="font-size: 11.5px; font-weight: 600; padding: 4px 10px; border: 1px solid #cbd5e1;">
+                  <i class="fa fa-arrow-left mr-1"></i><span class="Display_none_mobile"> {{ __('common.Back') }} </span>
+                </a>
               </div>
-
             </div>
             
                <div class="row m-2">
@@ -204,31 +209,26 @@ $branch = Helper::getAllBranch();
               <div class="col-12" style="overflow-x:scroll;">
                 <small class="text-danger">*For update a field just double click the value and it will be editable.</small>
                 <table id="studentList" class="table table-bordered table-striped dataTable dtr-inline nowrap">
-                  <thead id='main_thead' class="bg-primary">
+                  <thead id='main_thead' style="background: #002c54 !important; color: #ffffff !important;">
                     <tr role="row">
-                      <th><input class="" type="checkbox" id="view1"> {{ __('common.SR.NO') }}</th>
-                      <th>Image</th>
-                      <th>Name</th>
-                      
-                      <th>Designation</th>
-                      <th>Department</th>
-                      <th>Branch</th>
-                      <th>Roll No.</th>
-                      <th>Employee Code</th>
-                      <th>Blood Group</th>
-                      <th>Mobile</th>
-                      
-                      
-                      
-                      <th>D.O.B.</th>
-                      <th>D.O.J.</th>
-                      <th>Valid Upto</th>
-                      
-                      <th>Hostler</th>
-                      <th>Internship</th>
-                      <th>Internship Start Date</th>
-                      <th>Internship End Date</th>
-                      <th>Address</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;"><input class="" type="checkbox" id="view1"> {{ __('common.SR.NO') }}</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Image</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Name</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Designation</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Department</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Branch</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Roll No.</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Employee Code</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Blood Group</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Mobile</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">D.O.B.</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">D.O.J.</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Valid Upto</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Hostler</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Internship</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Internship Start Date</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Internship End Date</th>
+                      <th style="background: #002c54 !important; color: #ffffff !important;">Address</th>
                     </tr>
                   </thead>
                   <tbody id="">

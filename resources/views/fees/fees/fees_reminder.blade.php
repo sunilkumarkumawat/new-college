@@ -8,36 +8,86 @@
 @extends('layout.app') 
 @section('content')
 
-<div class="content-wrapper">
-   <!-- <div class="panel panel-primary">
-        <div class="container-fluid panel-heading">
-            <div class="row">
-                <div class="col-sm-8">
-                <h3 class="m-2">Fees Reminder</h3>
-                </div>
-                <div class="col-sm-4">
-                <ol class="breadcrumb float-sm-right">
-                <li class="pr-2"><a href="{{url('dashboard')}}" class="btn btn-primary  btn-xs"><i class="fa fa-home"></i> Home</a></li>
-                <li class="pl-2"><a href="{{url('fee_dashboard')}}" class="btn btn-primary  btn-xs"><i class="fa fa-arrow-left"></i> Back</a></li>
-                </ol>
-                </div>
-            </div>
-        <hr class="bg-primary" style="margin-top:-12px;">
-        </div>
-    </div>-->
-    
- <section class="content pt-3">
-      <div class="container-fluid">
+<style>
+/* ========================================================
+   FEES REMINDER - EXCEL GREEN EXECUTIVE THEME (#217346)
+   ======================================================== */
+:root {
+    --green-excel: #217346;
+    --line: #b8c8d5;
+    --line-subtle: #cbd5e1;
+}
+
+.fees-reminder-page {
+    background-color: #f4f6f9;
+    font-size: 12px;
+}
+
+.dash-main-card {
+    border: 1px solid var(--line) !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    background: #ffffff;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.dash-titlebar {
+    min-height: 42px;
+    padding: 6px 14px;
+    background: var(--green-excel) !important;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dash-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+}
+
+.btn-header-action {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 3px !important;
+    padding: 4px 10px !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.btn-header-action:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+</style>
+
+<div class="content-wrapper fees-reminder-page">
+    <section class="content pt-2">
+      <div class="container-fluid px-2">
         <div class="row">   
     <div class="col-md-12 {{($getPermission->add == 1) ? '' : 'd-none'}}">
-            <div class="card card-outline card-orange mr-1">
-             <div class="card-header bg-primary">
-            <h3 class="card-title"><i class="fa fa-money"></i> &nbsp;{{ __('fees.Add Fees Reminder')}} </h3>
-            <div class="card-tools">
-            <!--<a href="{{url('students/add')}}" class="btn btn-primary  btn-sm" ><i class="fa fa-plus"></i> Add</a>
-            <a href="{{url('students_dashboard')}}" class="btn btn-primary  btn-sm" ><i class="fa fa-arrow-left"></i> Back</a>-->
-            </div>
-            
+            <div class="dash-main-card">
+             <div class="dash-titlebar">
+                <h1 class="dash-title"><i class="fa fa-clock-o text-warning mr-1"></i> {{ __('fees.Add Fees Reminder')}} </h1>
+                <div class="dash-title-tools">
+                    <a href="{{ url('fee_dashboard') }}" class="btn-header-action" title="Back">
+                        <i class="fa fa-arrow-left text-secondary mr-1"></i> Back
+                    </a>
+                </div>
             </div>   
             
         

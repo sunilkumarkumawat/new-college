@@ -98,7 +98,16 @@ class HomeworkController extends Controller
                             strip_tags($request->description),
                             date('d-m-Y',strtotime($request->submission_date)),
                             $setting->name);
-                        if($template->status != 1){
+                        if (!empty($template) && $template->status != 1) {
+                            $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content ?? '');
+                            if (!empty($setting) && $setting->firebase_notification == 1) {
+                                Helper::sendNotification(
+                                    $template->title ?? 'Homework',
+                                    $whatsapp,
+                                    'student',
+                                    $students[$i]->id
+                                ); 
+                            }
                             if($students[$i]->email != ""){
                                 if($branch->email_srvc != 0){
                                     if($template->email_status != 0){

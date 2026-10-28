@@ -33,6 +33,11 @@ class Enquiry extends Model
     {
         return $this->belongsTo('App\Models\Gender','gender_id');
     }
+
+    public function Agent()
+    {
+        return $this->belongsTo('App\Models\Agent','agent_id');
+    }
     
     public static function countTotalRegistration(){
         $Registration = Enquiry::where('session_id',Session::get('session_id'));

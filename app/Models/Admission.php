@@ -20,6 +20,10 @@ protected $table = "admissions"; //table name
     {
         return $this->belongsTo('App\Models\ClassType','class_type_id');
     }
+    public function classType()
+    {
+        return $this->belongsTo('App\Models\ClassType','class_type_id');
+    }
      public function PreviousClass()
     {
         return $this->belongsTo('App\Models\ClassType','previous_class_type_id');
@@ -55,6 +59,11 @@ protected $table = "admissions"; //table name
     public function FeesAssign()
     {
         return $this->belongsTo('App\Models\fees\FeesAssign','admissionNo');
+    }
+
+    public function Agent()
+    {
+        return $this->belongsTo('App\Models\Agent','agent_id');
     }
     
     public static function countActiveAdmission(){

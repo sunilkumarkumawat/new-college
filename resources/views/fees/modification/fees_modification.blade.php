@@ -24,7 +24,7 @@ $finalAssignedAmt += $details->fees_group_amount;
 $finalAssignedDis += $details->discount;
 $finalAssignedFine += $details->installment_fine;
 $finalUpdatedAmt = ($finalAssignedAmt - $finalAssignedDis);
-$updatedAmtPerHead = ($details->fees_group_amount - $details->discount);
+$updatedAmtPerHead = ($details->fees_group_amount - $details->discount - ($details->promotion_carry_adjustment ?? 0));
 $deletable = DB::table('fees_detail')->where('admission_id',$item->admission_id)->where('fees_group_id',$details->fees_group_id)->whereNull('deleted_at')->whereIn('status', [0,1])->sum('total_amount');
 @endphp
  <tr style="background-color:{{$key%2 == 0 ? '#c8c8c8' : ''}}">

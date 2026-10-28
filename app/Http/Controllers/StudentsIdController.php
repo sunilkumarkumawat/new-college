@@ -68,7 +68,7 @@ class StudentsIdController extends Controller
             }    
     
             public function studentIdIndex(Request $request){
-                $data = Admission::with('ClassTypes')->where('session_id',Session::get('session_id'))->where('status',1);
+                $data = Admission::with('ClassTypes')->where('status',1);
                 if(Session::get('role_id') > 1){
                     $data = $data->where('branch_id',Session::get('branch_id'));
                 }
@@ -80,15 +80,34 @@ class StudentsIdController extends Controller
                 }
                 $search['admission_id'] = $request->admission_id;
                 $search['class_search_id'] = $request->class_search_id;
-                if ($request->isMethod('post')) {
-                    if(!empty($request->admission_id)){
-                        $data = $data->where('id',$request->admission_id);
-                    }
-                    if(!empty($request->class_search_id)){
-                        $data = $data ->where("class_type_id", $request->class_search_id);
-                    }
+                $search['course'] = $request->course;
+                $search['batch'] = $request->batch;
+                
+                if(!empty($request->admission_id)){
+                    $data = $data->where('id',$request->admission_id);
                 }
-                $alladmission =  $data->where('school',1)->orderBy('id','DESC') ->get();
+                if(!empty($request->class_search_id)){
+                    $data = $data->where("class_type_id", $request->class_search_id);
+                }
+                if(!empty($request->course)){
+                    $courseName = $request->course;
+                    $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                    $courseClassIds = [];
+                    if ($courseObj) {
+                        $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+                    }
+                    $data = $data->where(function($q) use ($courseName, $courseClassIds) {
+                        $q->where('course', $courseName);
+                        if (!empty($courseClassIds)) {
+                            $q->orWhereIn('class_type_id', $courseClassIds);
+                        }
+                    });
+                }
+                if(!empty($request->batch)){
+                    $data = $data->where("batch", $request->batch);
+                }
+                
+                $alladmission = $data->where('school',1)->orderBy('id','DESC')->get();
                 return view('students.student_id.index',['data'=>$alladmission,'search'=>$search]);
             }
 

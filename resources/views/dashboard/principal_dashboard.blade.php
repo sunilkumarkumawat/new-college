@@ -50,12 +50,12 @@ $task = Helper::task();
                     </a>
                 </div>
                 <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('teachers/index') }}">
+                    <a href="{{ url('users/view') }}">
                         <div class="info-box mb-3 text-dark">
                             <span class="info-box-icon bg-primary elevation-1"><i class="fa fa-shirtsinbulk"></i></span>
                             <div class="info-box-content">
                                 <span class="info-box-text">{{ __('dashboard.TOTAL TEACHERS') }}</span>
-                                <span class="info-box-number">{{\App\Models\Teacher::countTeacher() }}</span>
+                                <span class="info-box-number">{{\App\Models\User::countUser() }}</span>
                             </div>
                         </div>
                     </a>

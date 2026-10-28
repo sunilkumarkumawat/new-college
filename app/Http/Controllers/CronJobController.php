@@ -44,7 +44,7 @@ class CronJobController extends Controller
 
         $notif->processQueue();
         //$this->releaseStaleStoreReservations();
-
+        //rescue(fn () => app(\App\Payments\PaymentService::class)->reconcile());
     }   
 
     // private function releaseStaleStoreReservations(): void

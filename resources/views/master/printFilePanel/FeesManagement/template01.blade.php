@@ -205,7 +205,7 @@ $account = Helper::getQRCode($getSetting->account_id);
                         $fees_master  = DB::table('fees_master')->whereNull('deleted_at')->where('fees_group_id',$item['fees_group_id'])->where('class_type_id',$data[0]['Admission']['ClassTypes']['id'])->first();
                     @endphp
                 
-                {{$feesGroup->name ?? ''}}
+                {{ $item['fees_group_name'] ?? ($feesGroup->name ?? '') }}
                 </td>
                 <td>{{date('d-M-Y', strtotime($fees_master->installment_due_date)) ?? '' }}</td>
                 <td>{{ number_format($fees_master->amount ?? 0, 2) }}</td>

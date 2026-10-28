@@ -1,0 +1,14 @@
+{
+    "oxanium": {
+        "200": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_200_26efc6e8da9e2bfec1a6ef5baa555275",
+        "300": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_300_0916ead417a8c8403baacf89b61d075c",
+        "normal": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_normal_e4a8fd91a06bf2215492a13522702979",
+        "500": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_500_c8838540f11049e538d9c75cab2fba4a",
+        "600": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_600_498f4f72ae28b5c5802937f6693ff378",
+        "bold": "C:\\docker\\php-stack\\htdocs\\girraj\\storage\\fonts\/oxanium_bold_5c06b15b70dccf8e12a8b3b1e2e5f342",
+        "800": "oxanium_800_094c24b13583bab980a6bc0e4e2a2d85"
+    },
+    "fontawesome": {
+        "normal": "fontawesome_normal_7ea195556637d817f455524c7885b526"
+    }
+}

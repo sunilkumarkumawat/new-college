@@ -124,3 +124,6 @@ Route::match(['get', 'post'], 'booksUniformShops', 'Api\BooksUniformController@b
 //Bus Controller
 Route::match(['get', 'post'], 'busAssigned', 'Api\BusController@busAssigned');
 
+//Device Token
+Route::match(['get', 'post'], 'saveDeviceToken', 'Api\UserController@saveDeviceToken');
+

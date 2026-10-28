@@ -46,6 +46,7 @@ return [
 	'Delete' => 'Delete',
 	'Back' => 'Back',
 	'Close' => 'Close',
+	'Cancel' => 'Cancel',
 	'Are you sure you want to delete' => 'Are you sure you want to delete',
 	'Delete Confirmation' => 'Delete Confirmation',
 	'Status Change Confirmation' => 'Status Change Confirmation',

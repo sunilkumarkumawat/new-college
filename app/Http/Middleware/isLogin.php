@@ -46,10 +46,12 @@ class isLogin
        
      
         if(session()->get('id') != ''){
-                
+            if (empty(session()->get('session_id')) && session()->get('role_id') != 3) {
+                $dynamicSession = \App\Helpers\helper::resolveCurrentFinancialSession(session()->get('branch_id'));
+                session()->put('session_id', $dynamicSession->id);
+            }
         }else{
-            
-          return redirect()->intended('login');
+            return redirect()->intended('login');
         }
         
         // if (!session()->has('validated_on') || session('validated_on') !== date('Y-m-d'))

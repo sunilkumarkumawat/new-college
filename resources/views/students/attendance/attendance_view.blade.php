@@ -16,16 +16,18 @@ $attendanceType = Helper::attendanceType();
       <div class="container-fluid">
         <div class="row">
           <div class="col-12 col-md-12">
-            <div class="card card-outline card-orange">
-                    <div class="card-header bg-primary">
-                        <h3 class="card-title"><i class="fa fa-calendar-minus-o"></i> &nbsp;{{ __('student.View Students Attendance') }}</h3>
-                        <div class="card-tools">
-                            @if(Session::get('role_id') !== 3)
-                                <a href="{{url('studentsAttendanceAdd')}}" class="btn btn-primary {{($getPermission->add == 1) ? '' : 'd-none'}} btn-sm" ><i class="fa fa-plus"></i>{{ __('common.Add') }}  </a>
-                                <a href="{{url('studentsDashboard')}}" class="btn btn-primary  btn-sm" ><i class="fa fa-arrow-left"></i>{{ __('common.Back') }}  </a>
-                            @endif
-                        </div>
-                    </div>      
+            <div class="card card-outline card-orange" style="border-top: 3px solid #ff8a00 !important; border: 1px solid #b8c8d5;">
+              <div class="card-header" style="background: #002c54 !important; color: #ffffff !important; min-height: 48px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between;">
+                <h3 class="card-title" style="margin: 0; font-size: 15.5px; font-weight: 700; color: #ffffff !important; display: flex; align-items: center; gap: 8px;">
+                  <i class="fa fa-calendar-minus-o"></i> {{ __('student.View Students Attendance') }}
+                </h3>
+                <div class="card-tools d-flex gap-2">
+                    @if(Session::get('role_id') !== 3)
+                        <a href="{{url('studentsAttendanceAdd')}}" class="btn btn-light btn-sm {{($getPermission->add == 1) ? '' : 'd-none'}}" style="font-size: 11.5px; font-weight: 600; padding: 4px 10px; border: 1px solid #cbd5e1;"><i class="fa fa-plus text-primary mr-1"></i>{{ __('common.Add') }}</a>
+                        <a href="{{url('studentsDashboard')}}" class="btn btn-light btn-sm" style="font-size: 11.5px; font-weight: 600; padding: 4px 10px; border: 1px solid #cbd5e1;"><i class="fa fa-arrow-left mr-1"></i>{{ __('common.Back') }}</a>
+                    @endif
+                </div>
+              </div>
                     
                 @if(count($classType) > 0)
                     <div class="row m-2">

@@ -142,20 +142,31 @@ class CertificateController extends Controller
             }*/
 
             public function ccPrint(Request $request, $id){
-                $cc_certificate_pr =  CcForm::Select('c_certificates_form.*', 'sessions.from_year', 'sessions.to_year', 'admissions.mother_name','admissions.dob','admissions.admissionNo','admissions.father_name as stu_father_name' ,'admissions.first_name', 'admissions.last_name','admissions.address', 'admissions.image')
-                ->leftjoin('admissions', 'admissions.id', 'c_certificates_form.admission_id')
-                ->leftjoin('sessions', 'sessions.id', 'c_certificates_form.session_id')
-                // ->leftjoin('sessions', 'sessions.id', 'evente_certificates.session_id')
-                ->where('c_certificates_form.id', $id)
-                ->where('c_certificates_form.branch_id', Session::get('branch_id'))->get()->first();
-                /*$pdf = PDF::loadView('master.printFilePanel.CertificateManagement.template01', ['data'=>$cc_certificate_pr]);
-                $pdf->setPaper('A4', 'portrait');
-                return $pdf->download('CertificateManagement.pdf');*/
-                $printPreview = Helper::printPreview('Character certificate');
-                // dd($printPreview);
-                return view($printPreview, ['data' => $cc_certificate_pr]);
-                // return view('master.printFilePanel.CertificateManagement.template01', ['data' => $cc_certificate_pr]);
-                // return view('print_file.certificate.achievementCertificatePrint', ['certificate_data' => $cc_certificate_pr]);
+                $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])->find($id);
+                if (!$student) {
+                    $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])
+                        ->where('unique_system_id', (string)$id)
+                        ->first();
+                }
+
+                $cc_form = null;
+                if ($student) {
+                    $cc_form = CcForm::where('admission_id', $student->id)->latest()->first();
+                } else {
+                    $cc_form = CcForm::find($id);
+                    if ($cc_form && !empty($cc_form->admission_id)) {
+                        $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])->find($cc_form->admission_id);
+                    }
+                }
+
+                if (!$student) {
+                    return redirect()->back()->with('error', 'Student record not found for Character Certificate.');
+                }
+
+                return view('print_file.certificate.character_certificate_a5', [
+                    'student' => $student,
+                    'cc_form' => $cc_form
+                ]);
             }
 
             public function formEdit(Request $request, $id){
@@ -575,11 +586,41 @@ class CertificateController extends Controller
             }
 
             public function tcPrint(Request $request, $id){
-                $tc_certificate_pr =  TcCertificate::select('tc_certificates.*', 'class_types.name as ClassName', 'admissions.first_name as first_names', 'admissions.last_name', 'admissions.father_name as admissions_father_name', 'admissions.mother_name as admissions_mother_name')
-                ->leftjoin('admissions', 'admissions.id', 'tc_certificates.admission_id')
-                ->leftjoin('class_types', 'class_types.id', 'admissions.class_type_id')
-                ->where('tc_certificates.id', $id)->first();
-                return view('print_file.certificate.tc_print', ['certificate_data' => $tc_certificate_pr]);
+                $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])->find($id);
+                if (!$student) {
+                    $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])
+                        ->where('unique_system_id', (string)$id)
+                        ->first();
+                }
+
+                $tc_certificate_pr = null;
+                if ($student) {
+                    $tc_certificate_pr = TcCertificate::select('tc_certificates.*', 'class_types.name as ClassName', 'admissions.first_name as first_names', 'admissions.last_name', 'admissions.father_name as admissions_father_name', 'admissions.mother_name as admissions_mother_name')
+                        ->leftjoin('admissions', 'admissions.id', 'tc_certificates.admission_id')
+                        ->leftjoin('class_types', 'class_types.id', 'admissions.class_type_id')
+                        ->where('tc_certificates.admission_id', $student->id)
+                        ->latest('tc_certificates.id')
+                        ->first();
+                } else {
+                    $tc_certificate_pr = TcCertificate::select('tc_certificates.*', 'class_types.name as ClassName', 'admissions.first_name as first_names', 'admissions.last_name', 'admissions.father_name as admissions_father_name', 'admissions.mother_name as admissions_mother_name')
+                        ->leftjoin('admissions', 'admissions.id', 'tc_certificates.admission_id')
+                        ->leftjoin('class_types', 'class_types.id', 'admissions.class_type_id')
+                        ->where('tc_certificates.id', $id)
+                        ->first();
+
+                    if ($tc_certificate_pr && !empty($tc_certificate_pr->admission_id)) {
+                        $student = Admission::with(['ClassTypes', 'Gender', 'Branch'])->find($tc_certificate_pr->admission_id);
+                    }
+                }
+
+                if (!$student && !$tc_certificate_pr) {
+                    return redirect()->back()->with('error', 'Student or TC record not found.');
+                }
+
+                return view('print_file.certificate.transfer_certificate_a4', [
+                    'student' => $student,
+                    'certificate_data' => $tc_certificate_pr
+                ]);
             }
             
             public function tcPrintFormate(Request $request){

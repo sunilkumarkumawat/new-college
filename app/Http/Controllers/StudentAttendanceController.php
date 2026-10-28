@@ -16,6 +16,8 @@ use App\Models\Master\Weekendcalendar;
 use App\Models\AttendanceStatus;
 use App\Models\Setting;
 use App\Models\Master\Branch;
+use App\Models\ClassType;
+use App\Models\Master\Course;
 use Session;
 use Hash;
 use Helper;
@@ -241,82 +243,102 @@ class StudentAttendanceController extends Controller
             
             public function add(Request $request){
                 if($request->isMethod('post')){
-                $admissionNo = json_decode($request->admission_ids);
+                    $admissionNo = is_array($request->admission_ids) ? $request->admission_ids : json_decode($request->admission_ids);
                     if(!empty($admissionNo)){
-                    $dateTime = date('l jS \of F Y h:i:s A');
-                        foreach($admissionNo as $key=>  $item){
-                            $oldData = StudentAttendance::where('admission_id',$item->admission_id)->where('date',$request->date)->first();
+                        $dateTime = date('l jS \of F Y h:i:s A');
+                        $currentTime = Carbon::now();
+                        $formattedTime = $currentTime->format('Y-m-d H:i:s');
+                        $savedCount = 0;
+
+                        foreach($admissionNo as $key => $item){
+                            $item = (object) $item;
+                            if (empty($item->admission_id)) continue;
+
+                            $oldData = StudentAttendance::where('admission_id', $item->admission_id)
+                                ->where('branch_id', Session::get('branch_id'))
+                                ->where('date', $request->date)
+                                ->first();
+
                             if(!empty($oldData)){
                                 $attendance = $oldData;
-                            }else{
-                                $attendance = new StudentAttendance;//model name
+                            } else {
+                                $attendance = new StudentAttendance;
                             }  
-                            $currentTime = Carbon::now();
-                            $formattedTime = $currentTime->format('Y-m-d H:i:s');
+
                             $attendance->user_id = Session::get('id');
                             $attendance->session_id = Session::get('session_id');
                             $attendance->branch_id = Session::get('branch_id');
-                        	$attendance->class_type_id= $item->class_type_id;
-                    		$attendance->admission_id= $item->admission_id;
-                    		$attendance->date  = $request->date;
-                            //$attendance->time  = $item->time;
-                    		$attendance->attendance_status_id  = $item->attendance_status;
-                    		$attendance->save();
-                    		$attendance->name= $item->name ?? '';
-                    		$attendance->mobile= $item->mobile;
-                            $studentDetail = Admission::where('id',$item->admission_id)->get()->first();
-                    		$AttendanceStatus = AttendanceStatus::where('id',$item->attendance_status)->get()->first();
-                            $template =  MessageTemplate::Select('message_templates.*','message_types.slug')
-                            ->leftjoin('message_types','message_types.id','message_templates.message_type_id')
-                            ->where('message_types.status',1)->where('message_types.slug','attendance')->first();
+                            $attendance->class_type_id = $item->class_type_id ?? null;
+                            $attendance->admission_id = $item->admission_id;
+                            $attendance->date = $request->date;
+                            $attendance->attendance_status_id = $item->attendance_status ?? 1;
+                            $attendance->name = $item->name ?? '';
+                            $attendance->mobile = $item->mobile ?? '';
+                            $attendance->save();
+                            $savedCount++;
+
+                            // Optional messaging notification logic
+                            $studentDetail = Admission::where('id', $item->admission_id)->first();
+                            $AttendanceStatus = AttendanceStatus::where('id', $attendance->attendance_status_id)->first();
+                            $template = MessageTemplate::select('message_templates.*', 'message_types.slug')
+                                ->leftjoin('message_types', 'message_types.id', 'message_templates.message_type_id')
+                                ->where('message_types.status', 1)
+                                ->where('message_types.slug', 'attendance')
+                                ->first();
                             $branch = Branch::find(Session::get('branch_id'));
-                            $setting = Setting::where('branch_id',Session::get('branch_id'))->first(); 
-                            $arrey1 =   array(
-                                '{#school_name#}',
-                                '{#today_day#}',
-                                '{#attendance_status#}',
-                                '{#name#}',
-                                '{#support_no#}');
-                            $arrey2 = array(
-                                $setting->name,
-                                date('d-m-Y',strtotime($request->date)),
-                                $AttendanceStatus->name,
-                                $studentDetail->first_name." ".$studentDetail->last_name,
-                                $setting->mobile);
-                            if (!empty($template) && $template->status != 1) {
-                                if($studentDetail->email != ""){
-                                    if($branch->email_srvc != 0){
-                                        if($template->email_status != 0){
-                                            $message = str_replace($arrey1,$arrey2,$template->email_content);
-                                            $emailData = ['email' => $studentDetail->email, 'data' => $message, 'subject' => $template->title];
-                                          //  Helper::sendMail('email_print.template_print', $emailData);
-                                          
-                                          
-                                        } 
-                                    } 
-                                }
-                                if($branch->whatsapp_srvc != 0){
-                                    if ($studentDetail->mobile != ""){
-                                        if($template->whatsapp_status != 0){
-                                            $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content);
-                                            $requestData = Helper::sendWhatsappMessage($studentDetail->mobile,$whatsapp);
-                                      
-                                         //  SaveData::dispatch();
-                                        }
+                            $setting = Setting::where('branch_id', Session::get('branch_id'))->first(); 
+
+                            if ($studentDetail && $AttendanceStatus && $setting) {
+                                $arrey1 = [
+                                    '{#school_name#}',
+                                    '{#today_day#}',
+                                    '{#attendance_status#}',
+                                    '{#name#}',
+                                    '{#support_no#}'
+                                ];
+                                $arrey2 = [
+                                    $setting->name ?? '',
+                                    date('d-m-Y', strtotime($request->date)),
+                                    $AttendanceStatus->name ?? '',
+                                    ($studentDetail->first_name ?? '') . " " . ($studentDetail->last_name ?? ''),
+                                    $setting->mobile ?? ''
+                                ];
+
+                                if (!empty($template) && $template->status != 1) {
+                                    $whatsapp = str_replace($arrey1, $arrey2, $template->whatsapp_content ?? '');
+                                    if (!empty($setting) && $setting->firebase_notification == 1) {
+                                        Helper::sendNotification(
+                                            $template->title ?? 'Attendance',
+                                            $whatsapp,
+                                            'student',
+                                            $item->admission_id
+                                        ); 
+                                    }
+                                    if(!empty($branch) && $branch->whatsapp_srvc != 0 && !empty($studentDetail->mobile) && !empty($template->whatsapp_status)){
+                                        Helper::sendWhatsappMessage($studentDetail->mobile, $whatsapp);
                                     }
                                 }
-                                if($branch->sms_srvc != 0){
-                                    if($studentDetail->mobile != ""){
-                                        if($template->sms_status != 0){
-                                            $sms = str_replace($arrey1,$arrey2,$template->sms_content);
-                                           // Helper::SendMessage($studentDetail->mobile, $sms);
-                                        }
-                                    }
-                                }       
-                            } 
+                            }
                         }    
-                        return redirect::to('studentsAttendanceView')->with('message', 'Attendance Submit Successfully !');            
+
+                        if ($request->ajax()) {
+                            return response()->json([
+                                'status' => 'success',
+                                'message' => 'Attendance for ' . $savedCount . ' student(s) submitted successfully!',
+                                'count' => $savedCount
+                            ]);
+                        }
+
+                        return redirect::to('studentsAttendanceView')->with('message', 'Attendance Submitted Successfully !');            
                     }
+
+                    if ($request->ajax()) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Please select at least one student to mark attendance.'
+                        ], 422);
+                    }
+
                     return redirect::to('studentsAttendanceAdd')->with('error', 'Please Select Students !');  
                 }
                 return view('students/attendance/attendance_add');
@@ -329,15 +351,30 @@ class StudentAttendanceController extends Controller
             public function view(Request $request){
                 $search['name'] = $request->name;
                 $search['course'] = $request->course;
+                $search['batch'] = $request->batch;
                 $search['class_type_id'] = $request->class_type_id;
                 $search['admissionNo'] = $request->admissionNo;
                 $search['date'] = !empty($request->date) ? $request->date : date("m");
-                $allStudents = Admission::where('session_id',Session::get('session_id'))->where('branch_id',Session::get('branch_id'));
+                $allStudents = Admission::where('branch_id',Session::get('branch_id'));
                 if(Session::get('role_id') == 3){
                    $allStudents = $allStudents->where('id',Session::get('id'));
                 }
                 if(!empty($request->course)){
-                    $allStudents = $allStudents->where('course', $request->course);
+                    $courseName = $request->course;
+                    $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                    $courseClassIds = [];
+                    if ($courseObj) {
+                        $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+                    }
+                    $allStudents = $allStudents->where(function($q) use ($courseName, $courseClassIds) {
+                        $q->where('course', $courseName);
+                        if (!empty($courseClassIds)) {
+                            $q->orWhereIn('class_type_id', $courseClassIds);
+                        }
+                    });
+                }
+                if(!empty($request->batch)){
+                    $allStudents = $allStudents->where('batch', $request->batch);
                 }
                 if(!empty($request->class_type_id)){
                     $allStudents = $allStudents->where('class_type_id', $request->class_type_id);
@@ -388,15 +425,32 @@ class StudentAttendanceController extends Controller
                 $search['year'] = !empty($request->year) ? $request->year : date("Y");
                 $search['date'] = !empty($request->date) ? $request->date : date("m");
 
-                $allStudents = Admission::where('session_id',Session::get('session_id'))->where('branch_id',Session::get('branch_id'));
+                $allStudents = Admission::where('branch_id',Session::get('branch_id'));
                 if(Session::get('role_id') == 3){
                    $allStudents = $allStudents->where('id',Session::get('id'));
                 }
                 if(!empty($request->course)){
-                    $allStudents = $allStudents->where('course', $request->course);
+                    $courseName = $request->course;
+                    $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                    $courseClassIds = [];
+                    if ($courseObj) {
+                        $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
+                    }
+                    $allStudents = $allStudents->where(function($q) use ($courseName, $courseClassIds) {
+                        $q->where('course', $courseName);
+                        if (!empty($courseClassIds)) {
+                            $q->orWhereIn('class_type_id', $courseClassIds);
+                        }
+                    });
                 }
                 if(!empty($request->class_type_id)){
-                    $allStudents = $allStudents->where('class_type_id', $request->class_type_id);
+                    $targetClass = ClassType::find($request->class_type_id);
+                    if ($targetClass) {
+                        $sameNameIds = ClassType::where('name', $targetClass->name)->pluck('id')->toArray();
+                        $allStudents = $allStudents->whereIn('class_type_id', $sameNameIds);
+                    } else {
+                        $allStudents = $allStudents->where('class_type_id', $request->class_type_id);
+                    }
                 }
                 if(!empty($request->batch)){
                     $allStudents = $allStudents->where('batch', $request->batch);
@@ -454,41 +508,81 @@ class StudentAttendanceController extends Controller
                 $search['course'] = $request->course;
                 $search['class_type_id'] = $request->class_type_id;
                 $search['batch'] = $request->batch;
-                $data =  Admission::with('ClassTypes')->where('branch_id',Session::get('branch_id'))->where('session_id',Session::get('session_id'))->where('status','1');
-                if(Session::get('role_id') > 1){
-                    $data = $data->where('branch_id', Session::get('branch_id'));
-                }
+                $search['admissionNo'] = $request->admissionNo;
+
+                $data = Admission::with('ClassTypes')
+                    ->where('branch_id', Session::get('branch_id'))
+                    ->where('status', '1');
+
                 if (!empty(Session::get('admin_branch_id'))) {
-                       $data = $data->where('branch_id', Session::get('admin_branch_id'));
+                    $data = $data->where('branch_id', Session::get('admin_branch_id'));
                 }
-                if($request->isMethod('post')){
-                    if(!empty($request->name)){
-                        $value = $request->name;
-                        $data->where(function($query) use ($value){
-                            $query->where("first_name", 'like', '%' .$value. '%');
-                            $query->orWhere("last_name", 'like', '%' .$value. '%');
-                            $query->orWhere("father_name", 'like', '%' .$value. '%');
-                            $query->orWhere("mother_name", 'like', '%' .$value. '%');
-                            $query->orWhere("mobile", 'like', '%' .$value. '%');
-                            $query->orWhere("email", 'like', '%' .$value. '%');
-                            $query->orWhere("aadhaar", 'like', '%' .$value. '%');
-                        });
+
+                if (!empty($request->course)) {
+                    $courseName = $request->course;
+                    $courseObj = \App\Models\Master\Course::where('name', $courseName)->first();
+                    $courseClassIds = [];
+                    if ($courseObj) {
+                        $courseClassIds = ClassType::where('course_id', $courseObj->id)->pluck('id')->toArray();
                     }
-                    if(!empty($request->admissionNo)){
-                       $data = $data ->where("admissionNo", $request->admissionNo);
-                    }
-                    if(!empty($request->course)){
-                       $data = $data ->where("course", $request->course);
-                    }
-                    if(!empty($request->class_type_id)){
-                       $data = $data ->where("class_type_id", $request->class_type_id);
-                    }
-                    if(!empty($request->batch)){
-                       $data = $data ->where("batch", $request->batch);
+                    $data = $data->where(function($q) use ($courseName, $courseClassIds) {
+                        $q->where('course', $courseName);
+                        if (!empty($courseClassIds)) {
+                            $q->orWhereIn('class_type_id', $courseClassIds);
+                        }
+                    });
+                }
+
+                if (!empty($request->batch)) {
+                    $data = $data->where('batch', $request->batch);
+                }
+
+                if (!empty($request->class_type_id)) {
+                    $targetClass = ClassType::find($request->class_type_id);
+                    if ($targetClass) {
+                        $sameNameClassIds = ClassType::where('name', $targetClass->name)->pluck('id')->toArray();
+                        $data = $data->whereIn('class_type_id', $sameNameClassIds);
+                    } else {
+                        $data = $data->where('class_type_id', $request->class_type_id);
                     }
                 }
-                $allstudents = $data->orderBy('first_name','ASC')->get();
-                return  view('students/attendance/attendance_Search',['data'=>$allstudents,'search'=>$search,'custom_date' => $request->custom_date]);
+
+                if (!empty($request->admissionNo)) {
+                    $data = $data->where('admissionNo', 'like', '%' . $request->admissionNo . '%');
+                }
+
+                if (!empty($request->name)) {
+                    $value = $request->name;
+                    $data->where(function($query) use ($value) {
+                        $query->where('first_name', 'like', '%' . $value . '%')
+                            ->orWhere('last_name', 'like', '%' . $value . '%')
+                            ->orWhere('father_name', 'like', '%' . $value . '%')
+                            ->orWhere('mother_name', 'like', '%' . $value . '%')
+                            ->orWhere('mobile', 'like', '%' . $value . '%')
+                            ->orWhere('email', 'like', '%' . $value . '%')
+                            ->orWhere('aadhaar', 'like', '%' . $value . '%')
+                            ->orWhere('admissionNo', 'like', '%' . $value . '%');
+                    });
+                }
+
+                $allstudents = $data->orderBy('first_name', 'ASC')->get();
+
+                $date = !empty($request->custom_date) ? date('Y-m-d', strtotime($request->custom_date)) : date('Y-m-d');
+                $studentIds = $allstudents->pluck('id')->toArray();
+                $attendances = [];
+                if (!empty($studentIds)) {
+                    $attendances = StudentAttendance::whereIn('admission_id', $studentIds)
+                        ->whereDate('date', $date)
+                        ->pluck('attendance_status_id', 'admission_id')
+                        ->toArray();
+                }
+
+                return view('students/attendance/attendance_Search', [
+                    'data' => $allstudents,
+                    'search' => $search,
+                    'custom_date' => $date,
+                    'attendances' => $attendances
+                ]);
             }   
             
             public function attendanceSendMassage(Request $request){
@@ -521,10 +615,15 @@ class StudentAttendanceController extends Controller
             } 
             
             public function attendancedelete(Request $request){
-                $data = StudentAttendance::where('branch_id',Session::get('branch_id'))
-                    ->where('session_id',Session::get('session_id'))
-                    ->where('date',$request->date)
-                    ->forceDelete();
-                    return redirect::to('studentsAttendanceAdd')->with('message', 'Attendence Reset Successfully !');
+                $query = StudentAttendance::where('branch_id', Session::get('branch_id'))
+                    ->whereDate('date', $request->date);
+
+                if (!empty($request->admission_id_Reset)) {
+                    $ids = explode(',', $request->admission_id_Reset);
+                    $query->whereIn('admission_id', $ids);
                 }
+
+                $query->forceDelete();
+                return redirect::to('studentsAttendanceAdd')->with('message', 'Attendance Reset Successfully !');
             }
+}

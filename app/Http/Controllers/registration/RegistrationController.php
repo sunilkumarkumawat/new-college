@@ -714,6 +714,12 @@ if ($fees_master && $fees_master->count() > 0) {
                             $amountAssign = $fees_master->govt;
                         } else {
                             $amountAssign = $fees_master->amount;
+                            $genderId = (int)($admission->gender_id ?? 0);
+                            if ($genderId === 1 && !empty($fees_master->boys_amount)) {
+                                $amountAssign = (float)$fees_master->boys_amount;
+                            } elseif ($genderId === 2 && !empty($fees_master->girls_amount)) {
+                                $amountAssign = (float)$fees_master->girls_amount;
+                            }
                         }
                     }
 

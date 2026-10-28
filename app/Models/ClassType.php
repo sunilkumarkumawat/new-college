@@ -25,6 +25,11 @@ class ClassType extends Model
         return $this->belongsTo('App\Models\Master\Course', 'course_id');
     }
 
+    public function admissions()
+    {
+        return $this->hasMany('App\Models\Admission', 'class_type_id');
+    }
+
  public static function countClasss(){
         $data = ClassType::where('session_id',Session::get('session_id'))->whereNull('deleted_at');
         

@@ -13,33 +13,100 @@
 @section('content')
 
 <style>
-    
-    .padding_table thead tr{
-    background: #002c54;
-    color:white;
+/* ========================================================
+   FEES APPROVAL - EXCEL GREEN EXECUTIVE THEME (#217346)
+   ======================================================== */
+:root {
+    --green-excel: #217346;
+    --line: #b8c8d5;
+    --line-subtle: #cbd5e1;
 }
-    
-.padding_table th, .padding_table td{
-     padding:5px;
-     font-size:14px;
+
+.fees-cheque-page {
+    background-color: #f4f6f9;
+    font-size: 12px;
+}
+
+.dash-main-card {
+    border: 1px solid var(--line) !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    background: #ffffff;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.dash-titlebar {
+    min-height: 42px;
+    padding: 6px 14px;
+    background: var(--green-excel) !important;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dash-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+}
+
+.btn-header-action {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 3px !important;
+    padding: 4px 10px !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.btn-header-action:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.padding_table thead tr {
+    background: #1e293b !important;
+    color: white !important;
+}
+.padding_table th, .padding_table td {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    vertical-align: middle !important;
+}
+.padding_table tbody tr:hover {
+    background-color: #f0fdf4 !important;
 }
 </style>
 
-<div class="content-wrapper">
-
-   <section class="content pt-3">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12 col-md-12">      
-    <div class="card card-outline card-orange">
-        <div class="card-header bg-primary">
-        <h3 class="card-title"><i class="fa fa-bar-chart-o"></i> &nbsp;{{ __('Fees Approval') }}</h3>
-        <div class="card-tools">
-        <!--<a href="{{url('hostel/collect/fees')}}" class="btn btn-primary  btn-sm" title="Add Fees"><i class="fa fa-plus"></i> Add</a>-->
-        <a href="{{url('fee_dashboard')}}" class="btn btn-primary  btn-sm" title="Back"><i class="fa fa-arrow-left"></i>{{ __('messages.Back') }}</a>
-        </div>
-        
-        </div>  
+<div class="content-wrapper fees-cheque-page">
+   <section class="content pt-2">
+        <div class="container-fluid px-2">
+            <div class="dash-main-card">
+                <div class="dash-titlebar">
+                    <h1 class="dash-title">
+                        <i class="fa fa-check-square-o text-warning"></i>
+                        <span>{{ __('Fees Approval') }}</span>
+                    </h1>
+                    <div class="dash-title-tools">
+                        <a href="{{ url('fee_dashboard') }}" class="btn-header-action" title="Back">
+                            <i class="fa fa-arrow-left text-secondary mr-1"></i> {{ __('messages.Back') }}
+                        </a>
+                    </div>
+                </div>  
         
         <form id="quickForm" action="{{ url('fees_cheque') }}" method="post">
           @csrf

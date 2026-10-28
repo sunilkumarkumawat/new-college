@@ -17,16 +17,19 @@ class TeacherAttendance extends Model
     {
         return $this->belongsTo('App\Models\AttendanceStatus','attendance_status_id');
     }
-	 public static function countTeacherAttendance(){
-        $data=TeacherAttendance::where('date',date('Y-m-d'))->where('attendance_status_id',1)->where('branch_id',Session::get('branch_id'));
-	 if(Session::get('role_id') == 1 || Session::get('role_id') == 6){
-            $data = $data->count();
-        }else{
-            $data = $data->where('class_type_id',Session::get('class_type_id'))->count();
+    public static function countTeacherAttendance(){
+        try {
+            if (Schema::hasTable('teacher_attendance')) {
+                $data = TeacherAttendance::where('date', date('Y-m-d'))->where('attendance_status_id', 1);
+                if (Session::get('role_id') > 1) {
+                    $data = $data->where('branch_id', Session::get('branch_id'));
+                }
+                return $data->count();
+            }
+            return 0;
+        } catch (\Exception $e) {
+            return 0;
         }
-            return $data;
-            
-        return 0;
     }
 	
 }

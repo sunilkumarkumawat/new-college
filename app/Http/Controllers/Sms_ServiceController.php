@@ -260,7 +260,16 @@ class Sms_ServiceController extends Controller
                                     $request->message,
                                     $setting->mobile,
                                     $setting->name);
-                                if($template->status != 1){
+                                if(!empty($template) && $template->status != 1){
+                                    $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content ?? '');
+                                    if (!empty($setting) && $setting->firebase_notification == 1 && !empty($user)) {
+                                        Helper::sendNotification(
+                                            $template->title ?? 'Important Message',
+                                            $whatsapp,
+                                            'user',
+                                            $user->id
+                                        ); 
+                                    }
                                     if($user->email != ""){
                                         if($branch->email_srvc != 0){
                                             if($template->email_status != 0){
@@ -307,7 +316,16 @@ class Sms_ServiceController extends Controller
                                 $request->message,
                                 $setting->mobile,
                                 $setting->name);
-                            if($template->status != 1){
+                            if(!empty($template) && $template->status != 1){
+                                $whatsapp = str_replace($arrey1,$arrey2,$template->whatsapp_content ?? '');
+                                if (!empty($setting) && $setting->firebase_notification == 1 && !empty($admission)) {
+                                    Helper::sendNotification(
+                                        $template->title ?? 'Important Message',
+                                        $whatsapp,
+                                        'student',
+                                        $admission->id
+                                    ); 
+                                }
                                 if($admission->email != ""){
                                     if($branch->email_srvc != 0){
                                         if($template->email_status != 0){

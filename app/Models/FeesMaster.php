@@ -19,4 +19,9 @@ class FeesMaster extends Model
         return $this->belongsTo('App\Models\ClassType','class_type_id');
     }    
     
+    public function course()
+    {
+        return $this->belongsTo('App\Models\Master\Course', 'course_id');
+    }
+    
 }

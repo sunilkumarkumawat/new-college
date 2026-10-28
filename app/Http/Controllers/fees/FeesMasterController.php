@@ -62,6 +62,8 @@ class FeesMasterController extends Controller
                             $fees_master->branch_id = Session::get('branch_id');
                             $fees_master->fees_group_id = $request->fees_group_id[$key];
                             $fees_master->amount = $amount;
+                            $fees_master->boys_amount = !empty($request->boys_amount[$key]) ? floatval($request->boys_amount[$key]) : $amount;
+                            $fees_master->girls_amount = !empty($request->girls_amount[$key]) ? floatval($request->girls_amount[$key]) : $amount;
                             $fees_master->nri = $amount;
                             $fees_master->management = $amount;
                             $fees_master->govt = $amount;

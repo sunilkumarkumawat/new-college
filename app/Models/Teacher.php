@@ -1,13 +1,16 @@
 <?php
 
 namespace App\Models;
+
 use Session;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
+
 class Teacher extends Model
 {
-       use SoftDeletes;
-	protected $table = "teachers"; //table name
+    use SoftDeletes;
+    protected $table = "users"; // Mapped to users table
     
     public function TeacherDocuments()
     {
@@ -15,28 +18,26 @@ class Teacher extends Model
     }
     
     public static function countTeacher(){
-        $data=Teacher::where('drop_status',0);
-        
-        if(Session::get('role_id') > 1){
-           $data = $data->where('branch_id',Session::get('branch_id'));
+        try {
+            $data = User::query();
+            if(Session::get('role_id') > 1){
+               $data = $data->where('branch_id', Session::get('branch_id'));
+            }
+            return $data->count();
+        } catch (\Exception $e) {
+            return 0;
         }
-        
-        $data = $data->count();
-        return $data;
-        
     }
     
     public static function countDropTeacher(){
-        $data=Teacher::where('drop_status',1);
-        
-        if(Session::get('role_id') > 1){
-           $data = $data->where('branch_id',Session::get('branch_id'));
+        try {
+            $data = User::where('status', 0);
+            if(Session::get('role_id') > 1){
+               $data = $data->where('branch_id', Session::get('branch_id'));
+            }
+            return $data->count();
+        } catch (\Exception $e) {
+            return 0;
         }
-        
-        $data = $data->count();
-        return $data;
-        
     }
-  
-	
 }

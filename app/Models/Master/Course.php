@@ -17,4 +17,9 @@ class Course extends Model
         'total_semester',
         'course_type'
     ];
+
+    public function classes()
+    {
+        return $this->hasMany(\App\Models\ClassType::class, 'course_id', 'id');
+    }
 }

@@ -1,1118 +1,1118 @@
 @php
-$noticeBoard = Helper::noticeBoard();
-$getstudentbirthday = Helper::getstudentbirthday();
-$task = Helper::task();
-$chartAttendanceStudents = Helper::chartAttendanceStudents();
-$chartAttendanceTeachers = Helper::chartAttendanceTeachers();
-$getremark = Helper::getremark();
+$noticeBoard = Helper::noticeBoard() ?? [];
+$getstudentbirthday = Helper::getstudentbirthday() ?? [];
+$task = Helper::task() ?? [];
+$chartAttendanceStudents = Helper::chartAttendanceStudents() ?? ['Present'=>0,'Absent'=>0,'Work_From_Home'=>0,'Half_Day'=>0,'Holiday'=>0];
+$chartAttendanceTeachers = Helper::chartAttendanceTeachers() ?? ['Present'=>0,'Absent'=>0,'Work_From_Home'=>0,'Half_Day'=>0,'Holiday'=>0];
+$getremark = Helper::getremark() ?? [];
 $roleName = DB::table('role')->whereNull('deleted_at')->find(Session::get('role_id'));
 
+$totalStudents = \App\Models\Admission::countActiveAdmission();
+$todayFees = \App\Models\fees\FeesDetailsInvoices::todayCollection() ?? 0;
+$totalFees = \App\Models\FeesDetail::totalCollection() ?? 0;
+$totalUsers = \App\Models\User::countUser() ?? 0;
+
+$dataMonth = Helper::getMonthWiseFeeCollection();
+$dataWeek = Helper::getWeeklyWiseFeeCollection();
 @endphp
 
 @extends('layout.app')
 @section('content')
 
+<style>
+/* ========================================================
+   EXCEL GREEN EXECUTIVE THEME (#217346) - MATCHING studentsDashboard
+   ======================================================== */
+:root {
+    --green-excel: #217346;
+    --green-excel-dark: #185c37;
+    --green-excel-light: #f0fdf4;
+    --green-excel-border: #a7d0b8;
+    --line: #b8c8d5;
+    --line-subtle: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+}
 
-<div class="content-wrapper students_search">
-<input type="hidden" id="value">
-<input type="hidden" id="value2">
-    <section class="content pt-3">
-        <div class="container-fluid">
+.admin-dash-page {
+    background-color: #f4f6f9;
+    font-size: 12px;
+}
+
+/* Main Dashboard Card Wrapper */
+.dash-main-card {
+    border: 1px solid var(--line) !important;
+    border-top: 3px solid var(--green-excel) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    background: #ffffff;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+/* Executive Header Bar */
+.dash-titlebar {
+    min-height: 44px;
+    padding: 6px 14px;
+    background: var(--green-excel) !important;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.dash-title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+}
+
+.dash-title i {
+    color: #ffc107;
+}
+
+.dash-title small {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #e2f0d9;
+    margin-left: 6px;
+}
+
+.dash-title-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* Header Quick Action Buttons */
+.btn-header-action {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 3px !important;
+    padding: 4px 10px !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    line-height: 1.35;
+}
+.btn-header-action:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.btn-header-action.btn-header-add {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    color: #166534 !important;
+    font-weight: 700 !important;
+}
+.btn-header-action.btn-header-add:hover {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+    color: #14532d !important;
+}
+
+/* Header Live Clock Badge */
+.dash-header-clock {
+    background: rgba(0, 0, 0, 0.28) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border-radius: 3px !important;
+    padding: 4px 10px !important;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.35;
+    letter-spacing: 0.3px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.dash-header-clock i {
+    color: #86efac !important;
+    margin-right: 5px;
+}
+
+/* Compact KPI Stat Cards (Matching theme) */
+.dash-kpi-card {
+    background: #ffffff;
+    border: 1px solid var(--line-subtle);
+    border-radius: 4px;
+    height: 60px;
+    padding: 6px 12px 6px 0;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dash-kpi-card:hover {
+    background: #f0fdf4;
+    border-color: var(--green-excel);
+    box-shadow: 0 2px 6px rgba(33, 115, 70, 0.12);
+    transform: translateY(-1px);
+}
+
+.dash-kpi-stripe {
+    width: 4px;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.dash-kpi-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 4px;
+    margin-left: 10px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dash-kpi-body {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.dash-kpi-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #64748b;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+
+.dash-kpi-val {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+
+.dash-kpi-sub {
+    font-size: 10px;
+    color: var(--green-excel);
+    font-weight: 600;
+    margin-top: 1px;
+}
+
+/* Secondary Panels / Sub-Cards */
+.dash-sub-panel {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-top: 2px solid var(--green-excel);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.dash-sub-panel-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dash-sub-panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dash-sub-panel-title i {
+    color: var(--green-excel);
+}
+
+.dash-sub-panel-body {
+    padding: 10px 12px;
+}
+
+/* Chart Switch Buttons */
+.btn-chart-toggle {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    line-height: 1.2;
+}
+
+.btn-chart-toggle:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.btn-chart-toggle.active {
+    background: var(--green-excel);
+    color: #ffffff;
+    border-color: var(--green-excel);
+}
+
+/* Tab Navigation */
+.dash-tabs {
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.dash-tabs .nav-link {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 7px 12px;
+    background: transparent;
+    border-radius: 0;
+    transition: all 0.15s;
+}
+
+.dash-tabs .nav-link.active {
+    color: var(--green-excel);
+    border-bottom-color: var(--green-excel);
+    background: #ffffff;
+    font-weight: 700;
+}
+
+/* Feed Lists */
+.dash-feed-list {
+    max-height: 310px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 2px;
+}
+
+.dash-feed-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    transition: all 0.15s ease;
+    text-decoration: none !important;
+    display: block;
+    color: #1e293b;
+}
+
+.dash-feed-item:hover {
+    background: #f0fdf4;
+    border-color: var(--green-excel-border);
+}
+
+.dash-feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.dash-feed-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.dash-feed-desc {
+    font-size: 10.5px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.35;
+}
+
+/* Birthday item */
+.bday-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 3px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+}
+
+.bday-avatar-mini {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+/* Attendance Pills */
+.att-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.att-pill {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.att-pill-green { background: #dcfce7; color: #15803d; }
+.att-pill-red { background: #fee2e2; color: #b91c1c; }
+.att-pill-amber { background: #fef3c7; color: #b45309; }
+.att-pill-blue { background: #e0f2fe; color: #0369a1; }
+
+/* Financial Bar */
+.fin-bar {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fin-stat-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fin-stat-label {
+    font-size: 10.5px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.fin-stat-val {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* To-Do Input */
+.todo-input-group {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.todo-input {
+    flex-grow: 1;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 11px;
+    outline: none;
+    height: 28px;
+}
+
+.todo-input:focus {
+    border-color: var(--green-excel);
+}
+
+.todo-btn-add {
+    background: var(--green-excel);
+    color: #ffffff;
+    border: none;
+    border-radius: 3px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    height: 28px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 16px 8px;
+    color: #94a3b8;
+}
+
+.empty-state i {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+}
+
+.empty-state p {
+    font-size: 11px;
+    margin: 0;
+}
+</style>
+
+<div class="content-wrapper admin-dash-page">
+    <section class="content pt-2">
+        <div class="container-fluid px-2">
             
-            <div class="row">
-                <div class="col-12 col-md-12">
-                    <div class="card card-outline card-orange">
-                        <div class="card-header bg-primary">
-                            <h3 class="card-title"><i class="fa fa-home"></i> &nbsp;{{ $roleName->name ?? '' }} Dashboard</h3>
-                            
-                            <div class="card-tools">
-                                <!--<a href="{{url('add_user')}}" class="btn btn-primary  btn-sm" title="Add User"><i class="fa fa-plus"></i> Add User</a>-->
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-            <p><i class="fa fa-dot-circle-o"></i> Student Details</p>
-            </div>
-                <div class="row">
-                <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('admissionView') }}">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-success elevation-1"><i
-                                    class="fa fa-graduation-cap"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.TOTAL STUDENTS') }}</span>
-                                <span class="info-box-number">{{App\Models\Admission::countActiveAdmission()}}</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+            <!-- ========================================================
+                 MAIN EXECUTIVE DASHBOARD CARD
+                 ======================================================== -->
+            <div class="dash-main-card">
                 
-                 <div class="col-12 col-sm-6 col-md-3">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-warning elevation-1"><i class="fa fa-money"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.FEES COLLECTION') }}</span>
-                                <span class="info-box-number"><i class="fa fa-rupee"></i>
-                                    {{ number_format(\App\Models\FeesDetail::totalCollection() ,2) ?? '' }}</span>
-                            </div>
-                        </div>
+                <!-- 1. Executive Titlebar with Core Quick Action Buttons -->
+                <div class="dash-titlebar">
+                    <h1 class="dash-title">
+                        <i class="fa fa-dashboard"></i>
+                        <span>{{ $roleName->name ?? 'Administrator' }} Dashboard</span>
+                    </h1>
                     
-                </div>
-                  
-             <div class="col-12 col-sm-6 col-md-3">
-           <form id="myForm" action="{{ url('fees/index') }}" method="post">
-                @csrf  
-                <input type="hidden" class="form-control" id="starting" name="starting" value="{{ date('Y-m-d') }}">
-                <input type="hidden" class="form-control" id="ending" name="ending" value="{{ date('Y-m-d') }}">
-                <div class="info-box mb-3 text-dark" onclick="submitForm()">
-                    <span class="info-box-icon bg-primary elevation-1"><i class="fa fa-money"></i></span>
-                    <div class="info-box-content">
-                       <button type="submit" class="bg-white" style="border:hidden;text-align:left"> <span class="info-box-text">{{ __('dashboard.TODAY COLLECTION') }}</span></button>
-                        <span class="info-box-number"><i class="fa fa-rupee"></i>
-                            {{ number_format(\App\Models\fees\FeesDetailsInvoices::todayCollection(), 2) ?? '' }}
+                    <div class="dash-title-tools">
+                        <a href="{{ url('Fees/add') }}" class="btn-header-action btn-header-add" title="Collect Fee">
+                            <i class="fa fa-money text-success mr-1"></i> Collect Fee
+                        </a>
+                        <a href="{{ url('admissionView') }}" class="btn-header-action" title="Students Directory">
+                            <i class="fa fa-users text-primary mr-1"></i> Students
+                        </a>
+                        <a href="{{ url('admissionAdd') }}" class="btn-header-action" title="New Admission">
+                            <i class="fa fa-user-plus text-success mr-1"></i> New Admission
+                        </a>
+                        <a href="{{ url('staff/Attendance/view') }}" class="btn-header-action" title="Staff Attendance">
+                            <i class="fa fa-calendar-check-o text-warning mr-1"></i> Staff Attendance
+                        </a>
+                        <a href="{{ url('fee_dashboard') }}" class="btn-header-action" title="Fees Reports">
+                            <i class="fa fa-bar-chart text-info mr-1"></i> Fee Reports
+                        </a>
+                        <a href="{{ url('notice_board/view') }}" class="btn-header-action" title="Notices & Circulars">
+                            <i class="fa fa-bullhorn text-danger mr-1"></i> Notices
+                        </a>
+                        <span class="dash-header-clock d-none d-md-inline-flex" title="Current Time">
+                            <i class="fa fa-clock-o"></i> <span id="dashLiveClock">--:--:--</span>
                         </span>
                     </div>
                 </div>
-            </form>
-        </div>
-        
-  </div>
-                  
-        <div class="row">
-            <p><i class="fa fa-dot-circle-o"></i> {{ __('dashboard.User Details') }} </p>
-            </div>
-            
-            
-             <div class="row">
-                   <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('viewUser') }}">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-success elevation-1"><i class="fa fa-user-secret"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.TOTAL USERS') }}</span>
-                                <span class="info-box-number">{{ \App\Models\User::countUser() ?? '0' }}</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-             
-   <!--             <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('bank/account/index') }}">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-danger elevation-1"><i class="fa fa-bank"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.TOTAL ACCOUNTS') }}</span>
-                                <span class="info-box-number">{{\App\Models\Account::countAccount() }}</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>-->
-          <!--      <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('invantory_dashboard') }}">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-danger elevation-1"><i class="fa fa-archive"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.INVENTORY') }}</span>
-                                <span class="info-box-number"> 0</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>-->
-           
-            <!--  <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ url('complaint_view') }}">
-                        <div class="info-box mb-3 text-dark">
-                            <span class="info-box-icon bg-success elevation-1"><i class="fa fa-snapchat"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">{{ __('dashboard.TOTAL COMPLAINTS') }}</span>
-                                <span class="info-box-number">{{\App\Models\Master\Complaint::countComplaint() }}</span>
-                            </div>
-                        </div>
-                    </a>
-                </div>-->
-                 
-                 </div>
-       
- 
-    <div class="row">
 
-                     @if(count($getstudentbirthday) > 0)  
-                  <div class="col-md-4">
-                     <div class="card card-warning" >
-                    <div class="card-header">
-                            <h3 class="card-title"><i class="fa fa-bell"> {{ __('Birthday Notification') }}</i> </h3>
-                            <div class="card-tools">
-                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fa fa-minus"></i>
-                                </button>
-                                <button type="button" class="btn btn-tool" data-card-widget="remove">
-                                    <i class="fa fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                     
-                            <marquee direction="up" scrollamount="4" id="test" onMouseOver="document.all.test.stop()"
-                                onMouseOut="document.all.test.start()">
-                                <ul class="todo-list ui-sortable" data-widget="todo-list">
-                                    @if(!empty($getstudentbirthday))
-                              
-                                    @foreach($getstudentbirthday as $item)
-                                 
-                                    <li class="">
-                                        <a href="{{ url('admissionView') }}">
-                                            <span class="text text-dark">{{ $item->first_name ?? '' }}{{ $item->last_name ?? '' }}</span>
-                                            <small class="badge badge-danger"><i class="fa fa-envelope-o"></i>
-                                                New</small>
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                    @endif
-                                </ul>
-                            </marquee>
-                        </div>
-
-                    </div>
-              
-            </div>
-                
-                @endif
-                          
-
-                     @if(count($getremark) > 0)  
-                     
-                  <div class="col-md-4">
-                     <div class="card card-danger" >
-                    <div class="card-header">
-                            <h3 class="card-title"><i class="fa fa-bell"> {{ __('Student Remark Notification') }}</i> </h3>
-                            <div class="card-tools">
-                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fa fa-minus"></i>
-                                </button>
-                                <button type="button" class="btn btn-tool" data-card-widget="remove">
-                                    <i class="fa fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                     
-                            <marquee direction="up" scrollamount="4" id="student" onMouseOver="document.all.student.stop()"
-                                onMouseOut="document.all.student.start()">
-                                <ul class="todo-list ui-sortable" data-widget="todo-list">
-                                    @if(!empty($getremark))
-                              
-                                    @foreach($getremark as $item)
-                                 
-                                    <li class="">
-                                        <a href="{{ url('students/index') }}">
-                                            <span class="text text-dark">{{ $item->remark ?? '' }}</span>
-                                            <small class="badge badge-danger"><i class="fa fa-envelope-o"></i>
-                                                New</small>
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                    @endif
-                                </ul>
-                            </marquee>
-                        </div>
-
-                    </div>
-              
-            </div>
-                
-                @endif
-                
-                
-                 
-                
-                
-                       @if(count($noticeBoard) > 0) 
-
-                   
-                  
+                <!-- 2. Top 4 KPI Metrics Grid -->
+                <div class="p-2">
+                    <div class="row mx-n1">
                         
-                         <div class="col-md-4">
-                     <div class="card card-warning">
-                    <div class="card-header">
-                            <h3 class="card-title"><i class="fa fa-bell"> {{ __('Notifications ') }}</i> </h3>
-                            <div class="card-tools">
-                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fa fa-minus"></i>
-                                </button>
-                                <button type="button" class="btn btn-tool" data-card-widget="remove">
-                                    <i class="fa fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                         <div class="card-body">
-                            <marquee direction="up" scrollamount="4" id="newnotic" onMouseOver="document.all.newnotic.stop()"
-                                onMouseOut="document.all.newnotic.start()">
-                                <ul class="todo-list ui-sortable" data-widget="todo-list">
-                                   @if(!empty($noticeBoard))
-                                    @foreach($noticeBoard as $item)
-                                 
-                                    <li class="">
-                                      <a href="{{ url('notice_board/view') }}/{{$item->id}}">
-                                           <span class="text text-dark"> {!! html_entity_decode($item->message ?? '', ENT_QUOTES, 'UTF-8') !!} {!! html_entity_decode($item->title ?? '', ENT_QUOTES, 'UTF-8') !!}</span>
-                                            <small class="badge badge-danger"><i class="fa fa-envelope-o"></i>
-                                                New</small>
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                    @endif
-                                </ul>
-                            </marquee>
+                        <!-- Total Active Students -->
+                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
+                            <a href="{{ url('admissionView') }}" class="dash-kpi-card" title="View Student Directory">
+                                <div class="dash-kpi-stripe" style="background: #16a34a;"></div>
+                                <div class="dash-kpi-icon" style="background: #f0fdf4; color: #16a34a;">
+                                    <i class="fa fa-graduation-cap"></i>
+                                </div>
+                                <div class="dash-kpi-body">
+                                    <div class="dash-kpi-label">{{ __('dashboard.TOTAL STUDENTS') }}</div>
+                                    <div class="dash-kpi-val">{{ number_format($totalStudents) }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="dash-kpi-sub">Directory &rarr;</span>
+                                </div>
+                            </a>
                         </div>
 
-                    </div>
-              
-            </div>
-            @endif
-           
-         <!--   @if(count($noticeBoard) > 0) 
-                    <div class="col-md-6">
-                     <div class="card card-warning">
-                    <div class="card-header">
-                            <h3 class="card-title"><i class="fa fa-bell">{{ __('dashboard.Notifications') }} </i> </h3>
-                            <div class="card-tools">
-                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fa fa-minus"></i>
-                                </button>
-                                <button type="button" class="btn btn-tool" data-card-widget="remove">
-                                    <i class="fa fa-times"></i>
-                              </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <marquee direction="up" scrollamount="4" id="Notifications" onMouseOver="document.all.Notifications.stop()"
-                                onMouseOut="document.all.Notifications.start()">
-                                <ul class="todo-list ui-sortable" data-widget="todo-list">
-                                   @if(!empty($noticeBoard))
-                                    @foreach($noticeBoard as $item)
-                                 
-                                    <li class="">
-                                      <a href="{{ url('notice_board/view') }}/{{$item->id}}">
-                                           <span class="text text-dark">{{ $item->title ?? '' }}</span>
-                                            <small class="badge badge-danger"><i class="fa fa-envelope-o"></i>
-                                                New</small>
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                    @endif
-                                </ul>
-                            </marquee>
-                        </div>
-
-                    </div>
-              
-  -->
-          
-      <!--
-                             <div class="card-body">
-                            <marquee direction="up" scrollamount="4" id="Notifications" onMouseOver="document.all.Notifications.stop()"
-                                onMouseOut="document.all.Notifications.start()">
-                                <ul class="todo-list ui-sortable" data-widget="todo-list">
-                                    @if(!empty($noticeBoard))
-                                    @foreach($noticeBoard as $item)
-                                    <li class="">
-                                        <a href="{{ url('notice_board/view') }}/{{$item->id}}">
-                                            <span class="text text-dark">{{ $item->title ?? '' }}</span>
-                                            <small class="badge badge-danger"><i class="fa fa-envelope-o"></i>
-                                                New</small>
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                    @endif
-                                             </ul>
-                            </marquee>
-                        </div>
-
-                    </div>
-                    
-                    @endif
-                    -->
-                    
-                <!--    <div class="col-md-12">-->
-                <!--    <div class="card">-->
-                <!--        <div class="card-header ui-sortable-handle flex_items_mb">-->
-                <!--            <h3 class="card-title_mb">-->
-                <!--                <i class="ion ion-clipboard mr-1"></i>-->
-                <!--                {{ __('dashboard.To Do List') }}-->
-                <!--            </h3>-->
-                <!--            <div class="card-tools">-->
-                <!--                <div class="row">-->
-                                    
-                <!--                    <div class="col-md-12 col-12 text-center">-->
-                <!--                        <a href='{{url("to_do_assign")}}' style="margin-top:-10px"><button type="button" class="btn btn-primary"><i-->
-                <!--                                class="fa fa-plus"></i> {{ __('Add/View') }}</button></a>-->
-                <!--                    </div>-->
-                <!--                </div>-->
-
-                <!--            </div>-->
-                <!--        </div>-->
-                         
-                <!--        <div class="card-body">-->
-                           
-                <!--            <ul class="todo-list ui-sortable todoList" data-widget="todo-list">-->
-                              
-                <!--            </ul>-->
-                <!--        </div>-->
-                        
-                <!--    </div>-->
-                <!--</div>-->
-                 
-                 <!--<div class="col-md-5">
-                    <div class="card">
-                        <div class="card-header ui-sortable-handle flex_items_mb">
-                            <h3 class="card-title_mb">
-                                <i class="ion ion-clipboard mr-1"></i>
-                                {{ __('dashboard.To Do List') }}
-                            </h3>
-                            <div class="card-tools">
-                                <div class="row">
-                                    <div class="col-md-8 col-8">
-                                        <input type="text" class="form-control form-control-border" id="task"
-                                            name="task" placeholder="{{ __('dashboard.Enter Task') }}...">
+                        <!-- Today's Collection -->
+                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
+                            <form id="todayFeeForm" action="{{ url('fees/index') }}" method="post" style="margin: 0;">
+                                @csrf  
+                                <input type="hidden" name="starting" value="{{ date('Y-m-d') }}">
+                                <input type="hidden" name="ending" value="{{ date('Y-m-d') }}">
+                                <div class="dash-kpi-card" onclick="document.getElementById('todayFeeForm').submit();" style="cursor: pointer;" title="View Today Transactions">
+                                    <div class="dash-kpi-stripe" style="background: #d97706;"></div>
+                                    <div class="dash-kpi-icon" style="background: #fffbeb; color: #d97706;">
+                                        <i class="fa fa-inr"></i>
                                     </div>
-                                    <div class="col-md-4 col-4">
-                                        <button type="button" class="add_task btn btn-primary float-right btn-xs"><i
-                                                class="fa fa-plus"></i> {{ __('common.Add') }}</button>
+                                    <div class="dash-kpi-body">
+                                        <div class="dash-kpi-label">{{ __('dashboard.TODAY COLLECTION') }}</div>
+                                        <div class="dash-kpi-val">₹ {{ number_format($todayFees, 2) }}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="dash-kpi-sub" style="color: #d97706;">Ledger &rarr;</span>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Total Fees Collection -->
+                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
+                            <a href="{{ url('fee_dashboard') }}" class="dash-kpi-card" title="Open Fees Dashboard">
+                                <div class="dash-kpi-stripe" style="background: #2563eb;"></div>
+                                <div class="dash-kpi-icon" style="background: #eff6ff; color: #2563eb;">
+                                    <i class="fa fa-line-chart"></i>
+                                </div>
+                                <div class="dash-kpi-body">
+                                    <div class="dash-kpi-label">{{ __('dashboard.FEES COLLECTION') }}</div>
+                                    <div class="dash-kpi-val">₹ {{ number_format($totalFees, 2) }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="dash-kpi-sub" style="color: #2563eb;">Overview &rarr;</span>
+                                </div>
+                            </a>
+                        </div>
+
+                        <!-- Total Staff & Users -->
+                        <div class="col-xl-3 col-lg-6 col-md-6 col-12 px-1 mb-2 mb-xl-0">
+                            <a href="{{ url('viewUser') }}" class="dash-kpi-card" title="Manage Staff & Users">
+                                <div class="dash-kpi-stripe" style="background: #7c3aed;"></div>
+                                <div class="dash-kpi-icon" style="background: #faf5ff; color: #7c3aed;">
+                                    <i class="fa fa-users"></i>
+                                </div>
+                                <div class="dash-kpi-body">
+                                    <div class="dash-kpi-label">{{ __('dashboard.TOTAL USERS') }}</div>
+                                    <div class="dash-kpi-val">{{ number_format($totalUsers) }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="dash-kpi-sub" style="color: #7c3aed;">Users &rarr;</span>
+                                </div>
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ========================================================
+                 3. ANALYTICS, ATTENDANCE & NOTIFICATIONS (2-COLUMN LAYOUT)
+                 ======================================================== -->
+            <div class="row mx-n1">
+                
+                <!-- Left Column (8 cols): Fee Chart & Attendance -->
+                <div class="col-lg-8 col-12 px-1">
+                    
+                    <!-- Monthly Fee Chart Panel -->
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-bar-chart"></i> <span id="chartHeading">Monthly Fee Collection Trend</span>
+                            </h3>
+                            <div class="d-flex align-items-center" style="gap: 4px;">
+                                <button id="btnMonthly" class="btn-chart-toggle active">
+                                    <i class="fa fa-calendar"></i> Monthly View
+                                </button>
+                                <button id="btnWeekly" class="btn-chart-toggle">
+                                    <i class="fa fa-calendar-check-o"></i> Day-wise ({{ date('d') }} Days)
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dash-sub-panel-body p-2">
+                            <div style="position: relative; height: 240px; width: 100%;">
+                                <canvas id="myChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="fin-bar">
+                            <div class="fin-stat-box">
+                                <span class="fin-stat-label">Today's Inflow:</span>
+                                <span class="fin-stat-val text-success">₹ {{ number_format($todayFees, 2) }}</span>
+                            </div>
+                            <div class="fin-stat-box">
+                                <span class="fin-stat-label">Session Overall:</span>
+                                <span class="fin-stat-val text-primary">₹ {{ number_format($totalFees, 2) }}</span>
+                            </div>
+                            <div>
+                                <a href="{{ url('Fees/add') }}" class="btn-header-action btn-header-add" style="padding: 3px 8px; font-size: 10.5px;">
+                                    <i class="fa fa-plus mr-1"></i> Collect Fee Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today Attendance Overview (Students & Staff) -->
+                    <div class="row mx-n1">
+                        
+                        <!-- Student Attendance -->
+                        <div class="col-md-6 col-12 px-1 mb-2">
+                            <div class="dash-sub-panel mb-0" style="height: 100%;">
+                                <div class="dash-sub-panel-header">
+                                    <h3 class="dash-sub-panel-title">
+                                        <i class="fa fa-user-circle"></i> Student Attendance
+                                    </h3>
+                                    <a href="{{ url('studentsAttendanceView') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
+                                        View Register &rarr;
+                                    </a>
+                                </div>
+                                <div class="dash-sub-panel-body">
+                                    <div style="position: relative; height: 140px;">
+                                        <canvas id="studentAttendanceChart"></canvas>
+                                    </div>
+                                    <div class="att-badge-row justify-content-center">
+                                        <span class="att-pill att-pill-green"><i class="fa fa-check"></i> Present: {{ $chartAttendanceStudents['Present'] ?? 0 }}</span>
+                                        <span class="att-pill att-pill-red"><i class="fa fa-times"></i> Absent: {{ $chartAttendanceStudents['Absent'] ?? 0 }}</span>
+                                        <span class="att-pill att-pill-amber"><i class="fa fa-clock-o"></i> Half Day: {{ $chartAttendanceStudents['Half_Day'] ?? 0 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Staff Attendance -->
+                        <div class="col-md-6 col-12 px-1 mb-2">
+                            <div class="dash-sub-panel mb-0" style="height: 100%;">
+                                <div class="dash-sub-panel-header">
+                                    <h3 class="dash-sub-panel-title">
+                                        <i class="fa fa-briefcase"></i> Staff Attendance
+                                    </h3>
+                                    <a href="{{ url('staff/Attendance/view') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
+                                        View Register &rarr;
+                                    </a>
+                                </div>
+                                <div class="dash-sub-panel-body">
+                                    <div style="position: relative; height: 140px;">
+                                        <canvas id="teacherAttendanceChart"></canvas>
+                                    </div>
+                                    <div class="att-badge-row justify-content-center">
+                                        <span class="att-pill att-pill-green"><i class="fa fa-check"></i> Present: {{ $chartAttendanceTeachers['Present'] ?? 0 }}</span>
+                                        <span class="att-pill att-pill-red"><i class="fa fa-times"></i> Absent: {{ $chartAttendanceTeachers['Absent'] ?? 0 }}</span>
+                                        <span class="att-pill att-pill-blue"><i class="fa fa-home"></i> Leave: {{ $chartAttendanceTeachers['Work_From_Home'] ?? 0 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Right Column (4 cols): Notifications, Birthdays & To-Do -->
+                <div class="col-lg-4 col-12 px-1">
+                    
+                    <!-- Notification Center Tabbed Panel -->
+                    <div class="dash-sub-panel">
+                        <ul class="nav nav-tabs dash-tabs w-100" id="dashFeedTab" role="tablist">
+                            <li class="nav-item flex-fill text-center">
+                                <a class="nav-link active" id="notices-tab" data-toggle="tab" href="#noticesTab" role="tab">
+                                    <i class="fa fa-bullhorn"></i> Notices
+                                    @if(count($noticeBoard) > 0)
+                                        <span class="badge badge-success ml-1">{{ count($noticeBoard) }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            <li class="nav-item flex-fill text-center">
+                                <a class="nav-link" id="birthdays-tab" data-toggle="tab" href="#birthdaysTab" role="tab">
+                                    <i class="fa fa-birthday-cake"></i> Birthdays
+                                    @if(count($getstudentbirthday) > 0)
+                                        <span class="badge badge-warning ml-1 text-white">{{ count($getstudentbirthday) }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            <li class="nav-item flex-fill text-center">
+                                <a class="nav-link" id="remarks-tab" data-toggle="tab" href="#remarksTab" role="tab">
+                                    <i class="fa fa-comment-o"></i> Remarks
+                                    @if(count($getremark) > 0)
+                                        <span class="badge badge-danger ml-1">{{ count($getremark) }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                        </ul>
+
+                        <div class="dash-sub-panel-body p-2">
+                            <div class="tab-content" id="dashFeedTabContent">
+                                
+                                <!-- Notices Tab -->
+                                <div class="tab-pane fade show active" id="noticesTab" role="tabpanel">
+                                    <div class="dash-feed-list">
+                                        @if(!empty($noticeBoard) && count($noticeBoard) > 0)
+                                            @foreach($noticeBoard as $item)
+                                                <a href="{{ url('notice_board/view') }}/{{ $item->id }}" class="dash-feed-item">
+                                                    <div class="dash-feed-header">
+                                                        <span class="dash-feed-title">{{ $item->title ?? 'Notice Announcement' }}</span>
+                                                        <span class="badge badge-success" style="font-size: 9.5px;">Active</span>
+                                                    </div>
+                                                    <p class="dash-feed-desc">
+                                                        {{ Str::limit(strip_tags(html_entity_decode($item->message ?? '')), 85) }}
+                                                    </p>
+                                                    <div class="mt-1 d-flex justify-content-between align-items-center">
+                                                        <span style="font-size: 9.5px; color: #94a3b8;"><i class="fa fa-calendar-o"></i> {{ date('d M Y', strtotime($item->from_date ?? 'now')) }}</span>
+                                                        <span style="font-size: 10px; color: var(--green-excel); font-weight: 600;">Read &rarr;</span>
+                                                    </div>
+                                                </a>
+                                            @endforeach
+                                        @else
+                                            <div class="empty-state">
+                                                <i class="fa fa-bell-slash-o"></i>
+                                                <p>No active notices right now.</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-center pt-2 mt-1 border-top">
+                                        <a href="{{ url('notice_board/add') }}" class="btn-header-action btn-header-add" style="font-size: 10px; padding: 2px 8px;">
+                                            <i class="fa fa-plus mr-1"></i> Post Notice
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Birthdays Tab -->
+                                <div class="tab-pane fade" id="birthdaysTab" role="tabpanel">
+                                    <div class="dash-feed-list">
+                                        @if(!empty($getstudentbirthday) && count($getstudentbirthday) > 0)
+                                            @foreach($getstudentbirthday as $bday)
+                                                <div class="bday-card">
+                                                    <div class="bday-avatar-mini">
+                                                        {{ strtoupper(substr($bday->first_name ?? 'S', 0, 1)) }}
+                                                    </div>
+                                                    <div class="flex-grow-1 min-w-0">
+                                                        <div class="font-weight-bold" style="font-size: 11px; color: #92400e;">
+                                                            {{ $bday->first_name ?? '' }} {{ $bday->last_name ?? '' }} 🎂
+                                                        </div>
+                                                        <div style="font-size: 9.5px; color: #b45309;">
+                                                            Adm No: {{ $bday->admissionNo ?? 'N/A' }}
+                                                        </div>
+                                                    </div>
+                                                    <a href="{{ url('admissionView') }}" class="btn btn-xs btn-warning text-white" style="border-radius: 3px; font-size: 9.5px; font-weight: 600; padding: 1px 6px;">
+                                                        Wish 🎉
+                                                    </a>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <div class="empty-state">
+                                                <i class="fa fa-birthday-cake"></i>
+                                                <p>No student birthdays today.</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Remarks Tab -->
+                                <div class="tab-pane fade" id="remarksTab" role="tabpanel">
+                                    <div class="dash-feed-list">
+                                        @if(!empty($getremark) && count($getremark) > 0)
+                                            @foreach($getremark as $rem)
+                                                <a href="{{ url('students/index') }}" class="dash-feed-item">
+                                                    <div class="dash-feed-header">
+                                                        <span class="dash-feed-title text-danger"><i class="fa fa-exclamation-circle"></i> Student Remark</span>
+                                                        <span style="font-size: 9.5px; color: #94a3b8;">{{ date('d M') }}</span>
+                                                    </div>
+                                                    <p class="dash-feed-desc">
+                                                        {{ $rem->remark ?? 'General Student Log' }}
+                                                    </p>
+                                                </a>
+                                            @endforeach
+                                        @else
+                                            <div class="empty-state">
+                                                <i class="fa fa-commenting-o"></i>
+                                                <p>No remarks logged today.</p>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 
                             </div>
                         </div>
-                         
-                        <div class="card-body">
-                           
-                            <ul class="todo-list ui-sortable todoList" data-widget="todo-list">
-                              
-                            </ul>
-                        </div>
-                        
                     </div>
-                </div>-->
-               <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header ui-sortable-handle flex_items_mb">
-                            <h3 class="card-title_mb  collection">
-                              <i class="fa fa-money mr-1" aria-hidden="true"></i>
 
-                                {{ __('Monthly Fee Collection') }}
+                    <!-- Quick Personal Task List -->
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-tasks"></i> Personal Task List
                             </h3>
-                           
-                            <button id="monthly" class='btn btn-primary btn-xs' >Monthly</button>
-                            <button id="7_days" class='btn btn-primary btn-xs' >{{date('d')}} Days</button>
+                            <a href="{{ url('to_do_assign') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
+                                View All &rarr;
+                            </a>
                         </div>
-                         
-                        <div class="card-body " id="chart-container">
-                           
-                             <canvas class='bg-white'id="myChart"></canvas>
-                              
-                            </ul>
+                        <div class="dash-sub-panel-body p-2">
+                            <div class="todo-input-group">
+                                <input type="text" id="taskInput" class="todo-input" placeholder="Type new task...">
+                                <button type="button" class="todo-btn-add add_task">
+                                    <i class="fa fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div class="dash-feed-list todoList" style="max-height: 170px;">
+                                <div class="empty-state">
+                                    <i class="fa fa-spinner fa-spin"></i>
+                                    <p>Loading tasks...</p>
+                                </div>
+                            </div>
                         </div>
-                        
                     </div>
+
                 </div>
-                <!--<div class="col-md-6" id="calendarElement">-->
 
-                <!--</div>-->
-                
             </div>
-
-      <!--      <div class="row">-->
-      <!--          <div class="col-md-6">-->
-      <!--<div class="card card-danger">-->
-      <!--                  <div class="card-header">-->
-      <!--                      <h3 class="card-title"> {{ __('dashboard.Student Attendance Chart') }} </h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                              <i class="fa fa-minus"></i>-->
-      <!--                          </button>-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                              <i class="fa fa-times"></i>-->
-      <!--                          </button>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-      <!--                  <div class="card-body">-->
-      <!--                      <div class="chartjs-size-monitor">-->
-      <!--                          <div class="chartjs-size-monitor-expand">-->
-      <!--                              <div class=""></div>-->
-      <!--                          </div>-->
-      <!--                          <div class="chartjs-size-monitor-shrink">-->
-      <!--                              <div class=""></div>-->
-      <!--                          </div>-->
-      <!--                      </div>-->
-      <!--                      <canvas id="donutChart"-->
-      <!--                          style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;"-->
-      <!--                          class="chartjs-render-monitor" width="487" height="250"></canvas>-->
-      <!--                  </div>-->
-
-      <!--              </div>-->
-                   
-
-      <!--              <div class="card card-primary" style="display:none !important">-->
-      <!--                  <div class="card-header">-->
-      <!--                      <h3 class="card-title"> {{ __('dashboard.Area Chart') }} </h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                              <i class="fa fa-minus"></i>-->
-      <!--                          </button>-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                              <i class="fa fa-times"></i>-->
-      <!--                          </button>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-      <!--                  <div class="card-body">-->
-      <!--                      <div class="chart">-->
-      <!--                          <div class="chartjs-size-monitor">-->
-      <!--                              <div class="chartjs-size-monitor-expand">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                              <div class="chartjs-size-monitor-shrink">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                          </div>-->
-      <!--                          <canvas id="areaChart"-->
-      <!--                              style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;"-->
-      <!--                              class="chartjs-render-monitor" width="487" height="250"></canvas>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-
-      <!--              </div>-->
-
-
-              
-
-
-      <!-- </div>-->
-
-      <!--          <div class="col-md-6">-->
-      <!--             <div class="card card-danger">-->
-      <!--                      <div class="card-header">-->
-      <!--                      <h3 class="card-title">{{ __('dashboard.Teacher Attendance Chart') }} </h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                      <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                      <i class="fa fa-minus"></i>-->
-      <!--                      </button>-->
-      <!--                      <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                      <i class="fa fa-times"></i>-->
-      <!--                      </button>-->
-      <!--                      </div>-->
-      <!--                      </div>-->
-      <!--                      <div class="card-body"><div class="chartjs-size-monitor"><div class="chartjs-size-monitor-expand"><div class=""></div></div><div class="chartjs-size-monitor-shrink"><div class=""></div></div></div>-->
-      <!--                      <canvas id="pieChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;" width="487" height="250" class="chartjs-render-monitor"></canvas>-->
-      <!--                      </div>-->
-                            
-      <!--                      </div>-->
-      <!--              <div class="card card-info" style="display:none !important">-->
-      <!--                  <div class="card-header">-->
-      <!--                      <h3 class="card-title"> {{ __('dashboard.Line Chart') }} </h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                              <i class="fa fa-minus"></i>-->
-      <!--                          </button>-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                              <i class="fa fa-times"></i>-->
-      <!--                          </button>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-      <!--                  <div class="card-body">-->
-      <!--                      <div class="chart">-->
-      <!--                          <div class="chartjs-size-monitor">-->
-      <!--                              <div class="chartjs-size-monitor-expand">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                              <div class="chartjs-size-monitor-shrink">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                          </div>-->
-      <!--                          <canvas id="lineChart"-->
-      <!--                              style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;"-->
-      <!--                              class="chartjs-render-monitor" width="487" height="250"></canvas>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-
-      <!--              </div>-->
-
-
-      <!--         <div class="card card-success">-->
-      <!--                  <div class="card-header">-->
-      <!--                      <h3 class="card-title"> {{ __('dashboard.Bar Chart') }} </h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                              <i class="fa fa-minus"></i>-->
-      <!--                          </button>-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                              <i class="fa fa-times"></i>-->
-      <!--                          </button>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-      <!--                  <div class="card-body">-->
-      <!--                      <div class="chart">-->
-      <!--                          <div class="chartjs-size-monitor">-->
-      <!--                              <div class="chartjs-size-monitor-expand">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                              <div class="chartjs-size-monitor-shrink">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                          </div>-->
-      <!--                          <canvas id="barChart"-->
-      <!--                              style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;"-->
-      <!--                              class="chartjs-render-monitor" width="487" height="250"></canvas>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-
-      <!--              </div>-->
-
-
-      <!--              <div class="card card-success">-->
-      <!--                  <div class="card-header">-->
-      <!--                      <h3 class="card-title"> {{ __('dashboard.Stacked Bar Chart') }}</h3>-->
-      <!--                      <div class="card-tools">-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="collapse">-->
-      <!--                              <i class="fa fa-minus"></i>-->
-      <!--                          </button>-->
-      <!--                          <button type="button" class="btn btn-tool" data-card-widget="remove">-->
-      <!--                              <i class="fa fa-times"></i>-->
-      <!--                          </button>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-      <!--                  <div class="card-body">-->
-      <!--                      <div class="chart">-->
-      <!--                          <div class="chartjs-size-monitor">-->
-      <!--                              <div class="chartjs-size-monitor-expand">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                              <div class="chartjs-size-monitor-shrink">-->
-      <!--                                  <div class=""></div>-->
-      <!--                              </div>-->
-      <!--                          </div>-->
-      <!--                          <canvas id="stackedBarChart"-->
-      <!--                              style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%; display: block; width: 487px;"-->
-      <!--                              class="chartjs-render-monitor" width="487" height="250"></canvas>-->
-      <!--                      </div>-->
-      <!--                  </div>-->
-
-      <!--              </div>-->
-
-      <!--          </div>-->
-
-      <!--      </div>-->
-
-      
-
-
-
 
         </div>
     </section>
-
 </div>
 
-
-<link rel="stylesheet" href="https://adminlte.io/themes/v3/plugins/fullcalendar/main.css">
-<script src="https://adminlte.io/themes/v3/plugins/fullcalendar/main.js"></script>
-
+<!-- ========================================================
+     DASHBOARD JAVASCRIPT & CHARTS (LIGHTWEIGHT & OPTIMIZED)
+     ======================================================== -->
 <script>
+$(document).ready(function() {
+    
+    // 1. Live Digital Clock
+    function updateClock() {
+        const now = new Date();
+        let hours = now.getHours();
+        let minutes = now.getMinutes();
+        let seconds = now.getSeconds();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        minutes = minutes < 10 ? '0' + minutes : minutes;
+        seconds = seconds < 10 ? '0' + seconds : seconds;
+        $('#dashLiveClock').text(hours + ':' + minutes + ':' + seconds + ' ' + ampm);
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
+    // 2. Fee Collection Chart (ChartJS)
+    var monthlyData = @json($dataMonth ?? ['val1'=>[], 'val2'=>[]]);
+    var weeklyData = @json($dataWeek ?? ['val1'=>[], 'val2'=>[]]);
+    var feeChartInstance = null;
 
-  $('.fees-collection-info').click(function(){
-         $('#fees_info_modal').modal('toggle');   
-      });
+    function renderFeeChart(labels, values, labelText) {
+        var ctx = document.getElementById('myChart');
+        if (!ctx) return;
+        
+        if (feeChartInstance) {
+            feeChartInstance.destroy();
+        }
 
-   $(window).on("load", function(){
-        tableviewajax()
-			
-			  });
-      function tableviewajax() {
-     $.ajaxSetup({
+        var chartCtx = ctx.getContext('2d');
+        var gradient = chartCtx.createLinearGradient(0, 0, 0, 220);
+        gradient.addColorStop(0, 'rgba(33, 115, 70, 0.85)');
+        gradient.addColorStop(1, 'rgba(33, 115, 70, 0.15)');
+
+        feeChartInstance = new Chart(chartCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: labelText,
+                    data: values,
+                    backgroundColor: gradient,
+                    borderColor: '#185c37',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    maxBarThickness: 36
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                legend: { display: false },
+                tooltips: {
+                    backgroundColor: '#1e293b',
+                    titleFontColor: '#ffffff',
+                    bodyFontColor: '#86efac',
+                    cornerRadius: 4,
+                    callbacks: {
+                        label: function(tooltipItem) {
+                            return ' ₹ ' + Number(tooltipItem.yLabel).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                        }
+                    }
+                },
+                scales: {
+                    xAxes: [{
+                        gridLines: { display: false },
+                        ticks: { fontColor: '#64748b', fontSize: 10.5 }
+                    }],
+                    yAxes: [{
+                        gridLines: { color: '#f1f5f9', zeroLineColor: '#e2e8f0' },
+                        ticks: {
+                            beginAtZero: true,
+                            fontColor: '#64748b',
+                            fontSize: 10.5,
+                            callback: function(value) {
+                                if (value >= 100000) return '₹ ' + (value / 100000).toFixed(1) + 'L';
+                                if (value >= 1000) return '₹ ' + (value / 1000).toFixed(1) + 'k';
+                                return '₹ ' + value;
+                            }
+                        }
+                    }]
+                }
+            }
+        });
+    }
+
+    renderFeeChart(monthlyData.val1 || [], monthlyData.val2 || [], 'Monthly Collection');
+
+    $('#btnMonthly').on('click', function() {
+        $('.btn-chart-toggle').removeClass('active');
+        $(this).addClass('active');
+        $('#chartHeading').text('Monthly Fee Collection Trend');
+        renderFeeChart(monthlyData.val1 || [], monthlyData.val2 || [], 'Monthly Collection');
+    });
+
+    $('#btnWeekly').on('click', function() {
+        $('.btn-chart-toggle').removeClass('active');
+        $(this).addClass('active');
+        $('#chartHeading').text('Day-wise Collection (Current Month)');
+        renderFeeChart(weeklyData.val1 || [], weeklyData.val2 || [], 'Day-wise Collection');
+    });
+
+    // 3. Student Attendance Donut Chart
+    var stuCtx = document.getElementById('studentAttendanceChart');
+    if (stuCtx) {
+        new Chart(stuCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Half Day', 'WFH/Leave'],
+                datasets: [{
+                    data: [
+                        {{ $chartAttendanceStudents['Present'] ?? 0 }},
+                        {{ $chartAttendanceStudents['Absent'] ?? 0 }},
+                        {{ $chartAttendanceStudents['Half_Day'] ?? 0 }},
+                        {{ $chartAttendanceStudents['Work_From_Home'] ?? 0 }}
+                    ],
+                    backgroundColor: ['#16a34a', '#ef4444', '#f59e0b', '#3b82f6'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                cutoutPercentage: 70,
+                legend: { display: false }
+            }
+        });
+    }
+
+    // 4. Staff Attendance Donut Chart
+    var teaCtx = document.getElementById('teacherAttendanceChart');
+    if (teaCtx) {
+        new Chart(teaCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Half Day', 'WFH/Leave'],
+                datasets: [{
+                    data: [
+                        {{ $chartAttendanceTeachers['Present'] ?? 0 }},
+                        {{ $chartAttendanceTeachers['Absent'] ?? 0 }},
+                        {{ $chartAttendanceTeachers['Half_Day'] ?? 0 }},
+                        {{ $chartAttendanceTeachers['Work_From_Home'] ?? 0 }}
+                    ],
+                    backgroundColor: ['#16a34a', '#ef4444', '#f59e0b', '#3b82f6'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                cutoutPercentage: 70,
+                legend: { display: false }
+            }
+        });
+    }
+
+    // 5. To-Do List AJAX Handlers
+    function loadTodoList() {
+        $.ajaxSetup({
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
         });
-		            $.ajax({
-                     	url:'/task_list',
-					type:'post',
-				  data: {
-                status: "1",
-               
-            },
-               
-                success: function(result) {
-                   // var result = JSON.parse(result);
-                
-                    if (result) {
-
-                      //  toastr.success(result.msg);
-                        	$('.todoList').html(result)
-                        //	alert("done");
-                      
-                    } else {
-                       $('.todoList').html("<p class='text-center'><img style='width:184px' src='{{ env('IMAGE_SHOW_PATH') ?? '' }}/default/Dashboard/task-task-icon-155379995.webp'></p>");
-
-                    }
+        $.ajax({
+            url: '{{ url("task_list") }}',
+            type: 'post',
+            data: { status: "1" },
+            success: function(result) {
+                if (result && result.trim().length > 0) {
+                    $('.todoList').html(result);
+                } else {
+                    $('.todoList').html('<div class="empty-state"><i class="fa fa-check-circle-o text-success"></i><p>No pending tasks.</p></div>');
                 }
-            })
-      }
-      
-    $(document).on('click', ".add_task", function () {
-        var task = $('#task').val();
-        var data = { 'task': task }
-        if(task=="")
-        {
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid red")
-          $("#task").css("margin-left","0px")
-          }, 20);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid black")
-           $("#task").css("margin-left","3px")
-          }, 40);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid red")
-           $("#task").css("margin-left","0px")
-          }, 60);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid black")
-           $("#task").css("margin-left","3px")
-          }, 80);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid red")
-           $("#task").css("margin-left","0px")
-          }, 100);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid black")
-           $("#task").css("margin-left","3px")
-          }, 120);
-             setTimeout(function() {
-          $("#task").css("border-bottom","1px solid red")
-           $("#task").css("margin-left","0px")
-          }, 140);
-             
+            },
+            error: function() {
+                $('.todoList').html('<div class="empty-state"><p class="text-muted">No tasks available.</p></div>');
+            }
+        });
+    }
+    loadTodoList();
+
+    $(document).on('click', '.add_task', function() {
+        var task = $('#taskInput').val().trim();
+        if (!task) {
+            $('#taskInput').focus().css('border-color', '#ef4444');
+            return;
         }
-        else{
+        $('#taskInput').css('border-color', '');
         
         $.ajaxSetup({
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
         });
         $.ajax({
             type: "POST",
-            url: "/add/task",
-            data: data,
-            dataType: "html",
-            success: function (response) {
-                toastr.success('Task Added Successfully.');
-                  tableviewajax()
-                  $("#task").val("");
-                     $("#task").css("border-bottom","1px solid black");
-            },
+            url: "{{ url('add/task') }}",
+            data: { task: task },
+            success: function(response) {
+                toastr.success('Task added successfully.');
+                $('#taskInput').val('');
+                loadTodoList();
+            }
         });
+    });
+
+    $('#taskInput').on('keypress', function(e) {
+        if (e.which === 13) {
+            $('.add_task').click();
         }
     });
 
-    $(document).on('click', ".task_status", function () {
+    $(document).on('click', ".task_status", function() {
         var id = $(this).data('id');
         var status = $(this).data('status');
         $.ajax({
-            url: '/status/task',
+            url: '{{ url("status/task") }}',
             type: 'post',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            data: {
-                status: status,
-                id: id
-            },
-            success: function () {
-                toastr.success('Record Saved Successfully.');
-               
-            },
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            data: { status: status, id: id },
+            success: function() {
+                toastr.success('Task updated.');
+                loadTodoList();
+            }
         });
     });
 
-    $(document).on('click', ".task_delete", function () {
+    $(document).on('click', ".task_delete", function() {
         var task_id = $(this).data('id');
-        var data = { 'task_id': task_id }
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
         $.ajax({
             type: "POST",
-            url: "/delete/task",
-            data: data,
-            dataType: "html",
-            success: function (response) {
-                $("#task_li").remove();
-                toastr.error('Task Deleted Successfully.');
-              tableviewajax()
-            },
+            url: "{{ url('delete/task') }}",
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            data: { task_id: task_id },
+            success: function() {
+                toastr.error('Task deleted.');
+                loadTodoList();
+            }
         });
     });
-</script>
-<script>
-    $(function () {
-        /* ChartJS
-         * -------
-         * Here we will create a few charts using ChartJS
-         */
 
-        //--------------
-        //- AREA CHART -
-        //--------------
-
-        // Get context with jQuery - using jQuery's .get() method.
-        var areaChartCanvas = $('#areaChart').get(0).getContext('2d')
-
-        var areaChartData = {
-            labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-            datasets: [
-                {
-                    label: 'Digital Goods',
-                    backgroundColor: 'rgba(60,141,188,0.9)',
-                    borderColor: 'rgba(60,141,188,0.8)',
-                    pointRadius: false,
-                    pointColor: '#3b8bba',
-                    pointStrokeColor: 'rgba(60,141,188,1)',
-                    pointHighlightFill: '#fff',
-                    pointHighlightStroke: 'rgba(60,141,188,1)',
-                    data: [28, 48, 40, 19, 86, 27, 90]
-                },
-                {
-                    label: 'Electronics',
-                    backgroundColor: 'rgba(210, 214, 222, 1)',
-                    borderColor: 'rgba(210, 214, 222, 1)',
-                    pointRadius: false,
-                    pointColor: 'rgba(210, 214, 222, 1)',
-                    pointStrokeColor: '#c1c7d1',
-                    pointHighlightFill: '#fff',
-                    pointHighlightStroke: 'rgba(220,220,220,1)',
-                    data: [65, 59, 80, 81, 56, 55, 40]
-                },
-            ]
-        }
-
-        var areaChartOptions = {
-            maintainAspectRatio: false,
-            responsive: true,
-            legend: {
-                display: false
-            },
-            scales: {
-                xAxes: [{
-                    gridLines: {
-                        display: false,
-                    }
-                }],
-                yAxes: [{
-                    gridLines: {
-                        display: false,
-                    }
-                }]
-            }
-        }
-
-        // This will get the first returned node in the jQuery collection.
-        new Chart(areaChartCanvas, {
-            type: 'line',
-            data: areaChartData,
-            options: areaChartOptions
-        })
-
-        //-------------
-        //- LINE CHART -
-        //--------------
-        var lineChartCanvas = $('#lineChart').get(0).getContext('2d')
-        var lineChartOptions = $.extend(true, {}, areaChartOptions)
-        var lineChartData = $.extend(true, {}, areaChartData)
-        lineChartData.datasets[0].fill = false;
-        lineChartData.datasets[1].fill = false;
-        lineChartOptions.datasetFill = false
-
-        var lineChart = new Chart(lineChartCanvas, {
-            type: 'line',
-            data: lineChartData,
-            options: lineChartOptions
-        })
-
-        //-------------
-        //- DONUT CHART -
-        //-------------
-        // Get context with jQuery - using jQuery's .get() method.
-        var donutChartCanvas = $('#donutChart').get(0).getContext('2d');
-        var donutData = {
-            labels: [
-                'Present',
-                'Absent',
-                'Work From Home',
-                'Half-Day',
-                'Holiday',
-               
-            ],
-            datasets: [
-                {
-                    data: [ 
-                    {{$chartAttendanceStudents['Present']}},{{$chartAttendanceStudents['Absent']}},{{$chartAttendanceStudents['Work_From_Home']}},{{$chartAttendanceStudents['Half_Day']}},{{$chartAttendanceStudents['Holiday']}}],
-                    backgroundColor: ['#00a65a', '#f56954',  '#f39c12', '#00c0ef', '#3c8dbc', '#d2d6de'],
-                }
-            ]
-        }
-        var donutOptions = {
-            maintainAspectRatio: false,
-            responsive: true,
-        }
-        //Create pie or douhnut chart
-        // You can switch between pie and douhnut using the method below.
-        new Chart(donutChartCanvas, {
-            type: 'doughnut',
-            data: donutData,
-            options: donutOptions
-        })
-
-        //-------------
-        //- PIE CHART -
-        //-------------
-        // Get context with jQuery - using jQuery's .get() method.
-        var pieChartCanvas = $('#pieChart').get(0).getContext('2d')
-      //  var pieData = donutData;
-         var pieData = {
-            labels: [
-                'Present',
-                'Absent',
-                'Work From Home',
-                'Half-Day',
-                'Holiday',
-               
-            ],
-            datasets: [
-                {
-                    data: [ 
-                    {{$chartAttendanceTeachers['Present']}},{{$chartAttendanceTeachers['Absent']}},{{$chartAttendanceTeachers['Work_From_Home']}},{{$chartAttendanceTeachers['Half_Day']}},{{$chartAttendanceTeachers['Holiday']}}],
-                    backgroundColor: ['#00a65a', '#f56954',  '#f39c12', '#00c0ef', '#3c8dbc', '#d2d6de'],
-                }
-            ]
-        }
-       
-       
-        var pieOptions = {
-            maintainAspectRatio: false,
-            responsive: true,
-        }
-        //Create pie or douhnut chart
-        // You can switch between pie and douhnut using the method below.
-        new Chart(pieChartCanvas, {
-            type: 'pie',
-            data: pieData,
-            options: pieOptions
-        })
-
-        //-------------
-        //- BAR CHART -
-        //-------------
-        var barChartCanvas = $('#barChart').get(0).getContext('2d')
-        var barChartData = $.extend(true, {}, areaChartData)
-        var temp0 = areaChartData.datasets[0]
-        var temp1 = areaChartData.datasets[1]
-        barChartData.datasets[0] = temp1
-        barChartData.datasets[1] = temp0
-
-        var barChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            datasetFill: false
-        }
-
-        new Chart(barChartCanvas, {
-            type: 'bar',
-            data: barChartData,
-            options: barChartOptions
-        })
-
-        //---------------------
-        //- STACKED BAR CHART -
-        //---------------------
-        var stackedBarChartCanvas = $('#stackedBarChart').get(0).getContext('2d')
-        var stackedBarChartData = $.extend(true, {}, barChartData)
-
-        var stackedBarChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                xAxes: [{
-                    stacked: true,
-                }],
-                yAxes: [{
-                    stacked: true
-                }]
-            }
-        }
-
-        new Chart(stackedBarChartCanvas, {
-            type: 'bar',
-            data: stackedBarChartData,
-            options: stackedBarChartOptions
-        })
-    })
-</script>
-<script>
-    $(window).on("load", function(){
-        
-      function tableviewajax() {
-     $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
-		            $.ajax({
-                     	url:'/task_list',
-					type:'post',
-				  data: {
-                status: "1",
-               
-            },
-               
-                success: function(result) {
-                   // var result = JSON.parse(result);
-                
-                    if (result) {
-
-                      //  toastr.success(result.msg);
-                        	$('.todoList').html(result)
-                        //	alert("done");
-                      
-                    } else {
-                       // toastr.error(result.msg);
-                    }
-                }
-            })
-      }
-      tableviewajax()
-			
-			  });
-			  
-			  
-			  
-</script>
-
-
-
-<script>
-
-var token_no = "{{env('SOFTWARE_TOKEN_NO')}}";
-                   $.ajaxSetup({
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                }
-            });
-            $.ajax({
-                type: "POST",
-                url: "https://rukmanisoftware.com/api/checkSchoolToken/" + token_no,
-              
-         success:function(response){ 
-                setSession(response.data.student_count,response.data.user_count,response.data.branch_count);
-            }
-        });
-            
-            
-            function setSession(data1,data2,data3){
-                
-                
-                    $.ajax({
-                type: "POST",
-                url: "/set_session_count",
-                data:{
-                    student_count:data1,
-                    user_count:data2,
-                    branch_count:data3
-                },
-               
-         success:function(response){ 
-                 
-    }
-            });
-            }
- 
-
-</script>
-@php
-$data = Helper::getMonthWiseFeeCollection();
-$data1 = Helper::getWeeklyWiseFeeCollection();
-@endphp
-<script>
-    $(document).ready(function() {
-        var myChart; // Declare a global variable to store the chart instance
-        
-        // Load the initial chart (Monthly Data)
-        chartData(@json($data));
-
-        // Event handler for weekly data
-        $('#7_days').click(function() {
-            updateChart(@json($data1), `
-                <i class="fa fa-money mr-1" aria-hidden="true"></i>
-                Weekly Fee Collection
-            `);
-        });
-
-        // Event handler for monthly data
-        $('#monthly').on('click', function() {
-            updateChart(@json($data), `
-                <i class="fa fa-money mr-1" aria-hidden="true"></i>
-                Monthly Fee Collection
-            `);
-        });
-
-        // Function to update chart with new data
-        function updateChart(data, labelHTML) {
-            if (myChart) {
-                myChart.destroy(); // Destroy the existing chart
-            }
-            $('.collection').html(labelHTML); // Update collection label
-            chartData(data); // Create a new chart with updated data
-        }
-
-        // Function to create a chart
-        function chartData(val) {
-            var val1 = val['val1'];
-            var val2 = val['val2'];
-
-            var ctx = document.getElementById('myChart').getContext('2d');
-            myChart = new Chart(ctx, {
-                type: 'bar', // Example chart type
-                data: {
-                    labels: val1,
-                    datasets: [{
-                        label: '',
-                        data: val2,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.2)',
-                            'rgba(54, 162, 235, 0.2)',
-                            'rgba(255, 206, 86, 0.2)',
-                            'rgba(75, 192, 192, 0.2)',
-                            'rgba(153, 102, 255, 0.2)',
-                            'rgba(255, 159, 64, 0.2)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-    });
+});
 </script>
 
 @endsection

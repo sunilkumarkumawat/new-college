@@ -232,6 +232,9 @@ class HomeController extends Controller
                     $newClass->user_id = Session::get('id');
                     $newClass->session_id = $new_session_id;   // Assigning the newly selected session
                     $newClass->branch_id = $branch_id; 
+                    $newClass->course_id = $oldClass->course_id;
+                    $newClass->master_id = $oldClass->master_id;
+                    $newClass->section_id = $oldClass->section_id;
                     $newClass->name = $oldClass->name;
                     $newClass->orderBy = $oldClass->orderBy;
                     $newClass->save();

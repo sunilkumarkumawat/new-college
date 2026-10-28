@@ -472,8 +472,8 @@ $account = Helper::getQRCode($getSetting->account_id);
                             <span>{{ $invoice_data->student_type ?? '-' }}</span>
                         </div>
                         <div class="info-row">
-                            <span>Course / Stream</span>
-                            <span>{{ $invoice_data->course ?? '' }}</span>
+                            <span>Class / Semester</span>
+                            <span>{{ $invoice_data->class_name ?? '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -488,8 +488,8 @@ $account = Helper::getQRCode($getSetting->account_id);
                         </div>
                         
                         <div class="info-row">
-                            <span>Class / Division</span>
-                            <span>{{ $invoice_data->class_name ?? '' }}</span>
+                            <span>Course</span>
+                            <span>{{ !empty($invoice_data->course) ? $invoice_data->course : ($invoice_data->class_name ?? '') }}</span>
                         </div>
                         <div class="info-row">
                             <span>Batch</span>
@@ -557,7 +557,7 @@ $account = Helper::getQRCode($getSetting->account_id);
                         @endphp
                         <tr>
                             <td class="c" style="color: var(--text-muted); font-weight: 600; text-align:center;">{{ str_pad($i++, 2, '0', STR_PAD_LEFT) }}</td>
-                            <td><strong>{{ $feesGroup->name ?? 'Academic Tuition Fee Head' }}</strong></td>
+                            <td><strong>{{ $item['fees_group_name'] ?? ($feesGroup->name ?? 'Academic Tuition Fee Head') }}</strong></td>
                             <td class="r" style="color: var(--brand-crimson);">Rs. {{ number_format($item['installment_fine'] ?? 0, 2) }}</td>
                             
                             @php

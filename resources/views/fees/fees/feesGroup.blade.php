@@ -59,6 +59,8 @@ if (!empty($allFeesMasterRows)) {
         $cTypeId = (int)$row->class_type_id;
         $courseId = !empty($row->ClassTypes->course_id) ? (int)$row->ClassTypes->course_id : null;
         $amt = (float)($row->amount ?? 0);
+        $boysAmt = !empty($row->boys_amount) ? (float)$row->boys_amount : $amt;
+        $girlsAmt = !empty($row->girls_amount) ? (float)$row->girls_amount : $amt;
         $due = !empty($row->installment_due_date) ? date('Y-m-d', strtotime($row->installment_due_date)) : '';
 
         if (!isset($existingHeadAssignments[$fgId])) {
@@ -71,6 +73,8 @@ if (!empty($allFeesMasterRows)) {
         if ($courseId && !isset($existingHeadAssignments[$fgId]['courses'][$courseId])) {
             $existingHeadAssignments[$fgId]['courses'][$courseId] = [
                 'amount' => $amt,
+                'boys_amount' => $boysAmt,
+                'girls_amount' => $girlsAmt,
                 'due_date' => $due,
                 'class_type_id' => $cTypeId
             ];
@@ -78,6 +82,8 @@ if (!empty($allFeesMasterRows)) {
 
         $existingHeadAssignments[$fgId]['classes'][$cTypeId] = [
             'amount' => $amt,
+            'boys_amount' => $boysAmt,
+            'girls_amount' => $girlsAmt,
             'due_date' => $due,
             'course_id' => $courseId
         ];
@@ -726,6 +732,9 @@ if (!empty($allFeesMasterRows)) {
                     </nav>
                 </div>
                 <div class="{{($getPermission->add == 1) ? 'col-md-7' : 'col-md-8'}} text-md-right d-flex justify-content-end align-items-center flex-wrap" style="gap: 6px;">
+                    <button type="button" class="btn btn-warning btn-sm font-weight-bold text-dark text-nowrap shadow-sm" id="btn_open_clone_modal" data-toggle="modal" data-target="#cloneFeesModal" data-bs-toggle="modal" data-bs-target="#cloneFeesModal" title="Clone / Copy Fee Setup from Previous Financial Year">
+                        <i class="fa fa-clone mr-1"></i> Clone Previous Year Setup
+                    </button>
                     <a href="{{url('fee_dashboard')}}" class="btn btn-secondary btn-sm font-weight-bold text-nowrap">
                         <i class="fa fa-arrow-left"></i> {{ __('messages.Back') }}
                     </a>
@@ -750,7 +759,7 @@ if (!empty($allFeesMasterRows)) {
                                     <span><i class="fa fa-graduation-cap"></i> Select Course (Auto-Detects Semesters / Years): <span class="text-danger" id="course_req_star">*</span></span>
                                     <span class="badge badge-primary px-2" id="course_mode_badge" style="font-size: 10px;">Required</span>
                                 </label>
-                                <select class="form-control form-control-sm select2 font-weight-bold" id="course_selector" onchange="onCourseSelected(this)">
+                                <select class="form-control form-control-sm select2 font-weight-bold" id="course_selector" onchange="onCourseSelected(this, false)">
                                     <option value="">-- Select Course (e.g. BA, BSc, B.Ed) --</option>
                                     @if(!empty($courses))
                                         @foreach($courses as $c)
@@ -1576,6 +1585,154 @@ if (!empty($allFeesMasterRows)) {
     </section>
 </div>
 
+@php
+    $currentSessionId = Session::get('session_id');
+    $currentSessionName = '';
+    $otherSessions = [];
+    if (!empty($getSession)) {
+        foreach ($getSession as $s) {
+            $sName = ($s->from_year ?? '') . ' - ' . ($s->to_year ?? '');
+            if ($s->id == $currentSessionId) {
+                $currentSessionName = $sName;
+            } else {
+                $otherSessions[] = $s;
+            }
+        }
+    }
+    if (empty($currentSessionName)) {
+        $currentSessionName = 'Current Session (ID: ' . $currentSessionId . ')';
+    }
+@endphp
+
+<!-- Clone / Copy Fees Structure from Previous Financial Year Modal -->
+<div class="modal fade fees-unified-page" id="cloneFeesModal" tabindex="-1" role="dialog" aria-labelledby="cloneFeesModalLabel" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 10px; overflow: hidden;">
+            <div class="modal-header py-2.5 px-3 d-flex justify-content-between align-items-center" style="background-color: #002c54 !important; border-bottom: 2px solid #ff7b00;">
+                <h5 class="modal-title font-weight-bold d-flex align-items-center mb-0" id="cloneFeesModalLabel" style="font-size: 15px; color: #ffffff !important;">
+                    <i class="fa fa-clone mr-2 text-warning"></i> Clone Previous Financial Year Fee Setup
+                </h5>
+                <button type="button" class="close text-white btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; text-shadow: none; outline: none; cursor: pointer;">
+                    <span aria-hidden="true" style="font-size: 22px; color: #ffffff;">&times;</span>
+                </button>
+            </div>
+            
+            <div class="modal-body p-3" style="background-color: #f8fafc;">
+                <!-- Step / Flow Indicator Ribbon -->
+                <div class="card mb-3 border-0 shadow-sm" style="background: linear-gradient(135deg, #002c54 0%, #00172d 100%); color: #ffffff; border-radius: 8px;">
+                    <div class="card-body p-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-5 text-center text-md-left mb-2 mb-md-0">
+                                <span class="badge badge-warning text-dark font-weight-bold px-2 py-1 mb-1" style="font-size: 11px;">SOURCE SESSION</span>
+                                <div class="font-weight-bold" style="font-size: 14px; color: #facc15;" id="clone_source_title_display">Select Previous Session</div>
+                                <small style="color: #cbd5e1; font-size: 11px;">Copy structure, heads & amounts from</small>
+                            </div>
+                            <div class="col-md-2 text-center mb-2 mb-md-0">
+                                <div class="d-inline-flex justify-content-center align-items-center rounded-circle" style="width: 36px; height: 36px; background: rgba(255,255,255,0.15);">
+                                    <i class="fa fa-arrow-right text-warning"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-5 text-center text-md-right">
+                                <span class="badge badge-success font-weight-bold px-2 py-1 mb-1" style="font-size: 11px;">TARGET ACTIVE SESSION</span>
+                                <div class="font-weight-bold text-white" style="font-size: 14px;">{{ $currentSessionName }}</div>
+                                <small style="color: #cbd5e1; font-size: 11px;">Paste as new fee setup in active year</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Selection Input -->
+                <div class="form-group mb-3 bg-white p-3 border rounded shadow-xs">
+                    <label class="font-weight-bold text-dark mb-1" style="font-size: 12.5px;">
+                        <i class="fa fa-calendar-check-o text-primary mr-1"></i> Select Previous Financial Year to Clone From: <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-control font-weight-bold" id="clone_source_session_id" style="height: 38px; font-size: 13px;">
+                        <option value="">-- Select Source Session / Financial Year --</option>
+                        @if(!empty($otherSessions))
+                            @foreach($otherSessions as $s)
+                                <option value="{{ $s->id }}">
+                                    {{ $s->from_year ?? '' }} - {{ $s->to_year ?? '' }}
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <!-- Dynamic Preview Card for Selected Source Session -->
+                <div id="clone_preview_container" style="display: none;">
+                    <div class="card mb-3 border shadow-xs" style="background-color: #002c54 !important; border: 1.5px solid #001a33 !important; border-radius: 8px;">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background-color: #001f3b !important; border-bottom: 1px solid #103a61 !important;">
+                            <span class="font-weight-bold" style="font-size: 12.5px; color: #ffffff !important;">
+                                <i class="fa fa-check-circle mr-1" style="color: #4ade80 !important;"></i> Source Session Structure Summary (<span id="clone_source_session_name" style="color: #38bdf8 !important; font-weight: 800;">-</span>):
+                            </span>
+                            <span class="badge px-2.5 py-1 font-weight-bold" id="clone_heads_count_badge" style="background-color: #0284c7 !important; color: #ffffff !important; font-size: 11.5px;">0 Fee Heads</span>
+                        </div>
+                        <div class="card-body p-3" style="background-color: #002c54 !important;">
+                            <div class="row mb-3 text-center">
+                                <div class="col-3 p-1">
+                                    <div class="p-2 border rounded shadow-xs" style="background-color: #00172d !important; border-color: #1e3a5f !important;">
+                                        <small class="d-block font-weight-bold" style="font-size: 10px; text-transform: uppercase; color: #cbd5e1 !important; letter-spacing: 0.5px;">Courses</small>
+                                        <span class="font-weight-bold" id="clone_stat_courses" style="font-size: 16px; color: #38bdf8 !important;">0</span>
+                                    </div>
+                                </div>
+                                <div class="col-3 p-1">
+                                    <div class="p-2 border rounded shadow-xs" style="background-color: #00172d !important; border-color: #1e3a5f !important;">
+                                        <small class="d-block font-weight-bold" style="font-size: 10px; text-transform: uppercase; color: #cbd5e1 !important; letter-spacing: 0.5px;">Classes</small>
+                                        <span class="font-weight-bold" id="clone_stat_classes" style="font-size: 16px; color: #7dd3fc !important;">0</span>
+                                    </div>
+                                </div>
+                                <div class="col-3 p-1">
+                                    <div class="p-2 border rounded shadow-xs" style="background-color: #00172d !important; border-color: #1e3a5f !important;">
+                                        <small class="d-block font-weight-bold" style="font-size: 10px; text-transform: uppercase; color: #cbd5e1 !important; letter-spacing: 0.5px;">Fee Heads</small>
+                                        <span class="font-weight-bold" id="clone_stat_heads" style="font-size: 16px; color: #facc15 !important;">0</span>
+                                    </div>
+                                </div>
+                                <div class="col-3 p-1">
+                                    <div class="p-2 border rounded shadow-xs" style="background-color: #00172d !important; border-color: #1e3a5f !important;">
+                                        <small class="d-block font-weight-bold" style="font-size: 10px; text-transform: uppercase; color: #cbd5e1 !important; letter-spacing: 0.5px;">Total Pool</small>
+                                        <span class="font-weight-bold" id="clone_stat_amount" style="font-size: 16px; color: #4ade80 !important;">₹0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- List of Fee Heads -->
+                            <div class="mb-1">
+                                <label class="font-weight-bold mb-1.5 small d-block" style="font-size: 11.5px; color: #cbd5e1 !important;">Fee Heads that will be cloned:</label>
+                                <div id="clone_heads_chips_box" class="d-flex flex-wrap" style="gap: 5px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="clone_loading_indicator" class="text-center py-4" style="display: none;">
+                    <i class="fa fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2 text-muted font-weight-bold" style="font-size: 12px;">Fetching Previous Year Fee Setup Data...</p>
+                </div>
+
+                <!-- Instructions & Guarantees Alert -->
+                <div class="p-3 mb-0 shadow-sm" style="background-color: #002c54 !important; border: 1.5px solid #0284c7 !important; color: #ffffff !important; border-radius: 8px;">
+                    <strong class="d-block mb-1.5" style="color: #38bdf8 !important; font-size: 12.5px;"><i class="fa fa-info-circle mr-1"></i> What happens when you clone?</strong>
+                    <ul class="pl-3 mb-0" style="line-height: 1.5; color: #f1f5f9 !important; font-size: 12px;">
+                        <li>All Fee Heads (Tuition, Exam, Caution Money, etc.) and categories are copied into the active session <b style="color: #facc15 !important;">{{ $currentSessionName }}</b>.</li>
+                        <li>All Course & Semester fee structures, class amounts, and installment due dates are mapped and updated for the new academic session.</li>
+                        <li>Existing fee collections and receipts from previous years remain 100% intact and untouched.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm px-3 btn-close-modal" data-dismiss="modal" data-bs-dismiss="modal">
+                    <i class="fa fa-times mr-1"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary btn-sm font-weight-bold px-3 shadow-sm" id="btn_confirm_clone_fees" disabled>
+                    <i class="fa fa-check-circle mr-1"></i> Confirm & Clone Fee Setup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Fees Group Modal (Theme-Based Custom Centered Modal) -->
 <div class="modal fade fees-unified-page" id="Modal_id" tabindex="-1" role="dialog" aria-labelledby="deleteFeesGroupLabel" aria-hidden="true" data-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
@@ -1784,17 +1941,25 @@ if (!empty($allFeesMasterRows)) {
                         <div class="card border mb-2 shadow-none bg-white">
                             <div class="card-body p-2">
                                 <div class="row align-items-center">
-                                    <div class="col-md-5 mb-2 mb-md-0">
-                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-inr text-success"></i> Common Amount (₹):</label>
-                                        <input type="number" step="0.01" min="0" id="assign_course_common_amount" class="form-control form-control-sm font-weight-bold" placeholder="e.g. 1000.00">
+                                    <div class="col-md-3 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-inr text-success"></i> Common (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_course_common_amount" class="form-control form-control-sm font-weight-bold" placeholder="e.g. 4000">
                                     </div>
-                                    <div class="col-md-4 mb-2 mb-md-0">
-                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-calendar text-info"></i> Common Due Date:</label>
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-primary mb-1 d-block"><i class="fa fa-male"></i> Boys (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_course_common_boys_amount" class="form-control form-control-sm font-weight-bold" placeholder="Boys">
+                                    </div>
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-danger mb-1 d-block"><i class="fa fa-female"></i> Girls (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_course_common_girls_amount" class="form-control form-control-sm font-weight-bold" placeholder="Girls">
+                                    </div>
+                                    <div class="col-md-3 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-calendar text-info"></i> Due Date:</label>
                                         <input type="date" id="assign_course_common_due_date" class="form-control form-control-sm">
                                     </div>
-                                    <div class="col-md-3 mt-auto">
-                                        <button type="button" class="btn btn-sm btn-info btn-block font-weight-bold" onclick="applyCourseCommonAssignValues()" title="Apply common amount and date to selected courses" style="padding: 5px 8px; font-size: 11px;">
-                                            <i class="fa fa-bolt"></i> Apply to Selected
+                                    <div class="col-md-2 mt-auto">
+                                        <button type="button" class="btn btn-sm btn-info btn-block font-weight-bold" onclick="applyCourseCommonAssignValues()" title="Apply common values to selected courses" style="padding: 5px 6px; font-size: 11px;">
+                                            <i class="fa fa-bolt"></i> Apply
                                         </button>
                                     </div>
                                 </div>
@@ -1816,10 +1981,12 @@ if (!empty($allFeesMasterRows)) {
                                 <table class="table table-bordered table-hover table-sm mb-0" id="assign_modal_courses_table" style="font-size: 12px;">
                                     <thead style="position: sticky; top: 0; z-index: 2; background-color: #f1f5f9; color: #1e293b;">
                                         <tr>
-                                            <th class="text-center align-middle" style="width: 45px;">#</th>
+                                            <th class="text-center align-middle" style="width: 40px;">#</th>
                                             <th class="align-middle">Course Name</th>
-                                            <th class="align-middle" style="width: 180px;">Amount (₹) <span class="text-danger">*</span></th>
-                                            <th class="align-middle" style="width: 180px;">Due Date</th>
+                                            <th class="align-middle" style="width: 140px;">General (₹) <span class="text-danger">*</span></th>
+                                            <th class="align-middle" style="width: 120px;"><i class="fa fa-male text-primary mr-1"></i>Boys (₹)</th>
+                                            <th class="align-middle" style="width: 120px;"><i class="fa fa-female text-danger mr-1"></i>Girls (₹)</th>
+                                            <th class="align-middle" style="width: 140px;">Due Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1846,6 +2013,12 @@ if (!empty($allFeesMasterRows)) {
                                                         </div>
                                                     </td>
                                                     <td class="align-middle">
+                                                        <input type="number" step="0.01" min="0" name="course_boys_amount[{{ $c->id }}]" id="assign_course_boys_amt_{{ $c->id }}" class="form-control form-control-sm assign-course-boys-input font-weight-bold text-right text-primary" placeholder="Boys" disabled style="background: #e9ecef;">
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <input type="number" step="0.01" min="0" name="course_girls_amount[{{ $c->id }}]" id="assign_course_girls_amt_{{ $c->id }}" class="form-control form-control-sm assign-course-girls-input font-weight-bold text-right text-danger" placeholder="Girls" disabled style="background: #e9ecef;">
+                                                    </td>
+                                                    <td class="align-middle">
                                                         <input type="date" name="course_due_date[{{ $c->id }}]" id="assign_course_due_{{ $c->id }}" class="form-control form-control-sm assign-course-due-input" disabled style="background: #e9ecef;">
                                                     </td>
                                                 </tr>
@@ -1863,8 +2036,8 @@ if (!empty($allFeesMasterRows)) {
                         <div class="card border mb-2 shadow-none bg-white">
                             <div class="card-body p-2">
                                 <div class="row align-items-center">
-                                    <div class="col-md-4 mb-2 mb-md-0">
-                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-filter text-primary"></i> Filter by Course:</label>
+                                    <div class="col-md-3 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-filter text-primary"></i> Course:</label>
                                         <select id="assign_modal_course_filter" class="form-control form-control-sm" onchange="filterModalAssignClasses(this.value)">
                                             <option value="">-- All Courses --</option>
                                             @if(!empty($courses))
@@ -1874,17 +2047,25 @@ if (!empty($allFeesMasterRows)) {
                                             @endif
                                         </select>
                                     </div>
-                                    <div class="col-md-3 mb-2 mb-md-0">
-                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-inr text-success"></i> Common Amount (₹):</label>
-                                        <input type="number" step="0.01" min="0" id="assign_modal_common_amount" class="form-control form-control-sm font-weight-bold" placeholder="e.g. 500.00">
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-inr text-success"></i> Common (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_modal_common_amount" class="form-control form-control-sm font-weight-bold" placeholder="General">
                                     </div>
-                                    <div class="col-md-3 mb-2 mb-md-0">
-                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-calendar text-info"></i> Common Due Date:</label>
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-primary mb-1 d-block"><i class="fa fa-male"></i> Boys (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_modal_common_boys_amount" class="form-control form-control-sm font-weight-bold" placeholder="Boys">
+                                    </div>
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-danger mb-1 d-block"><i class="fa fa-female"></i> Girls (₹):</label>
+                                        <input type="number" step="0.01" min="0" id="assign_modal_common_girls_amount" class="form-control form-control-sm font-weight-bold" placeholder="Girls">
+                                    </div>
+                                    <div class="col-md-2 mb-2 mb-md-0">
+                                        <label class="small font-weight-bold text-dark mb-1 d-block"><i class="fa fa-calendar text-info"></i> Due Date:</label>
                                         <input type="date" id="assign_modal_common_due_date" class="form-control form-control-sm">
                                     </div>
-                                    <div class="col-md-2 mt-auto">
-                                        <button type="button" class="btn btn-sm btn-info btn-block font-weight-bold" onclick="applyModalCommonAssignValues()" title="Apply common amount and date to selected classes" style="padding: 5px 8px; font-size: 11px;">
-                                            <i class="fa fa-bolt"></i> Apply All
+                                    <div class="col-md-1 mt-auto p-0">
+                                        <button type="button" class="btn btn-sm btn-info btn-block font-weight-bold" onclick="applyModalCommonAssignValues()" title="Apply common values to selected classes" style="padding: 5px 4px; font-size: 11px;">
+                                            <i class="fa fa-bolt"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -1906,11 +2087,13 @@ if (!empty($allFeesMasterRows)) {
                                 <table class="table table-bordered table-hover table-sm mb-0" id="assign_modal_classes_table" style="font-size: 12px;">
                                     <thead style="position: sticky; top: 0; z-index: 2; background-color: #f1f5f9; color: #1e293b;">
                                         <tr>
-                                            <th class="text-center align-middle" style="width: 45px;">#</th>
-                                            <th class="align-middle" style="width: 140px;">Course</th>
+                                            <th class="text-center align-middle" style="width: 40px;">#</th>
+                                            <th class="align-middle" style="width: 120px;">Course</th>
                                             <th class="align-middle">Class / Semester</th>
-                                            <th class="align-middle" style="width: 150px;">Amount (₹) <span class="text-danger">*</span></th>
-                                            <th class="align-middle" style="width: 160px;">Due Date</th>
+                                            <th class="align-middle" style="width: 130px;">General (₹) <span class="text-danger">*</span></th>
+                                            <th class="align-middle" style="width: 110px;"><i class="fa fa-male text-primary mr-1"></i>Boys (₹)</th>
+                                            <th class="align-middle" style="width: 110px;"><i class="fa fa-female text-danger mr-1"></i>Girls (₹)</th>
+                                            <th class="align-middle" style="width: 130px;">Due Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1938,6 +2121,12 @@ if (!empty($allFeesMasterRows)) {
                                                             </div>
                                                             <input type="number" step="0.01" min="0" name="amount[{{ $cl->id }}]" id="assign_amt_{{ $cl->id }}" class="form-control form-control-sm assign-amount-input font-weight-bold text-right" placeholder="0.00" disabled required style="background: #e9ecef;">
                                                         </div>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <input type="number" step="0.01" min="0" name="class_boys_amount[{{ $cl->id }}]" id="assign_boys_amt_{{ $cl->id }}" class="form-control form-control-sm assign-class-boys-input font-weight-bold text-right text-primary" placeholder="Boys" disabled style="background: #e9ecef;">
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <input type="number" step="0.01" min="0" name="class_girls_amount[{{ $cl->id }}]" id="assign_girls_amt_{{ $cl->id }}" class="form-control form-control-sm assign-class-girls-input font-weight-bold text-right text-danger" placeholder="Girls" disabled style="background: #e9ecef;">
                                                     </td>
                                                     <td class="align-middle">
                                                         <input type="date" name="due_date[{{ $cl->id }}]" id="assign_due_{{ $cl->id }}" class="form-control form-control-sm assign-due-date-input" disabled style="background: #e9ecef;">
@@ -1996,16 +2185,28 @@ function switchAssignHeadMode(mode) {
 function onCourseRowCheck(checkbox) {
     var tr = $(checkbox).closest('tr');
     var amtInput = tr.find('.assign-course-amount-input');
+    var boysInput = tr.find('.assign-course-boys-input');
+    var girlsInput = tr.find('.assign-course-girls-input');
     var dueInput = tr.find('.assign-course-due-input');
 
     if (checkbox.checked) {
         tr.addClass('table-primary');
         amtInput.prop('disabled', false).css('background', '#ffffff');
+        boysInput.prop('disabled', false).css('background', '#ffffff');
+        girlsInput.prop('disabled', false).css('background', '#ffffff');
         dueInput.prop('disabled', false).css('background', '#ffffff');
         var commonAmt = $('#assign_course_common_amount').val();
+        var commonBoys = $('#assign_course_common_boys_amount').val();
+        var commonGirls = $('#assign_course_common_girls_amount').val();
         var commonDue = $('#assign_course_common_due_date').val();
         if (commonAmt && !amtInput.val()) {
             amtInput.val(commonAmt);
+        }
+        if (commonBoys && !boysInput.val()) {
+            boysInput.val(commonBoys);
+        }
+        if (commonGirls && !girlsInput.val()) {
+            girlsInput.val(commonGirls);
         }
         if (commonDue && !dueInput.val()) {
             dueInput.val(commonDue);
@@ -2013,6 +2214,8 @@ function onCourseRowCheck(checkbox) {
     } else {
         tr.removeClass('table-primary');
         amtInput.prop('disabled', true).css('background', '#e9ecef');
+        boysInput.prop('disabled', true).css('background', '#e9ecef');
+        girlsInput.prop('disabled', true).css('background', '#e9ecef');
         dueInput.prop('disabled', true).css('background', '#e9ecef');
     }
     updateModalAssignSelectionState();
@@ -2024,19 +2227,29 @@ function toggleAllCourseCheckboxes(masterCheck) {
         var chk = $(this).find('.assign-course-checkbox');
         chk.prop('checked', isChecked);
         var amtInput = $(this).find('.assign-course-amount-input');
+        var boysInput = $(this).find('.assign-course-boys-input');
+        var girlsInput = $(this).find('.assign-course-girls-input');
         var dueInput = $(this).find('.assign-course-due-input');
 
         if (isChecked) {
             $(this).addClass('table-primary');
             amtInput.prop('disabled', false).css('background', '#ffffff');
+            boysInput.prop('disabled', false).css('background', '#ffffff');
+            girlsInput.prop('disabled', false).css('background', '#ffffff');
             dueInput.prop('disabled', false).css('background', '#ffffff');
             var commonAmt = $('#assign_course_common_amount').val();
+            var commonBoys = $('#assign_course_common_boys_amount').val();
+            var commonGirls = $('#assign_course_common_girls_amount').val();
             var commonDue = $('#assign_course_common_due_date').val();
             if (commonAmt && !amtInput.val()) amtInput.val(commonAmt);
+            if (commonBoys && !boysInput.val()) boysInput.val(commonBoys);
+            if (commonGirls && !girlsInput.val()) girlsInput.val(commonGirls);
             if (commonDue && !dueInput.val()) dueInput.val(commonDue);
         } else {
             $(this).removeClass('table-primary');
             amtInput.prop('disabled', true).css('background', '#e9ecef');
+            boysInput.prop('disabled', true).css('background', '#e9ecef');
+            girlsInput.prop('disabled', true).css('background', '#e9ecef');
             dueInput.prop('disabled', true).css('background', '#e9ecef');
         }
     });
@@ -2045,10 +2258,12 @@ function toggleAllCourseCheckboxes(masterCheck) {
 
 function applyCourseCommonAssignValues() {
     var commonAmt = $('#assign_course_common_amount').val();
+    var commonBoys = $('#assign_course_common_boys_amount').val();
+    var commonGirls = $('#assign_course_common_girls_amount').val();
     var commonDue = $('#assign_course_common_due_date').val();
 
-    if (!commonAmt && !commonDue) {
-        toastr.warning('Please enter a common amount or due date first.');
+    if (!commonAmt && !commonBoys && !commonGirls && !commonDue) {
+        toastr.warning('Please enter a common amount, boys amount, girls amount or due date first.');
         return;
     }
 
@@ -2058,6 +2273,8 @@ function applyCourseCommonAssignValues() {
         if (chk.is(':checked')) {
             checkedCount++;
             if (commonAmt) $(this).find('.assign-course-amount-input').val(commonAmt);
+            if (commonBoys) $(this).find('.assign-course-boys-input').val(commonBoys);
+            if (commonGirls) $(this).find('.assign-course-girls-input').val(commonGirls);
             if (commonDue) $(this).find('.assign-course-due-input').val(commonDue);
         }
     });
@@ -2084,16 +2301,28 @@ function filterModalAssignClasses(courseId) {
 function onModalAssignRowCheck(checkbox) {
     var tr = $(checkbox).closest('tr');
     var amtInput = tr.find('.assign-amount-input');
+    var boysInput = tr.find('.assign-class-boys-input');
+    var girlsInput = tr.find('.assign-class-girls-input');
     var dueInput = tr.find('.assign-due-date-input');
 
     if (checkbox.checked) {
         tr.addClass('table-primary');
         amtInput.prop('disabled', false).css('background', '#ffffff');
+        boysInput.prop('disabled', false).css('background', '#ffffff');
+        girlsInput.prop('disabled', false).css('background', '#ffffff');
         dueInput.prop('disabled', false).css('background', '#ffffff');
         var commonAmt = $('#assign_modal_common_amount').val();
+        var commonBoys = $('#assign_modal_common_boys_amount').val();
+        var commonGirls = $('#assign_modal_common_girls_amount').val();
         var commonDue = $('#assign_modal_common_due_date').val();
         if (commonAmt && !amtInput.val()) {
             amtInput.val(commonAmt);
+        }
+        if (commonBoys && !boysInput.val()) {
+            boysInput.val(commonBoys);
+        }
+        if (commonGirls && !girlsInput.val()) {
+            girlsInput.val(commonGirls);
         }
         if (commonDue && !dueInput.val()) {
             dueInput.val(commonDue);
@@ -2101,6 +2330,8 @@ function onModalAssignRowCheck(checkbox) {
     } else {
         tr.removeClass('table-primary');
         amtInput.prop('disabled', true).css('background', '#e9ecef');
+        boysInput.prop('disabled', true).css('background', '#e9ecef');
+        girlsInput.prop('disabled', true).css('background', '#e9ecef');
         dueInput.prop('disabled', true).css('background', '#e9ecef');
     }
     updateModalAssignSelectionState();
@@ -2112,19 +2343,29 @@ function toggleAllModalAssignCheckboxes(masterCheck) {
         var chk = $(this).find('.assign-class-checkbox');
         chk.prop('checked', isChecked);
         var amtInput = $(this).find('.assign-amount-input');
+        var boysInput = $(this).find('.assign-class-boys-input');
+        var girlsInput = $(this).find('.assign-class-girls-input');
         var dueInput = $(this).find('.assign-due-date-input');
 
         if (isChecked) {
             $(this).addClass('table-primary');
             amtInput.prop('disabled', false).css('background', '#ffffff');
+            boysInput.prop('disabled', false).css('background', '#ffffff');
+            girlsInput.prop('disabled', false).css('background', '#ffffff');
             dueInput.prop('disabled', false).css('background', '#ffffff');
             var commonAmt = $('#assign_modal_common_amount').val();
+            var commonBoys = $('#assign_modal_common_boys_amount').val();
+            var commonGirls = $('#assign_modal_common_girls_amount').val();
             var commonDue = $('#assign_modal_common_due_date').val();
             if (commonAmt && !amtInput.val()) amtInput.val(commonAmt);
+            if (commonBoys && !boysInput.val()) boysInput.val(commonBoys);
+            if (commonGirls && !girlsInput.val()) girlsInput.val(commonGirls);
             if (commonDue && !dueInput.val()) dueInput.val(commonDue);
         } else {
             $(this).removeClass('table-primary');
             amtInput.prop('disabled', true).css('background', '#e9ecef');
+            boysInput.prop('disabled', true).css('background', '#e9ecef');
+            girlsInput.prop('disabled', true).css('background', '#e9ecef');
             dueInput.prop('disabled', true).css('background', '#e9ecef');
         }
     });
@@ -2133,10 +2374,12 @@ function toggleAllModalAssignCheckboxes(masterCheck) {
 
 function applyModalCommonAssignValues() {
     var commonAmt = $('#assign_modal_common_amount').val();
+    var commonBoys = $('#assign_modal_common_boys_amount').val();
+    var commonGirls = $('#assign_modal_common_girls_amount').val();
     var commonDue = $('#assign_modal_common_due_date').val();
 
-    if (!commonAmt && !commonDue) {
-        toastr.warning('Please enter a common amount or due date first.');
+    if (!commonAmt && !commonBoys && !commonGirls && !commonDue) {
+        toastr.warning('Please enter a common amount, boys amount, girls amount or due date first.');
         return;
     }
 
@@ -2146,6 +2389,8 @@ function applyModalCommonAssignValues() {
         if (chk.is(':checked')) {
             checkedCount++;
             if (commonAmt) $(this).find('.assign-amount-input').val(commonAmt);
+            if (commonBoys) $(this).find('.assign-class-boys-input').val(commonBoys);
+            if (commonGirls) $(this).find('.assign-class-girls-input').val(commonGirls);
             if (commonDue) $(this).find('.assign-due-date-input').val(commonDue);
         }
     });
@@ -2216,6 +2461,8 @@ window.updateModalAssignSelectionState = updateModalAssignSelectionState;
 var currentMode = 'semester';
 var currentCourseClasses = [];
 var existingHeadAssignments = {!! json_encode($existingHeadAssignments ?? []) !!};
+var courseFeeStructures = @json($courseFeeStructures ?? []);
+var editingCourseId = null;
 
 var allDefaultClasses = [
     @if(!empty($allClassType))
@@ -2225,7 +2472,7 @@ var allDefaultClasses = [
     @endif
 ];
 
-function onCourseSelected(selectElem) {
+function onCourseSelected(selectElem, editExisting) {
     var opt = selectElem.options[selectElem.selectedIndex];
     var infoDiv = document.getElementById('course_detected_info');
     var infoText = document.getElementById('course_detected_text');
@@ -2258,6 +2505,7 @@ function onCourseSelected(selectElem) {
     }
 
     var courseId = opt.value;
+    editingCourseId = editExisting ? String(courseId) : null;
     var courseName = opt.getAttribute('data-name');
     var courseType = opt.getAttribute('data-type') || 'semester';
     var duration = parseInt(opt.getAttribute('data-duration')) || 3;
@@ -2463,9 +2711,29 @@ function applyDueDateSchedule() {
     var baseMonth = parseInt(startParts[1]) - 1; // 0-indexed month
     var baseDay = parseInt(startParts[2]);
 
-    var dueInputs = document.querySelectorAll('.sem-row-due');
-    dueInputs.forEach(function(input, idx) {
-        var targetMonthTotal = baseMonth + (idx * intervalMonths);
+    var activeSequenceIndex = 0;
+    var setupRows = document.querySelectorAll('.sem-setup-row');
+    setupRows.forEach(function(row) {
+        var checkbox = row.querySelector('.sem-row-check');
+        var input = row.querySelector('.sem-row-due');
+        if (!input || (checkbox && !checkbox.checked)) {
+            return;
+        }
+
+        // Multiple fee heads may belong to the same semester. Use the actual
+        // class/semester position instead of the visual row position so they
+        // receive the same due date. Unchecked rows do not consume an interval.
+        var classInput = row.querySelector('input[name="class_type_id[]"]');
+        var classId = classInput ? String(classInput.value) : '';
+        var semesterIndex = currentCourseClasses.findIndex(function(cl) {
+            return String(cl.id) === classId;
+        });
+        if (semesterIndex < 0) {
+            semesterIndex = activeSequenceIndex;
+        }
+        activeSequenceIndex++;
+
+        var targetMonthTotal = baseMonth + (semesterIndex * intervalMonths);
         var targetYear = baseYear + Math.floor(targetMonthTotal / 12);
         var targetMonth = targetMonthTotal % 12;
         
@@ -2495,15 +2763,68 @@ function clearDueDates() {
     });
 }
 
+function escapeSemValue(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function updateSemPreview() {
     var baseName = document.getElementById('sem_base_name').value.trim() || 'Tuition Fee';
     var count = parseInt(document.getElementById('sem_count').value) || 6;
     var commonAmount = document.getElementById('batch_common_amount').value || '15000';
+    var selectedCourseId = String(document.getElementById('course_selector').value || '');
+    var existingRows = (editingCourseId === selectedCourseId && courseFeeStructures[selectedCourseId])
+        ? courseFeeStructures[selectedCourseId]
+        : [];
 
     var html = '';
 
     if (currentCourseClasses.length > 0) {
-        var loopCount = Math.min(count, currentCourseClasses.length);
+        var previewRows = [];
+        if (existingRows.length > 0) {
+            previewRows = existingRows.map(function(row) {
+                return {
+                    fees_master_id: row.fees_master_id || row.id || '',
+                    fees_group_id: row.fees_group_id || '',
+                    class_type_id: row.class_type_id,
+                    class_name: row.class_name || '',
+                    fee_name: row.fee_name || 'Fee Head',
+                    amount: row.amount == null ? 0 : row.amount,
+                    due_date: row.due_date || ''
+                };
+            });
+
+            var amountFrequency = {};
+            previewRows.forEach(function(row) {
+                var key = String(row.amount);
+                amountFrequency[key] = (amountFrequency[key] || 0) + 1;
+            });
+            var mostCommonAmount = Object.keys(amountFrequency).sort(function(a, b) {
+                return amountFrequency[b] - amountFrequency[a];
+            })[0];
+            if (mostCommonAmount !== undefined) {
+                document.getElementById('batch_common_amount').value = mostCommonAmount;
+                commonAmount = mostCommonAmount;
+            }
+        } else {
+            var loopCount = Math.min(count, currentCourseClasses.length);
+            for (var p = 0; p < loopCount; p++) {
+                previewRows.push({
+                    fees_master_id: '',
+                    fees_group_id: '',
+                    class_type_id: currentCourseClasses[p].id,
+                    class_name: currentCourseClasses[p].name,
+                    fee_name: baseName + ' - Sem ' + (p + 1),
+                    amount: commonAmount,
+                    due_date: ''
+                });
+            }
+        }
+
+        var loopCount = previewRows.length;
         html += '<div class="table-responsive" style="height: auto; border: 1px solid #c2d4ea; border-radius: 4px;">';
         html += '<table class="table table-sm table-bordered table-striped mb-0 text-dark" style="font-size: 11px; background: #ffffff;" id="sem_setup_table">';
         html += '<thead style="background: #002c54; color: #ffffff; position: sticky; top: 0; z-index: 2;">';
@@ -2519,25 +2840,33 @@ function updateSemPreview() {
         html += '<tbody>';
 
         for (var i = 0; i < loopCount; i++) {
-            var cl = currentCourseClasses[i];
-            var headName = baseName + ' - Sem ' + (i + 1);
+            var previewRow = previewRows[i];
+            var className = previewRow.class_name;
+            if (!className) {
+                var matchedClass = currentCourseClasses.find(function(cl) {
+                    return String(cl.id) === String(previewRow.class_type_id);
+                });
+                className = matchedClass ? matchedClass.name : 'Class / Semester';
+            }
 
             html += '<tr class="sem-setup-row" id="sem_row_' + i + '">';
             html += '<td style="vertical-align: middle; padding: 4px 5px; text-align: center;">';
             html += '<input type="checkbox" class="sem-row-check" checked onchange="onSemRowToggle(this)" title="Include this semester in setup">';
             html += '</td>';
             html += '<td style="vertical-align: middle; padding: 4px 6px;">';
-            html += '<strong class="text-primary">' + cl.name + '</strong>';
-            html += '<input type="hidden" name="class_type_id[]" value="' + cl.id + '" class="sem-input-field">';
+            html += '<strong class="text-primary">' + escapeSemValue(className) + '</strong>';
+            html += '<input type="hidden" name="class_type_id[]" value="' + escapeSemValue(previewRow.class_type_id) + '" class="sem-input-field">';
+            html += '<input type="hidden" name="fees_master_id[]" value="' + escapeSemValue(previewRow.fees_master_id || '') + '" class="sem-input-field">';
+            html += '<input type="hidden" name="fees_group_id[]" value="' + escapeSemValue(previewRow.fees_group_id || '') + '" class="sem-input-field">';
             html += '</td>';
             html += '<td style="vertical-align: middle; padding: 4px 6px;">';
-            html += '<input type="text" name="fee_name[]" class="form-control form-control-sm p-1 font-weight-bold text-dark sem-head-name sem-input-field" value="' + headName + '" style="font-size: 11px; height: 26px; border: 1px solid #ced4da;">';
+            html += '<input type="text" name="fee_name[]" class="form-control form-control-sm p-1 font-weight-bold text-dark sem-head-name sem-input-field" value="' + escapeSemValue(previewRow.fee_name) + '" style="font-size: 11px; height: 26px; border: 1px solid #ced4da;">';
             html += '</td>';
             html += '<td style="vertical-align: middle; padding: 4px 6px;">';
-            html += '<input type="number" name="amount[]" class="form-control form-control-sm p-1 font-weight-bold text-success text-right sem-row-amount sem-input-field" value="' + commonAmount + '" min="0" style="font-size: 11px; height: 26px; border: 1px solid #28a745; background: #f8fff9;">';
+            html += '<input type="number" name="amount[]" class="form-control form-control-sm p-1 font-weight-bold text-success text-right sem-row-amount sem-input-field" value="' + escapeSemValue(previewRow.amount) + '" min="0" style="font-size: 11px; height: 26px; border: 1px solid #28a745; background: #f8fff9;">';
             html += '</td>';
             html += '<td style="vertical-align: middle; padding: 4px 6px;">';
-            html += '<input type="date" name="due_date[]" class="form-control form-control-sm p-1 sem-row-due sem-input-field" value="" style="font-size: 10px; height: 26px; border: 1px solid #ced4da;">';
+            html += '<input type="date" name="due_date[]" class="form-control form-control-sm p-1 sem-row-due sem-input-field" value="' + escapeSemValue(previewRow.due_date) + '" style="font-size: 10px; height: 26px; border: 1px solid #ced4da;">';
             html += '</td>';
             html += '<td style="vertical-align: middle; padding: 4px 4px; text-align: center;">';
             html += '<button type="button" class="btn btn-xs btn-outline-danger p-0 border-0" title="Remove this semester from setup" onclick="removeSemRow(this)"><i class="fa fa-trash text-danger" style="font-size: 13px;"></i></button>';
@@ -2554,8 +2883,10 @@ function updateSemPreview() {
     document.getElementById('preview_box').innerHTML = html;
     updateSemCountBadgeAndBtn();
 
-    // Auto-apply schedule if start date is set
-    applyDueDateSchedule();
+    // Do not overwrite saved due dates while editing an existing structure.
+    if (existingRows.length === 0) {
+        applyDueDateSchedule();
+    }
 }
 
 function onSemRowToggle(checkbox) {
@@ -2697,8 +3028,9 @@ function selectCourseForSetup(courseId) {
     var sel = document.getElementById('course_selector');
     if (!sel) return;
     sel.value = courseId;
-    $(sel).trigger('change');
+    $(sel).trigger('change.select2');
     switchMode('semester');
+    onCourseSelected(sel, true);
     checkFormHasData();
     
     // Smooth scroll to left form
@@ -3074,11 +3406,15 @@ $(document).ready(function() {
 
         // Populate Course Mode inputs and table
         $('#assign_course_common_amount').val('');
+        $('#assign_course_common_boys_amount').val('');
+        $('#assign_course_common_girls_amount').val('');
         $('#assign_course_common_due_date').val('');
         $('#assign_modal_courses_table tbody tr.assign-course-row').each(function() {
             var chk = $(this).find('.assign-course-checkbox');
             var courseId = parseInt(chk.val()) || chk.val();
             var amt = $(this).find('.assign-course-amount-input');
+            var boys = $(this).find('.assign-course-boys-input');
+            var girls = $(this).find('.assign-course-girls-input');
             var due = $(this).find('.assign-course-due-input');
 
             if (existingData.courses && existingData.courses[courseId]) {
@@ -3086,11 +3422,15 @@ $(document).ready(function() {
                 chk.prop('checked', true);
                 $(this).addClass('table-primary');
                 amt.val(cData.amount != null ? cData.amount : '').prop('disabled', false).css('background', '#ffffff');
+                boys.val(cData.boys_amount != null ? cData.boys_amount : '').prop('disabled', false).css('background', '#ffffff');
+                girls.val(cData.girls_amount != null ? cData.girls_amount : '').prop('disabled', false).css('background', '#ffffff');
                 due.val(cData.due_date || '').prop('disabled', false).css('background', '#ffffff');
             } else {
                 chk.prop('checked', false);
                 $(this).removeClass('table-primary');
                 amt.val('').prop('disabled', true).css('background', '#e9ecef');
+                boys.val('').prop('disabled', true).css('background', '#e9ecef');
+                girls.val('').prop('disabled', true).css('background', '#e9ecef');
                 due.val('').prop('disabled', true).css('background', '#e9ecef');
             }
         });
@@ -3098,12 +3438,16 @@ $(document).ready(function() {
         // Populate Class Mode inputs and table
         $('#assign_modal_course_filter').val('');
         $('#assign_modal_common_amount').val('');
+        $('#assign_modal_common_boys_amount').val('');
+        $('#assign_modal_common_girls_amount').val('');
         $('#assign_modal_common_due_date').val('');
         $('#assign_modal_classes_table tbody tr.assign-class-row').each(function() {
             $(this).show();
             var chk = $(this).find('.assign-class-checkbox');
             var classId = parseInt(chk.val()) || chk.val();
             var amt = $(this).find('.assign-amount-input');
+            var boys = $(this).find('.assign-class-boys-input');
+            var girls = $(this).find('.assign-class-girls-input');
             var due = $(this).find('.assign-due-date-input');
 
             if (existingData.classes && existingData.classes[classId]) {
@@ -3111,11 +3455,15 @@ $(document).ready(function() {
                 chk.prop('checked', true);
                 $(this).addClass('table-primary');
                 amt.val(clData.amount != null ? clData.amount : '').prop('disabled', false).css('background', '#ffffff');
+                boys.val(clData.boys_amount != null ? clData.boys_amount : '').prop('disabled', false).css('background', '#ffffff');
+                girls.val(clData.girls_amount != null ? clData.girls_amount : '').prop('disabled', false).css('background', '#ffffff');
                 due.val(clData.due_date || '').prop('disabled', false).css('background', '#ffffff');
             } else {
                 chk.prop('checked', false);
                 $(this).removeClass('table-primary');
                 amt.val('').prop('disabled', true).css('background', '#e9ecef');
+                boys.val('').prop('disabled', true).css('background', '#e9ecef');
+                girls.val('').prop('disabled', true).css('background', '#e9ecef');
                 due.val('').prop('disabled', true).css('background', '#e9ecef');
             }
         });
@@ -3180,6 +3528,111 @@ $(document).ready(function() {
                     errMsg = xhr.responseJSON.message;
                 }
                 toastr.error(errMsg);
+            }
+        });
+    });
+
+    // ==========================================
+    // CLONE PREVIOUS YEAR FEE SETUP JS LOGIC
+    // ==========================================
+    $('#clone_source_session_id').on('change', function() {
+        var sourceSessionId = $(this).val();
+        if (!sourceSessionId) {
+            $('#clone_preview_container').hide();
+            $('#clone_loading_indicator').hide();
+            $('#btn_confirm_clone_fees').prop('disabled', true);
+            $('#clone_source_title_display').text('Select Previous Session');
+            return;
+        }
+
+        $('#clone_preview_container').hide();
+        $('#clone_loading_indicator').show();
+        $('#btn_confirm_clone_fees').prop('disabled', true);
+
+        $.ajax({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            url: "{{ url('getFeesStructureSessionSummary') }}",
+            type: 'POST',
+            data: { session_id: sourceSessionId },
+            success: function(res) {
+                $('#clone_loading_indicator').hide();
+                if (res.status === 'success') {
+                    $('#clone_source_session_name').text(res.session_name);
+                    $('#clone_source_title_display').text(res.session_name);
+                    $('#clone_heads_count_badge').text(res.total_heads + ' Fee Heads');
+                    $('#clone_stat_courses').text(res.configured_courses);
+                    $('#clone_stat_classes').text(res.configured_classes + ' Sems');
+                    $('#clone_stat_heads').text(res.total_heads);
+                    $('#clone_stat_amount').text('₹' + parseFloat(res.total_amount || 0).toLocaleString('en-IN'));
+
+                    var chipsHtml = [];
+                    if (res.fee_group_names && res.fee_group_names.length > 0) {
+                        res.fee_group_names.forEach(function(name) {
+                            chipsHtml.push('<span class="badge px-2.5 py-1" style="background-color: #0284c7 !important; color: #ffffff !important; border: 1px solid #38bdf8 !important; font-size: 11.5px; font-weight: 600; border-radius: 4px;">' + name + '</span>');
+                        });
+                    } else {
+                        chipsHtml.push('<span class="text-white-50 font-italic small" style="color: #94a3b8 !important;">No fee heads configured in this session</span>');
+                    }
+                    $('#clone_heads_chips_box').html(chipsHtml.join(' '));
+
+                    if (res.total_heads > 0 || res.fees_masters_count > 0) {
+                        $('#clone_preview_container').slideDown(200);
+                        $('#btn_confirm_clone_fees').prop('disabled', false);
+                    } else {
+                        toastr.warning('The selected session has no fee heads or fee structures configured to clone.');
+                        $('#clone_preview_container').slideDown(200);
+                        $('#btn_confirm_clone_fees').prop('disabled', true);
+                    }
+                } else {
+                    toastr.error(res.message || 'Unable to fetch session details.');
+                }
+            },
+            error: function() {
+                $('#clone_loading_indicator').hide();
+                toastr.error('Failed to load session summary.');
+            }
+        });
+    });
+
+    // Confirm & Execute Clone Action
+    $('#btn_confirm_clone_fees').click(function(e) {
+        e.preventDefault();
+        var sourceSessionId = $('#clone_source_session_id').val();
+        if (!sourceSessionId) {
+            toastr.error('Please select a source session first!');
+            return;
+        }
+
+        var $btn = $(this);
+        var originalBtnHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Cloning Fee Setup...');
+
+        $.ajax({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            url: "{{ url('cloneFeesStructure') }}",
+            type: 'POST',
+            data: { source_session_id: sourceSessionId },
+            success: function(res) {
+                $btn.prop('disabled', false).html(originalBtnHtml);
+                if (res.status === 'success') {
+                    $('#cloneFeesModal').modal('hide');
+                    $('body').removeClass('modal-open');
+                    $('.modal-backdrop').remove();
+                    toastr.success(res.message || 'Fee setup cloned successfully!');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    toastr.error(res.message || 'Error occurred while cloning fee setup.');
+                }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html(originalBtnHtml);
+                var err = 'Server error during cloning.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    err = xhr.responseJSON.message;
+                }
+                toastr.error(err);
             }
         });
     });

@@ -13,6 +13,7 @@ use App\Models\PermissionManagement;
 use App\Models\Enquiry;
 use App\Models\hostel\HostelAssign;
 use App\Models\Admission;
+use App\Models\CollegeFees\CollegeFeeAssignment;
 use App\Models\FeesDiscount;
 use App\Models\library\LibraryAssign;
 use App\Helpers\helper;
@@ -25,6 +26,7 @@ use Auth;
 use App\Models\FeesDetail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use DB;
 
 class DashboardController extends Controller
 
@@ -44,12 +46,12 @@ class DashboardController extends Controller
             }else{
                $branch_id = Session::get('branch_id');
             }
-        if($barnch['role_id'] == 1){
+        if($barnch['role_id'] == 1 || $barnch['role_id'] == 6){
             $result['today_p_teacher'] = TeacherAttendance::where('branch_id' ,'=', $branch_id)->where('attendance_status_id',1)->where('date',$current_date)->count('id');
             $result['today_p_student'] = StudentAttendance::where('branch_id' ,'=', $branch_id)->where('attendance_status_id',1)->where('date',$current_date)->count('id');
             $result['teacher'] = Teacher::where('branch_id' ,'=', $branch_id)->count('id');
-            $result['teacher'] = Enquiry::where('branch_id' ,'=', $branch_id)->count('id');
-            return view('dashboard.admin_dashboard',['result'=>$result],['current_date'=>$current_date]);            
+            $result['enquiry'] = Enquiry::where('branch_id' ,'=', $branch_id)->count('id');
+            return view('dashboard.admin_dashboard',['result'=>$result,'current_date'=>$current_date]);            
         }
         elseif($barnch['role_id'] == 2){
             return view('dashboard.teacher_dashboard',['result'=>$result]);
@@ -96,9 +98,6 @@ class DashboardController extends Controller
         }     
         elseif($barnch['role_id'] == 5){
             return view('dashboard.hostelAdmin_dashboard',['result'=>$result]);
-        } 
-        elseif($barnch['role_id'] == 6){
-            return view('dashboard.admin_dashboard',['result'=>$result]);
         } 
         elseif($barnch['role_id'] == 7){
             return view('dashboard.transportAdmin_dashboard',['result'=>$result]);
@@ -296,17 +295,112 @@ class DashboardController extends Controller
         }
     }
 
-    public function test(Request $request){
-        
-        // $data = Admission::get();
-        
-        // foreach($data as $item){
-        //     $admission = Admission::find($item->id);
-        //     $admission->password = Hash::make($item->userName);
-        //     $admission->save();
-        // }
-        dd('ok');
-    }
+    public function headerStudentSearch(Request $request){
+        $term = trim($request->get('keyword') ?? $request->get('term') ?? $request->get('query') ?? '');
+        if (empty($term)) {
+            return response()->json(['status' => false, 'data' => [], 'message' => 'Empty search term']);
+        }
 
-	
+        $branch_id = !empty(Session::get('admin_branch_id')) ? Session::get('admin_branch_id') : Session::get('branch_id');
+
+        $query = Admission::with(['ClassTypes.course'])
+            ->whereNull('deleted_at');
+
+        if (!empty($branch_id)) {
+            $query->where('branch_id', $branch_id);
+        }
+
+        $query->where(function($q) use ($term) {
+            $q->where('first_name', 'like', '%' . $term . '%')
+              ->orWhere('last_name', 'like', '%' . $term . '%')
+              ->orWhere(DB::raw("CONCAT(COALESCE(first_name,''), ' ', COALESCE(last_name,''))"), 'like', '%' . $term . '%')
+              ->orWhere('father_name', 'like', '%' . $term . '%')
+              ->orWhere('mother_name', 'like', '%' . $term . '%')
+              ->orWhere('mobile', 'like', '%' . $term . '%')
+              ->orWhere('father_mobile', 'like', '%' . $term . '%')
+              ->orWhere('admissionNo', 'like', '%' . $term . '%')
+              ->orWhere('unique_system_id', 'like', '%' . $term . '%')
+              ->orWhere('batch', 'like', '%' . $term . '%')
+              ->orWhere('dob', 'like', '%' . $term . '%')
+              ->orWhere('aadhaar', 'like', '%' . $term . '%');
+        });
+
+        $students = $query->orderBy('first_name', 'ASC')->limit(15)->get();
+
+        $results = [];
+        $imagePath = env('IMAGE_SHOW_PATH', '') . 'profile/';
+
+        foreach ($students as $stu) {
+            $fullName = trim(($stu->first_name ?? '') . ' ' . ($stu->last_name ?? ''));
+
+            // Resolve Course ID and Name
+            $courseId = $stu->course_id ?? ($stu->ClassTypes->course_id ?? null);
+            $courseName = $stu->ClassTypes->course->name ?? '';
+            if (empty($courseId) && !empty($stu->course)) {
+                $cFind = DB::table('courses')->where('name', trim($stu->course))->first();
+                if ($cFind) {
+                    $courseId = $cFind->id;
+                    $courseName = $cFind->name;
+                }
+            }
+            if (empty($courseName) && !empty($courseId)) {
+                $courseName = DB::table('courses')->where('id', $courseId)->value('name') ?? 'N/A';
+            }
+            if (empty($courseName)) {
+                $courseName = !empty($stu->course) ? $stu->course : 'N/A';
+            }
+
+            $batchVal = trim($stu->batch ?? '');
+            $semesterName = $stu->ClassTypes->name ?? 'N/A';
+            $dobFormatted = !empty($stu->dob) && $stu->dob !== '0000-00-00' ? date('d-m-Y', strtotime($stu->dob)) : 'N/A';
+
+            // Resolve student active semester
+            $resolvedSem = null;
+            $stuAssignment = CollegeFeeAssignment::where('student_id', $stu->id)
+                ->whereNull('deleted_at')
+                ->orderBy('semester_no', 'DESC')
+                ->first();
+            if ($stuAssignment && !empty($stuAssignment->semester_no)) {
+                $resolvedSem = (int)$stuAssignment->semester_no;
+            } else {
+                $ctName = $stu->ClassTypes->name ?? '';
+                if (preg_match('/(\d+)(?:st|nd|rd|th)?\s*(?:sem|semester)?/i', $ctName, $m)) {
+                    $resolvedSem = (int)$m[1];
+                }
+            }
+
+            // Construct fee_url to college fees structures with batch, course, student_id, semester_no
+            $feeUrl = route('college.fees.structures', array_filter([
+                'course_id' => $courseId ?: 1,
+                'course' => $courseName !== 'N/A' ? $courseName : null,
+                'batch' => $batchVal ?: date('Y'),
+                'semester_no' => $resolvedSem ?: null,
+                'student_id' => $stu->id,
+            ]));
+
+            $results[] = [
+                'id' => $stu->id,
+                'name' => $fullName ?: 'Student #' . $stu->id,
+                'admission_no' => $stu->admissionNo ?? '',
+                'unique_id' => $stu->unique_system_id ?? '',
+                'father_name' => $stu->father_name ?? 'N/A',
+                'mother_name' => $stu->mother_name ?? '',
+                'mobile' => $stu->mobile ?: ($stu->father_mobile ?? 'N/A'),
+                'course' => $courseName,
+                'course_id' => $courseId,
+                'semester' => $semesterName,
+                'batch' => $batchVal ?: 'N/A',
+                'dob' => $dobFormatted,
+                'photo' => !empty($stu->image) ? $imagePath . $stu->image : null,
+                'fee_url' => $feeUrl,
+                'profile_url' => url('studentDetail/' . $stu->id)
+            ];
+        }
+
+        return response()->json([
+            'status' => true,
+            'count' => count($results),
+            'data' => $results
+        ]);
+    }
 }

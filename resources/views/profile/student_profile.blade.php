@@ -6,7 +6,7 @@
    $getCountry = Helper::getCountry();
    $getState = Helper::getState();
    $getCity = Helper::getCity($data['state_id']);
-   $teacher = DB::table('teachers')->where('id',Session::get('teacher_id'))->whereNull('deleted_at')->first();
+   $teacher = DB::table('users')->where('id',Session::get('id'))->whereNull('deleted_at')->first();
 @endphp
 
 @extends('layout.app') 

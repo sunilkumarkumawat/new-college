@@ -39,10 +39,19 @@ class RefundFeesController extends Controller
                 $search['batch'] = $request->batch;
                 $search['admissionNo'] = $request->admissionNo;
                 $search['paid_report'] = $request->paid_report;
-                $search['session_id'] = $request->has('session_id') ? $request->session_id : Session::get('session_id');
+                $search['session_id'] = $request->has('session_id') ? $request->session_id : '';
 
                 $data='';
-                if ($request->isMethod('post')) {
+                $hasFilter = $request->isMethod('post') 
+                    || !empty($search['course_id']) 
+                    || !empty($search['batch']) 
+                    || !empty($search['class_type_id']) 
+                    || !empty($search['admissionNo']) 
+                    || !empty($search['name']) 
+                    || !empty($search['starting'])
+                    || (!empty($search['session_id']) && $request->has('session_id'));
+
+                if ($hasFilter) {
                     $data = Admission::select('admissions.*', 'class_types.name as className')
                     ->leftJoin('class_types', 'class_types.id', 'admissions.class_type_id')
                     ->whereExists(function ($query) {
@@ -155,18 +164,18 @@ class RefundFeesController extends Controller
                     $discounts = $feesDetails->total_discount ?? 0;
                     $fine_amt = $feesDetails->installment_fine ?? 0;
             
-                    $balance = ($item->fees_group_amount - $item->discount) - $pad;
+                    $balance = ($item->fees_group_amount - $item->discount - ($item->promotion_carry_adjustment ?? 0)) - $pad;
             
                     $html .= '<tr>
                         <td>' . $i++ . '</td>
                         <td>' . htmlspecialchars($item->group_name ?? '') . '</td>
                         <td>' . ($item->fees_group_amount > $pad ? '<span class="label1 label-danger-custom">Unpaid</span>' : '<span class="label1 label-success-custom">Total Paid</span>') . '</td>
-                        <td>' . ($item->fees_group_amount - $item->discount) . '</td>
+                        <td>' . ($item->fees_group_amount - $item->discount - ($item->promotion_carry_adjustment ?? 0)) . '</td>
                         <td>' . $pad . '</td>
                         <td style="text-align: right;">' . $balance . '</td>
                     </tr>';
             
-                    $grand_total += ($item->fees_group_amount - $item->discount);
+                    $grand_total += ($item->fees_group_amount - $item->discount - ($item->promotion_carry_adjustment ?? 0));
                     $Paids += $pad;
                     $balances += $balance;
                 }
@@ -225,7 +234,7 @@ class RefundFeesController extends Controller
             $pad = $feesDetails->total_amount ?? 0;
             $discounts = $feesDetails->total_discount ?? 0;
             $fine_amt = $feesDetails->installment_fine ?? 0;
-            $balance = ($item->fees_group_amount - $item->discount) - $pad;
+            $balance = ($item->fees_group_amount - $item->discount - ($item->promotion_carry_adjustment ?? 0)) - $pad;
         
             $html .= '<tr>
                 <td>
