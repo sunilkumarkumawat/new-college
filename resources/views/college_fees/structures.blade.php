@@ -1140,29 +1140,106 @@
 
 }
 
-.col-matrix-cb {
+/* ========================================================
+   FIXED COLUMNS ON HORIZONTAL SCROLL (Checkbox, #, Student)
+   ======================================================== */
+.col-matrix-cb,
+.matrix-table th.col-matrix-cb,
+.matrix-table td.col-matrix-cb {
     width: 34px !important;
     min-width: 34px !important;
     max-width: 34px !important;
     text-align: center !important;
     padding: 4px 2px !important;
     white-space: nowrap !important;
+    position: sticky !important;
+    left: 0px !important;
 }
 
-.col-matrix-idx {
+.col-matrix-idx,
+.matrix-table th.col-matrix-idx,
+.matrix-table td.col-matrix-idx {
     width: 38px !important;
     min-width: 38px !important;
     max-width: 38px !important;
     text-align: center !important;
     padding: 4px 2px !important;
     white-space: nowrap !important;
+    position: sticky !important;
+    left: 34px !important;
 }
 
-.col-matrix-student {
-    min-width: 180px !important;
-    max-width: none !important;
+.col-matrix-student,
+.matrix-table th.col-matrix-student,
+.matrix-table td.col-matrix-student {
+    min-width: 200px !important;
+    max-width: 260px !important;
     white-space: nowrap !important;
     padding: 3px 8px !important;
+    position: sticky !important;
+    left: 72px !important;
+    border-right: 2px solid #8fa7b8 !important;
+    box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.14) !important;
+}
+
+/* Layering & Solid Backgrounds for Fixed Columns */
+/* 1. thead Intersection (Sticky Top + Sticky Left) */
+.matrix-table thead th.col-matrix-cb,
+.matrix-table thead th.col-matrix-idx,
+.matrix-table thead th.col-matrix-student {
+    background-color: #d9eaf7 !important;
+    z-index: 35 !important;
+    top: 0 !important;
+}
+
+/* 2. tfoot Intersection (Sticky Bottom + Sticky Left) */
+.matrix-table tfoot th.col-matrix-cb,
+.matrix-table tfoot td.col-matrix-cb,
+.matrix-table tfoot th.col-matrix-idx,
+.matrix-table tfoot td.col-matrix-idx,
+.matrix-table tfoot th.col-matrix-student,
+.matrix-table tfoot td.col-matrix-student {
+    background-color: #e7eff5 !important;
+    z-index: 35 !important;
+    bottom: 0 !important;
+}
+
+/* 3. tbody Cells (Sticky Left only) */
+.matrix-table tbody td.col-matrix-cb,
+.matrix-table tbody td.col-matrix-idx,
+.matrix-table tbody td.col-matrix-student {
+    background-color: #ffffff !important;
+    z-index: 20 !important;
+}
+
+/* Row Hover on Fixed Cells */
+.matrix-table tbody tr:hover td.col-matrix-cb,
+.matrix-table tbody tr:hover td.col-matrix-idx,
+.matrix-table tbody tr:hover td.col-matrix-student {
+    background-color: #f1f5f9 !important;
+}
+
+/* Focused / Highlighted Student Row on Fixed Cells */
+.matrix-table tr.row-student-focused td.col-matrix-cb,
+.matrix-table tr.row-student-focused td.col-matrix-idx,
+.matrix-table tr.row-student-focused td.col-matrix-student,
+tr.row-student-focused td.col-matrix-cb,
+tr.row-student-focused td.col-matrix-idx,
+tr.row-student-focused td.col-matrix-student {
+    background-color: #fef9c3 !important;
+    position: sticky !important;
+    z-index: 22 !important;
+}
+
+.matrix-table tr.row-student-searched td.col-matrix-cb,
+.matrix-table tr.row-student-searched td.col-matrix-idx,
+.matrix-table tr.row-student-searched td.col-matrix-student,
+tr.row-student-searched td.col-matrix-cb,
+tr.row-student-searched td.col-matrix-idx,
+tr.row-student-searched td.col-matrix-student {
+    background-color: #fef08a !important;
+    position: sticky !important;
+    z-index: 22 !important;
 }
 
 .col-matrix-amount {
