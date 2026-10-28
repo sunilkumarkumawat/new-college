@@ -926,6 +926,78 @@
 
 
 
+
+/* Dedicated Empty State Card (Matches Table Background Perfectly & Never Overflows) */
+#matrixEmptyStatePrompt {
+    width: 100% !important;
+    min-height: 380px !important;
+    background: #ffffff !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 15px !important;
+    box-sizing: border-box !important;
+}
+
+.matrix-empty-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+    max-width: 480px !important;
+    width: 100% !important;
+    padding: 32px 24px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+}
+
+.matrix-empty-icon {
+    width: 52px;
+    height: 52px;
+    line-height: 52px;
+    border-radius: 50%;
+    background: #f0fdf4 !important;
+    border: 2px solid #86efac !important;
+    color: #166534 !important;
+    font-size: 22px;
+    margin: 0 auto 14px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.matrix-empty-title {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin-bottom: 8px !important;
+    white-space: normal !important;
+}
+
+.matrix-empty-desc {
+    font-size: 12px !important;
+    color: #64748b !important;
+    line-height: 1.55 !important;
+    margin-bottom: 20px !important;
+    white-space: normal !important;
+    word-break: normal !important;
+}
+
+.matrix-empty-hint {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #166534 !important;
+    background: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    padding: 6px 14px !important;
+    border-radius: 20px !important;
+    white-space: normal !important;
+}
+
 /* Custom Scrollbars for Matrix Table */
 #matrixTableResponsive::-webkit-scrollbar {
     height: 10px;
@@ -2338,9 +2410,26 @@ tr.row-student-focused td .cell-fee-input {
 
 
                             <!-- Matrix Table Wrapper (Auto-adjusted height to fit screen with overflow) -->
-                            <div class="table-responsive" id="matrixTableResponsive" style="height: calc(100vh - 200px); min-height: 380px; overflow-x: auto; overflow-y: auto;">
+                            <div class="table-responsive" id="matrixTableResponsive" style="height: calc(100vh - 200px); min-height: 380px; overflow-x: auto; overflow-y: auto; background: #ffffff;">
 
-                                <table class="table matrix-table" id="matrixTable">
+                                <!-- 1. Dedicated Empty State Prompt (Perfect White Background, Centered, Zero Overflow) -->
+                                <div id="matrixEmptyStatePrompt" style="{{ (empty($courseId) || empty($batch)) ? 'display: flex;' : 'display: none;' }}">
+                                    <div class="matrix-empty-card">
+                                        <div class="matrix-empty-icon">
+                                            <i class="fa fa-filter"></i>
+                                        </div>
+                                        <h4 class="matrix-empty-title">Select Course &amp; Admission Batch</h4>
+                                        <p class="matrix-empty-desc">
+                                            Please select a <strong>Course</strong> and <strong>Admission Batch</strong> from the left panel to load the student fee ledger, structure matrix, and payment records.
+                                        </p>
+                                        <div class="matrix-empty-hint">
+                                            <i class="fa fa-arrow-left"></i> Use the sidebar filters on the left to get started
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Matrix Table (Hidden until Course & Batch are chosen) -->
+                                <table class="table matrix-table" id="matrixTable" style="{{ (empty($courseId) || empty($batch)) ? 'display: none;' : '' }}">
 
                                     <thead id="matrixTableHead">
 
@@ -2349,46 +2438,6 @@ tr.row-student-focused td .cell-fee-input {
                                     </thead>
 
                                     <tbody id="matrixTableBody">
-
-                                        @if(empty($courseId) || empty($batch))
-
-                                        <tr>
-
-                                            <td colspan="10" class="text-center py-5" style="background: #ffffff;">
-
-                                                <div style="max-width: 520px; margin: 40px auto; padding: 32px 24px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
-
-                                                    <div style="width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background: #f0fdf4; border: 2px solid #86efac; margin: 0 auto 16px auto; color: #166534; font-size: 24px;">
-
-                                                        <i class="fa fa-filter"></i>
-
-                                                    </div>
-
-                                                    <h4 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
-
-                                                        Select Course &amp; Admission Batch
-
-                                                    </h4>
-
-                                                    <p style="font-size: 12.5px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
-
-                                                        Please select a <strong>Course</strong> and <strong>Admission Batch</strong> from the left panel to load the student fee ledger, structure matrix, and payment records.
-
-                                                    </p>
-
-                                                    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #166534; background: #e0f2fe; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 20px;">
-
-                                                        <i class="fa fa-arrow-left"></i> Use the sidebar filters on the left to get started
-
-                                                    </div>
-
-                                                </div>
-
-                                            </td>
-
-                                        </tr>
-
-                                        @else
 
                                         <tr>
 
@@ -2401,8 +2450,6 @@ tr.row-student-focused td .cell-fee-input {
                                             </td>
 
                                         </tr>
-
-                                        @endif
 
                                     </tbody>
 
@@ -4075,11 +4122,12 @@ function initMatrixScrollHandlers() {
 
 function loadLedgerMatrix() {
     if (!currentCourseId || !currentBatch) {
-        $('#matrixLoadingOverlay').hide();
         renderEmptyCourseBatchPrompt();
         return;
     }
 
+    $('#matrixEmptyStatePrompt').hide();
+    $('#matrixTable').show();
     $('#matrixLoadingOverlay').show();
 
 
@@ -4339,6 +4387,9 @@ function triggerAutoSaveFeedback() {
 // Render Empty State Prompt when Course / Batch are unselected
 function renderEmptyCourseBatchPrompt() {
     $('#matrixLoadingOverlay').hide();
+    $('#matrixTable').hide();
+    $('#matrixEmptyStatePrompt').css('display', 'flex').show();
+
     $('#kpiStudentsCount').text('0 / 0');
     $('#kpiNetPayable').text('₹0.00');
     $('#kpiAlreadyPaid').text('₹0.00');
@@ -4348,45 +4399,7 @@ function renderEmptyCourseBatchPrompt() {
     $('#batchFeeStatusText span').text('No batch selected');
     $('#selectedCountBadge').html('<i class="fa fa-check-square-o mr-1"></i> 0 Selected');
     $('#btnQuickAssignCount').text('0');
-
-    $('#matrixTableHead').html(`
-        <tr>
-            <th class="col-matrix-cb" style="width: 38px; text-align: center;"><input type="checkbox" disabled></th>
-            <th class="col-matrix-idx" style="width: 45px; text-align: center;">#</th>
-            <th class="col-matrix-student" style="min-width: 220px;">Student / Roll</th>
-            <th class="col-matrix-amount" style="min-width: 140px; text-align: right;">Tuition Fee</th>
-            <th class="col-matrix-amount" style="min-width: 130px; text-align: right;">Gross Demand</th>
-            <th class="col-matrix-amount" style="min-width: 110px; text-align: right;">Discount</th>
-            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #e0f2fe !important;">Net Demand</th>
-            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #fef3c7 !important;">Paid</th>
-            <th class="col-matrix-amount" style="min-width: 130px; text-align: right; background: #fee2e2 !important;">Outstanding</th>
-            <th class="col-matrix-action" style="min-width: 90px; text-align: center;">Action</th>
-        </tr>
-    `);
-
-    var promptHtml = `
-        <tr>
-            <td colspan="10" class="text-center py-5" style="background: #ffffff;">
-                <div style="max-width: 520px; margin: 40px auto; padding: 32px 24px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
-                    <div style="width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background: #f0fdf4; border: 2px solid #86efac; margin: 0 auto 16px auto; color: #166534; font-size: 24px;">
-                        <i class="fa fa-filter"></i>
-                    </div>
-                    <h4 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
-                        Select Course &amp; Admission Batch
-                    </h4>
-                    <p style="font-size: 12.5px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
-                        Please select a <strong>Course</strong> and <strong>Admission Batch</strong> from the left panel to load the student fee ledger, structure matrix, and payment records.
-                    </p>
-                    <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #166534; background: #e0f2fe; border: 1px solid #bae6fd; padding: 6px 14px; border-radius: 20px;">
-                        <i class="fa fa-arrow-left"></i> Use the sidebar filters on the left to get started
-                    </div>
-                </div>
-            </td>
-        </tr>
-    `;
-    $('#matrixTableBody').html(promptHtml);
 }
-
 
 function renderMatrixTable(data) {
 
