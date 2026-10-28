@@ -16,23 +16,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
-            TARGET="${{ secrets.TARGET_DIR }}"
-            if [ -z "$TARGET" ]; then
-              if [ -d "/var/www/girraj.rusoft.in/public/.git" ]; then
-                TARGET="/var/www/girraj.rusoft.in/public"
-              elif [ -d "/var/www/girraj.rusoft.in/.git" ]; then
-                TARGET="/var/www/girraj.rusoft.in"
-              elif [ -d "/var/www/new-college.rusoft.in/.git" ]; then
-                TARGET="/var/www/new-college.rusoft.in"
-              elif [ -d "/var/www/girraj.rusoft.in/public" ]; then
-                TARGET="/var/www/girraj.rusoft.in/public"
-              elif [ -d "/var/www/girraj.rusoft.in" ]; then
-                TARGET="/var/www/girraj.rusoft.in"
-              elif [ -d "/var/www/new-college.rusoft.in" ]; then
-                TARGET="/var/www/new-college.rusoft.in"
-              fi
-            fi
-
+            TARGET="${{ secrets.TARGET_DIR || '/var/www/girraj.rusoft.in/public' }}"
             echo "=== Deploying to directory: $TARGET ==="
             cd "$TARGET"
             git pull origin master
