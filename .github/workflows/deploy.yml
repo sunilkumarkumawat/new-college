@@ -31,31 +31,35 @@ jobs:
           DEPLOY_PORT="${SSH_PORT:-22}"
           TARGET="${TARGET_DIR:-/var/www/girraj.rusoft.in}"
 
-          # 2. Setup SSH Key with clean Unix newlines
+          # 2. Setup SSH Key
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
           python3 -c "
-          import os
+          import os, sys
           raw = os.environ.get('SSH_KEY', '')
           lines = [line.strip() for line in raw.splitlines() if line.strip()]
+          print(f'INFO: Secret raw len={len(raw)}, non-empty lines={len(lines)}')
+          for idx, line in enumerate(lines):
+              print(f'  Line {idx}: len={len(line)} prefix={line[:12]} suffix={line[-12:]}')
           clean_key = '\n'.join(lines) + '\n'
-          with open(os.path.expanduser('~/.ssh/id_deploy'), 'w') as f:
+          key_path = os.path.expanduser('~/.ssh/id_deploy')
+          with open(key_path, 'w', newline='\n') as f:
               f.write(clean_key)
           "
           chmod 600 ~/.ssh/id_deploy
 
-          # Generate matching public key so OpenSSH does not invoke libcrypto key-derivation parser
-          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub 2>/dev/null || true
-          if [ -f ~/.ssh/id_deploy.pub ]; then
-            chmod 644 ~/.ssh/id_deploy.pub
-            echo "Public key derived successfully: $(cat ~/.ssh/id_deploy.pub)"
-          fi
+          # Inspect OpenSSH load error
+          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub || {
+            echo "::error::Failed to parse private key with ssh-keygen"
+            ssh-keygen -y -f ~/.ssh/id_deploy 2>&1 || true
+            exit 1
+          }
 
           echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
 
           # 3. Execute Deployment Commands on VPS
-          ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
+          ssh -v -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
             set -e
             echo "=== Target Directory: $TARGET ==="
             cd "$TARGET"
