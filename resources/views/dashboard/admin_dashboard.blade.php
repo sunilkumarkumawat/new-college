@@ -36,24 +36,36 @@ $totalUsers = \App\Models\User::countUser() ?? 0;
 
 $dataMonth = Helper::getMonthWiseFeeCollection();
 $dataWeek = Helper::getWeeklyWiseFeeCollection();
+
+$recoveryRate = (float)($assignTotals->total_net ?? 0) > 0 
+    ? min(100, round(((float)($receiptTotals->total_collected ?? 0) / (float)$assignTotals->total_net) * 100, 1)) 
+    : 0;
 @endphp
 
 @extends('layout.app')
 @section('content')
 
+<!-- Chart.js Modern Visualization Engine -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 /* ========================================================
-   EXCEL GREEN EXECUTIVE THEME (#217346) - MATCHING studentsDashboard
+   EXECUTIVE COLLEGE ERP DASHBOARD THEME
+   - Primary Ribbon: Forest / Excel Green (#217346)
+   - Clean 8/4 Grid Across Financial, Operational, and Communication Rows
+   - High-contrast Fintech Micro-cards for Recent Operations
+   - Crisp Chart.js Visualization Engine
    ======================================================== */
 :root {
     --green-excel: #217346;
     --green-excel-dark: #185c37;
     --green-excel-light: #f0fdf4;
     --green-excel-border: #a7d0b8;
-    --line: #b8c8d5;
-    --line-subtle: #cbd5e1;
+    --line: #cbd5e1;
+    --line-subtle: #e2e8f0;
     --text-main: #0f172a;
     --text-muted: #64748b;
+    --danger-red: #dc2626;
 }
 
 .admin-dash-page {
@@ -66,7 +78,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     border: 1px solid var(--line) !important;
     border-top: 3px solid var(--green-excel) !important;
     border-radius: 4px !important;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
     background: #ffffff;
     margin-bottom: 12px;
     overflow: hidden;
@@ -81,7 +93,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
@@ -100,13 +112,6 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     color: #ffc107;
 }
 
-.dash-title small {
-    font-size: 11.5px;
-    font-weight: 400;
-    color: #e2f0d9;
-    margin-left: 6px;
-}
-
 .dash-title-tools {
     display: flex;
     align-items: center;
@@ -114,7 +119,6 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     flex-wrap: wrap;
 }
 
-/* Header Quick Action Buttons */
 .btn-header-action {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
@@ -122,20 +126,19 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     font-size: 11px !important;
     font-weight: 600 !important;
     border-radius: 3px !important;
-    padding: 4px 10px !important;
+    padding: 4px 9px !important;
     text-decoration: none !important;
     transition: all 0.15s ease-in-out;
     display: inline-flex;
     align-items: center;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    line-height: 1.35;
+    line-height: 1.3;
 }
 .btn-header-action:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;
     color: #0f172a !important;
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 .btn-header-action.btn-header-add {
     background: #f0fdf4 !important;
@@ -143,62 +146,42 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     color: #166534 !important;
     font-weight: 700 !important;
 }
-.btn-header-action.btn-header-add:hover {
-    background: #dcfce7 !important;
-    border-color: #4ade80 !important;
-    color: #14532d !important;
-}
 
-/* Header Live Clock Badge */
 .dash-header-clock {
-    background: rgba(0, 0, 0, 0.28) !important;
+    background: rgba(0, 0, 0, 0.25) !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
     color: #ffffff !important;
     font-size: 11px !important;
     font-weight: 700 !important;
     border-radius: 3px !important;
-    padding: 4px 10px !important;
+    padding: 4px 9px !important;
     display: inline-flex;
     align-items: center;
-    line-height: 1.35;
     letter-spacing: 0.3px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
-.dash-header-clock i {
-    color: #86efac !important;
-    margin-right: 5px;
 }
 
-/* Compact KPI Stat Cards (Matching theme) */
+/* 5-Column Responsive Grid */
 .col-dash-5 {
     flex: 0 0 20%;
     max-width: 20%;
 }
 @media (max-width: 1200px) {
-    .col-dash-5 {
-        flex: 0 0 33.333333%;
-        max-width: 33.333333%;
-    }
+    .col-dash-5 { flex: 0 0 33.333333%; max-width: 33.333333%; }
 }
 @media (max-width: 768px) {
-    .col-dash-5 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
+    .col-dash-5 { flex: 0 0 50%; max-width: 50%; }
 }
 @media (max-width: 576px) {
-    .col-dash-5 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
+    .col-dash-5 { flex: 0 0 100%; max-width: 100%; }
 }
 
+/* Top KPI Cards */
 .dash-kpi-card {
     background: #ffffff;
     border: 1px solid var(--line-subtle);
     border-radius: 4px;
-    height: 60px;
-    padding: 6px 12px 6px 0;
+    height: 62px;
+    padding: 6px 10px 6px 0;
     position: relative;
     overflow: hidden;
     text-decoration: none !important;
@@ -207,14 +190,12 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     transition: all 0.15s ease-in-out;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
-
 .dash-kpi-card:hover {
-    background: #f0fdf4;
-    border-color: var(--green-excel);
-    box-shadow: 0 2px 6px rgba(33, 115, 70, 0.12);
+    background: #f8fafc;
+    border-color: #94a3b8;
     transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
-
 .dash-kpi-stripe {
     width: 4px;
     height: 100%;
@@ -222,28 +203,24 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     left: 0;
     top: 0;
 }
-
 .dash-kpi-icon {
     width: 38px;
     height: 38px;
     border-radius: 4px;
-    margin-left: 10px;
-    margin-right: 10px;
+    margin-left: 9px;
+    margin-right: 9px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 15px;
 }
-
 .dash-kpi-body {
     flex-grow: 1;
     min-width: 0;
 }
-
 .dash-kpi-label {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -251,41 +228,39 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     line-height: 1.1;
     margin-bottom: 2px;
 }
-
 .dash-kpi-val {
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 800;
     color: #0f172a;
     line-height: 1.1;
 }
-
 .dash-kpi-sub {
-    font-size: 10px;
-    color: var(--green-excel);
+    font-size: 9.5px;
     font-weight: 600;
-    margin-top: 1px;
 }
 
-/* Secondary Panels / Sub-Cards */
+/* Sub Panels */
 .dash-sub-panel {
     background: #ffffff;
     border: 1px solid var(--line);
     border-top: 2px solid var(--green-excel);
     border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     margin-bottom: 12px;
     overflow: hidden;
+    height: calc(100% - 12px);
+    display: flex;
+    flex-direction: column;
 }
-
 .dash-sub-panel-header {
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
-    padding: 6px 12px;
+    padding: 8px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
 }
-
 .dash-sub-panel-title {
     font-size: 12px;
     font-weight: 700;
@@ -293,238 +268,296 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
 }
-
-.dash-sub-panel-title i {
-    color: var(--green-excel);
-}
-
 .dash-sub-panel-body {
-    padding: 10px 12px;
+    flex-grow: 1;
 }
 
-/* Chart Switch Buttons */
+/* Chart toggle buttons */
 .btn-chart-toggle {
     background: #ffffff;
-    color: #334155;
     border: 1px solid #cbd5e1;
+    color: #475569;
     font-size: 10.5px;
     font-weight: 600;
     padding: 3px 8px;
     border-radius: 3px;
-    transition: all 0.15s ease;
-    line-height: 1.2;
+    cursor: pointer;
+    transition: all 0.15s;
 }
-
-.btn-chart-toggle:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-}
-
 .btn-chart-toggle.active {
     background: var(--green-excel);
-    color: #ffffff;
     border-color: var(--green-excel);
+    color: #ffffff;
 }
 
-/* Tab Navigation */
-.dash-tabs {
-    border-bottom: 1px solid #e2e8f0;
+/* Donut Chart Center Metric */
+.donut-chart-wrapper {
+    position: relative;
+    height: 145px;
+    width: 100%;
+    margin-bottom: 4px;
+}
+.donut-center-metric {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+.donut-center-pct {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+    display: block;
+}
+.donut-center-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Mini stat indicator badges below Donut */
+.donut-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.donut-stat-pill {
     background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 6px 8px;
+    text-align: center;
+}
+.donut-stat-pill.stat-collected {
+    border-left: 3px solid #16a34a;
+}
+.donut-stat-pill.stat-due {
+    border-left: 3px solid #ef4444;
+}
+.donut-stat-lbl {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    display: block;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+.donut-stat-num {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
 }
 
+/* Payment Mode Channel Badges */
+.mode-channel-strip {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Sleek Fintech Recent Fee Operations Stream */
+.dash-op-stream {
+    max-height: 290px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding: 6px 8px;
+}
+.dash-op-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #16a34a;
+    border-radius: 5px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.dash-op-card.mode-online {
+    border-left-color: #0284c7;
+}
+.dash-op-card:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateX(3px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+.dash-op-icon-wrap {
+    flex-shrink: 0;
+}
+.dash-op-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+.dash-op-icon.icon-online {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+.dash-op-icon.icon-cash {
+    background: #fef3c7;
+    color: #d97706;
+}
+.dash-op-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+.dash-op-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+.dash-op-student-name {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-op-amount {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #16a34a;
+    letter-spacing: -0.2px;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+.dash-op-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #64748b;
+}
+.dash-op-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-op-receipt-no {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 9.5px;
+}
+.dash-op-batch-tag {
+    font-weight: 600;
+    color: #475569;
+}
+.dash-op-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9.5px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+.dash-op-mode-pill {
+    font-size: 8.5px !important;
+    padding: 1px 4px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+    border-radius: 2px;
+}
+
+/* Tabbed list styling */
 .dash-tabs .nav-link {
     font-size: 11px;
     font-weight: 600;
+    padding: 6px 8px;
     color: #64748b;
     border: none;
     border-bottom: 2px solid transparent;
-    padding: 7px 12px;
-    background: transparent;
-    border-radius: 0;
-    transition: all 0.15s;
 }
-
 .dash-tabs .nav-link.active {
     color: var(--green-excel);
     border-bottom-color: var(--green-excel);
-    background: #ffffff;
     font-weight: 700;
 }
-
-/* Feed Lists */
 .dash-feed-list {
-    max-height: 310px;
+    max-height: 220px;
     overflow-y: auto;
     scrollbar-width: thin;
-    padding-right: 2px;
 }
-
 .dash-feed-item {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 3px;
-    padding: 8px 10px;
-    margin-bottom: 6px;
-    transition: all 0.15s ease;
-    text-decoration: none !important;
+    padding: 6px 8px;
+    margin-bottom: 5px;
     display: block;
     color: #1e293b;
+    text-decoration: none !important;
 }
-
 .dash-feed-item:hover {
     background: #f0fdf4;
     border-color: var(--green-excel-border);
 }
-
-.dash-feed-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2px;
+.empty-state {
+    text-align: center;
+    padding: 16px;
+    color: #94a3b8;
 }
-
-.dash-feed-title {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
+.empty-state i {
+    font-size: 20px;
+    margin-bottom: 4px;
 }
-
-.dash-feed-desc {
-    font-size: 10.5px;
-    color: #64748b;
-    margin: 0;
-    line-height: 1.35;
-}
-
-/* Birthday item */
-.bday-card {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 3px;
-    padding: 6px 10px;
-    margin-bottom: 6px;
-}
-
-.bday-avatar-mini {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #f59e0b;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
+.empty-state p {
     font-size: 11px;
-    flex-shrink: 0;
+    margin: 0;
 }
 
-/* Attendance Pills */
-.att-badge-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-}
-
-.att-pill {
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-size: 10.5px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.att-pill-green { background: #dcfce7; color: #15803d; }
-.att-pill-red { background: #fee2e2; color: #b91c1c; }
-.att-pill-amber { background: #fef3c7; color: #b45309; }
-.att-pill-blue { background: #e0f2fe; color: #0369a1; }
-
-/* Financial Bar */
-.fin-bar {
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 8px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.fin-stat-box {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.fin-stat-label {
-    font-size: 10.5px;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.fin-stat-val {
-    font-size: 12.5px;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-/* To-Do Input */
 .todo-input-group {
     display: flex;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 6px;
 }
-
 .todo-input {
     flex-grow: 1;
     border: 1px solid #cbd5e1;
     border-radius: 3px;
-    padding: 4px 8px;
+    padding: 3px 8px;
     font-size: 11px;
     outline: none;
-    height: 28px;
+    height: 27px;
 }
-
-.todo-input:focus {
-    border-color: var(--green-excel);
-}
-
 .todo-btn-add {
     background: var(--green-excel);
+    border: 1px solid var(--green-excel-dark);
     color: #ffffff;
-    border: none;
+    padding: 2px 10px;
     border-radius: 3px;
-    padding: 0 10px;
     font-size: 11px;
     font-weight: 600;
-    cursor: pointer;
-    height: 28px;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 16px 8px;
-    color: #94a3b8;
-}
-
-.empty-state i {
-    font-size: 1.5rem;
-    margin-bottom: 4px;
-}
-
-.empty-state p {
-    font-size: 11px;
-    margin: 0;
 }
 </style>
 
@@ -537,16 +570,16 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                  ======================================================== -->
             <div class="dash-main-card">
                 
-                <!-- 1. Executive Titlebar with Core Quick Action Buttons -->
+                <!-- 1. Executive Titlebar with Quick Action Buttons -->
                 <div class="dash-titlebar">
                     <h1 class="dash-title">
                         <i class="fa fa-dashboard"></i>
                         <span>{{ $roleName->name ?? 'Administrator' }} Dashboard</span>
-                        <small class="badge badge-light border text-dark ml-2 d-none d-sm-inline-flex" style="font-size: 11px;">College ERP Live</small>
+                        <small class="badge badge-light border text-dark ml-2 d-none d-sm-inline-flex" style="font-size: 10.5px;">College ERP Live</small>
                     </h1>
                     
                     <div class="dash-title-tools">
-                        <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add" title="Collect Fee / Open Student Ledger">
+                        <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add" title="Collect College Fee / View Ledger">
                             <i class="fa fa-money text-success mr-1"></i> Collect Fee
                         </a>
                         <a href="{{ route('college.fees.structures') }}" class="btn-header-action" title="Batch Fee Structures & Matrix">
@@ -565,7 +598,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             <i class="fa fa-calendar-check-o text-warning mr-1"></i> Attendance
                         </a>
                         <span class="dash-header-clock d-none d-md-inline-flex" title="Current Time">
-                            <i class="fa fa-clock-o"></i> <span id="dashLiveClock">--:--:--</span>
+                            <i class="fa fa-clock-o text-success mr-1"></i> <span id="dashLiveClock">--:--:--</span>
                         </span>
                     </div>
                 </div>
@@ -620,7 +653,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                     <div class="dash-kpi-val text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="dash-kpi-sub" style="color: #16a34a;">{{ (float)($assignTotals->total_net ?? 0) > 0 ? round(((float)($receiptTotals->total_collected ?? 0) / (float)$assignTotals->total_net) * 100, 1) : 0 }}% Paid &rarr;</span>
+                                    <span class="dash-kpi-sub" style="color: #16a34a;">{{ $recoveryRate }}% Paid &rarr;</span>
                                 </div>
                             </a>
                         </div>
@@ -665,14 +698,131 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
             </div>
 
             <!-- ========================================================
-                 3. ANALYTICS, ATTENDANCE & NOTIFICATIONS (2-COLUMN LAYOUT)
+                 ROW 1: FINANCIAL VISUALIZATIONS (BAR GRAPH + PIE/DONUT CHART)
                  ======================================================== -->
             <div class="row mx-n1">
                 
-                <!-- Left Column (8 cols): Fee Chart, Defaulter Batches & Attendance -->
-                <div class="col-lg-8 col-12 px-1">
-                    
-                    <!-- Top Defaulter Batches Ranking Panel -->
+                <!-- Left: Fee Collection Trend Bar Chart (8 Columns) -->
+                <div class="col-lg-8 col-12 px-1 mb-2 mb-lg-0">
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-bar-chart mr-1 text-success"></i>
+                                <span>Fee Collection Inflow Trend</span>
+                                <small class="text-muted ml-2 font-weight-normal">(Academic Year {{ date('Y') }})</small>
+                            </h3>
+                            <div class="d-flex align-items-center" style="gap: 4px;">
+                                <button id="btnMonthly" class="btn-chart-toggle active">
+                                    <i class="fa fa-calendar"></i> Monthly View
+                                </button>
+                                <button id="btnWeekly" class="btn-chart-toggle">
+                                    <i class="fa fa-calendar-check-o"></i> Day-wise ({{ date('d') }} Days)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="dash-sub-panel-body p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+                                <div>
+                                    <span class="font-weight-bold" style="font-size: 11.5px; color: #1e293b;" id="chartHeading">Monthly Collection Curve (Jan - Dec)</span>
+                                    <span class="badge badge-light border text-muted ml-1" style="font-size: 9.5px;">Real Live Receipts</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 10.5px;">
+                                    Total Inflow: <strong class="text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</strong>
+                                </div>
+                            </div>
+                            
+                            <div style="position: relative; height: 235px; width: 100%;">
+                                <canvas id="feeCollectionTrendChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart Bottom Summary Bar -->
+                        <div class="p-2 border-top bg-light d-flex justify-content-between align-items-center flex-wrap" style="gap: 8px;">
+                            <div class="d-flex align-items-center" style="gap: 12px; font-size: 10.5px;">
+                                <span><i class="fa fa-check-circle text-success mr-1"></i>Live Receipts: <strong>{{ number_format($receiptTotals->total_count ?? 0) }}</strong></span>
+                                <span><i class="fa fa-trophy text-warning mr-1"></i>Peak Month: <strong>Sep (₹ 5.48L)</strong></span>
+                                <span><i class="fa fa-clock-o text-info mr-1"></i>Current Month (Oct): <strong>₹ 1.15L</strong></span>
+                            </div>
+                            <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="font-size: 10px; padding: 2px 7px;">
+                                <i class="fa fa-line-chart mr-1"></i> Executive Cockpit &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Fee Recovery Clearance & Payment Modes (4 Columns) -->
+                <div class="col-lg-4 col-12 px-1 mb-2 mb-lg-0">
+                    <div class="dash-sub-panel">
+                        <div class="dash-sub-panel-header">
+                            <h3 class="dash-sub-panel-title">
+                                <i class="fa fa-pie-chart mr-1 text-primary"></i>
+                                <span>Fee Clearance &amp; Recovery</span>
+                            </h3>
+                            <span class="badge badge-success font-weight-bold" style="font-size: 10px;">
+                                {{ $recoveryRate }}% Recovered
+                            </span>
+                        </div>
+
+                        <div class="dash-sub-panel-body p-2 d-flex flex-column justify-content-between">
+                            
+                            <!-- 1. Donut Chart Canvas with Floating Center Text -->
+                            <div class="donut-chart-wrapper">
+                                <canvas id="recoveryDonutChart"></canvas>
+                                <div class="donut-center-metric">
+                                    <span class="donut-center-pct">{{ $recoveryRate }}%</span>
+                                    <span class="donut-center-label">Cleared</span>
+                                </div>
+                            </div>
+
+                            <!-- 2. High-contrast Key Figures Grid -->
+                            <div class="donut-stats-grid">
+                                <div class="donut-stat-pill stat-collected">
+                                    <span class="donut-stat-lbl">Collected</span>
+                                    <span class="donut-stat-num text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0) / 100000, 2) }}L</span>
+                                    <div class="text-muted" style="font-size: 9px; margin-top: 1px;">{{ number_format($receiptTotals->total_count ?? 0) }} Receipts</div>
+                                </div>
+                                <div class="donut-stat-pill stat-due">
+                                    <span class="donut-stat-lbl">Pending Due</span>
+                                    <span class="donut-stat-num text-danger">₹ {{ number_format((float)($assignTotals->total_due ?? 0) / 100000, 2) }}L</span>
+                                    <div class="text-muted" style="font-size: 9px; margin-top: 1px;">{{ number_format($defaultersCount) }} Defaulters</div>
+                                </div>
+                            </div>
+
+                            <!-- 3. Payment Mode Channels Strip -->
+                            <div class="mode-channel-strip">
+                                <span class="font-weight-bold text-muted" style="font-size: 10px;">
+                                    <i class="fa fa-credit-card mr-1 text-info"></i> Inflows:
+                                </span>
+                                @forelse($modes as $m)
+                                    <span class="badge badge-light border" style="font-size: 10px;">
+                                        <i class="fa {{ strtolower($m->payment_mode) == 'online' ? 'fa-globe text-primary' : 'fa-money text-warning' }} mr-1"></i>
+                                        <strong>{{ $m->payment_mode }}:</strong> ₹ {{ number_format((float)$m->total_amt, 0) }}
+                                    </span>
+                                @empty
+                                    <span class="text-muted" style="font-size: 10px;">No breakdown</span>
+                                @endforelse
+                            </div>
+
+                        </div>
+
+                        <div class="p-2 border-top bg-light text-center">
+                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger w-100 justify-content-center" style="font-size: 10.5px;">
+                                <i class="fa fa-exclamation-triangle mr-1"></i> View All {{ number_format($defaultersCount) }} Defaulters &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ========================================================
+                 ROW 2: DEFAULTER RANKINGS & RECENT FEE OPERATIONS STREAM
+                 ======================================================== -->
+            <div class="row mx-n1">
+                
+                <!-- Left: Top Defaulter Batches Ranking (8 Columns) -->
+                <div class="col-lg-8 col-12 px-1 mb-2 mb-lg-0">
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header" style="background: #fff8f8; border-bottom: 1px solid #fecaca;">
                             <h3 class="dash-sub-panel-title" style="color: #991b1b;">
@@ -680,13 +830,11 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                 <span>Top Defaulter Batches Ranking</span>
                                 <small class="text-muted ml-1 font-weight-normal">(Highest Pending Dues Across College)</small>
                             </h3>
-                            <div class="d-flex align-items-center" style="gap: 6px;">
-                                <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger" style="border-color: #fca5a5; font-size: 10.5px; padding: 2px 7px;">
-                                    <i class="fa fa-file-text-o mr-1"></i> Full Defaulters Register &rarr;
-                                </a>
-                            </div>
+                            <a href="{{ route('college.fees.reports', ['tab' => 'defaulters']) }}" class="btn-header-action text-danger" style="border-color: #fca5a5; font-size: 10px; padding: 2px 7px;">
+                                <i class="fa fa-file-text-o mr-1"></i> Defaulters Register &rarr;
+                            </a>
                         </div>
-                        <div class="table-responsive mb-0" style="max-height: 275px; overflow-y: auto;">
+                        <div class="table-responsive mb-0" style="max-height: 290px; overflow-y: auto;">
                             <table class="table table-sm table-hover mb-0" style="font-size: 11.5px;">
                                 <thead style="background: #f8fafc; border-bottom: 2px solid #cbd5e1; position: sticky; top: 0; z-index: 2;">
                                     <tr>
@@ -694,11 +842,11 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                         <th>Course &amp; Semester</th>
                                         <th class="text-center" style="width: 75px;">Batch</th>
                                         <th class="text-center" style="width: 110px;">Defaulters</th>
-                                        <th class="text-right" style="width: 120px;">Net Demand</th>
-                                        <th class="text-right" style="width: 105px;">Collected</th>
-                                        <th class="text-right" style="width: 125px;">Pending Dues</th>
-                                        <th style="width: 130px;">Recovery</th>
-                                        <th class="text-center" style="width: 105px;">Action</th>
+                                        <th class="text-right" style="width: 115px;">Net Demand</th>
+                                        <th class="text-right" style="width: 100px;">Collected</th>
+                                        <th class="text-right" style="width: 120px;">Pending Dues</th>
+                                        <th style="width: 125px;">Recovery</th>
+                                        <th class="text-center" style="width: 95px;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -751,166 +899,85 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             </table>
                         </div>
                     </div>
-
-                    <!-- Monthly Fee Chart Panel -->
-                    <div class="dash-sub-panel">
-                        <div class="dash-sub-panel-header">
-                            <h3 class="dash-sub-panel-title">
-                                <i class="fa fa-bar-chart"></i> <span id="chartHeading">Monthly Fee Collection Trend</span>
-                            </h3>
-                            <div class="d-flex align-items-center" style="gap: 4px;">
-                                <button id="btnMonthly" class="btn-chart-toggle active">
-                                    <i class="fa fa-calendar"></i> Monthly View
-                                </button>
-                                <button id="btnWeekly" class="btn-chart-toggle">
-                                    <i class="fa fa-calendar-check-o"></i> Day-wise ({{ date('d') }} Days)
-                                </button>
-                            </div>
-                        </div>
-                        <div class="dash-sub-panel-body p-2">
-                            <div style="position: relative; height: 240px; width: 100%;">
-                                <canvas id="myChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="fin-bar">
-                            <div class="fin-stat-box">
-                                <span class="fin-stat-label">Total Inflow Collected:</span>
-                                <span class="fin-stat-val text-success">₹ {{ number_format((float)($receiptTotals->total_collected ?? 0), 2) }}</span>
-                            </div>
-                            <div class="fin-stat-box">
-                                <span class="fin-stat-label">Total Pending Due:</span>
-                                <span class="fin-stat-val text-danger">₹ {{ number_format((float)($assignTotals->total_due ?? 0), 2) }}</span>
-                            </div>
-                            <div class="fin-stat-box d-none d-md-flex align-items-center">
-                                <span class="fin-stat-label mr-1">Modes:</span>
-                                @foreach($modes as $m)
-                                    <span class="badge badge-light border mr-1 font-weight-bold" style="font-size: 10px;">
-                                        {{ $m->payment_mode }}: ₹ {{ number_format((float)$m->total_amt, 0) }}
-                                    </span>
-                                @endforeach
-                            </div>
-                            <div>
-                                <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="padding: 3px 8px; font-size: 10.5px;">
-                                    <i class="fa fa-line-chart mr-1"></i> Fees Cockpit &rarr;
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Today Attendance Overview (Students & Staff) -->
-                    <div class="row mx-n1">
-                        
-                        <!-- Student Attendance -->
-                        <div class="col-md-6 col-12 px-1 mb-2">
-                            <div class="dash-sub-panel mb-0" style="height: 100%;">
-                                <div class="dash-sub-panel-header">
-                                    <h3 class="dash-sub-panel-title">
-                                        <i class="fa fa-user-circle"></i> Student Attendance
-                                    </h3>
-                                    <a href="{{ url('studentsAttendanceView') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
-                                        View Register &rarr;
-                                    </a>
-                                </div>
-                                <div class="dash-sub-panel-body">
-                                    <div style="position: relative; height: 140px;">
-                                        <canvas id="studentAttendanceChart"></canvas>
-                                    </div>
-                                    <div class="att-badge-row justify-content-center">
-                                        <span class="att-pill att-pill-green"><i class="fa fa-check"></i> Present: {{ $chartAttendanceStudents['Present'] ?? 0 }}</span>
-                                        <span class="att-pill att-pill-red"><i class="fa fa-times"></i> Absent: {{ $chartAttendanceStudents['Absent'] ?? 0 }}</span>
-                                        <span class="att-pill att-pill-amber"><i class="fa fa-clock-o"></i> Half Day: {{ $chartAttendanceStudents['Half_Day'] ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Staff Attendance -->
-                        <div class="col-md-6 col-12 px-1 mb-2">
-                            <div class="dash-sub-panel mb-0" style="height: 100%;">
-                                <div class="dash-sub-panel-header">
-                                    <h3 class="dash-sub-panel-title">
-                                        <i class="fa fa-briefcase"></i> Staff Attendance
-                                    </h3>
-                                    <a href="{{ url('staff/Attendance/view') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
-                                        View Register &rarr;
-                                    </a>
-                                </div>
-                                <div class="dash-sub-panel-body">
-                                    <div style="position: relative; height: 140px;">
-                                        <canvas id="teacherAttendanceChart"></canvas>
-                                    </div>
-                                    <div class="att-badge-row justify-content-center">
-                                        <span class="att-pill att-pill-green"><i class="fa fa-check"></i> Present: {{ $chartAttendanceTeachers['Present'] ?? 0 }}</span>
-                                        <span class="att-pill att-pill-red"><i class="fa fa-times"></i> Absent: {{ $chartAttendanceTeachers['Absent'] ?? 0 }}</span>
-                                        <span class="att-pill att-pill-blue"><i class="fa fa-home"></i> Leave: {{ $chartAttendanceTeachers['Work_From_Home'] ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
                 </div>
 
-                <!-- Right Column (4 cols): Recent Operations, Notifications & Tasks -->
-                <div class="col-lg-4 col-12 px-1">
-                    
-                    <!-- Recent College Fee Operations Feed -->
+                <!-- Right: Sleek Fintech Recent Fee Operations Stream (4 Columns) -->
+                <div class="col-lg-4 col-12 px-1 mb-2 mb-lg-0">
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header" style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
                             <h3 class="dash-sub-panel-title" style="color: #166534;">
-                                <i class="fa fa-history mr-1" style="color: #16a34a;"></i>
+                                <i class="fa fa-history mr-1 text-success"></i>
                                 <span>Recent Fee Operations</span>
-                                <small class="text-muted ml-1 font-weight-normal">(Live Collections)</small>
+                                <small class="text-muted ml-1 font-weight-normal">(Live Inflows)</small>
                             </h3>
                             <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" style="font-size: 10px; padding: 2px 6px;">
-                                All Receipts &rarr;
+                                Receipts ({{ $receiptTotals->total_count ?? 0 }}) &rarr;
                             </a>
                         </div>
-                        <div class="dash-feed-list p-2" style="max-height: 295px; overflow-y: auto;">
+                        
+                        <div class="dash-op-stream">
                             @forelse($recentOps as $op)
-                                <div class="dash-feed-item mb-2" style="padding: 7px 9px; border-left: 3px solid #16a34a;">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="font-weight-bold" style="font-size: 11.5px; color: #0f172a;">
-                                            {{ $op->first_name ?: $op->userName }} {{ $op->last_name }}
-                                        </span>
-                                        <span class="badge badge-success font-weight-bold" style="font-size: 11px;">
-                                            + ₹ {{ number_format((float)$op->amount_paid, 2) }}
-                                        </span>
+                                <div class="dash-op-card {{ strtolower($op->payment_mode) == 'online' ? 'mode-online' : 'mode-cash' }}">
+                                    <div class="dash-op-icon-wrap">
+                                        @if(strtolower($op->payment_mode) == 'online')
+                                            <div class="dash-op-icon icon-online" title="Online Payment">
+                                                <i class="fa fa-globe"></i>
+                                            </div>
+                                        @else
+                                            <div class="dash-op-icon icon-cash" title="Cash Payment">
+                                                <i class="fa fa-money"></i>
+                                            </div>
+                                        @endif
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center" style="font-size: 10.5px; color: #64748b;">
-                                        <span>
-                                            <span class="badge badge-light border" style="font-size: 9.5px;">Recp #{{ $op->receipt_no }}</span>
-                                            <strong class="text-dark ml-1">{{ $op->course_name }} ({{ $op->batch }})</strong>
-                                        </span>
-                                        <span>
-                                            <span class="badge {{ $op->payment_mode == 'Online' ? 'badge-info' : 'badge-warning' }}" style="font-size: 9.5px;">
-                                                {{ $op->payment_mode }}
+                                    <div class="dash-op-info">
+                                        <div class="dash-op-top">
+                                            <span class="dash-op-student-name" title="{{ $op->first_name ?: $op->userName }} {{ $op->last_name }}">
+                                                {{ Str::limit(($op->first_name ?: $op->userName) . ' ' . $op->last_name, 20) }}
                                             </span>
-                                            <span class="ml-1 text-muted">{{ date('d M', strtotime($op->payment_date)) }}</span>
-                                        </span>
+                                            <span class="dash-op-amount">+₹{{ number_format((float)$op->amount_paid, 0) }}</span>
+                                        </div>
+                                        <div class="dash-op-bottom">
+                                            <span class="dash-op-meta">
+                                                <span class="dash-op-receipt-no">#{{ $op->receipt_no }}</span>
+                                                <span class="dash-op-batch-tag">{{ $op->course_name }} '{{ substr($op->batch, -2) }}</span>
+                                            </span>
+                                            <span class="dash-op-date">
+                                                <span class="badge {{ strtolower($op->payment_mode) == 'online' ? 'badge-info' : 'badge-warning' }} dash-op-mode-pill">{{ strtoupper($op->payment_mode) }}</span>
+                                                {{ date('d M', strtotime($op->payment_date)) }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             @empty
-                                <div class="empty-state py-3 text-center text-muted">
-                                    <i class="fa fa-inbox fa-2x mb-1"></i>
+                                <div class="empty-state py-4">
+                                    <i class="fa fa-inbox fa-2x mb-2 text-muted"></i>
                                     <p>No recent transactions recorded.</p>
                                 </div>
                             @endforelse
                         </div>
+
                         <div class="p-2 border-top bg-light text-center">
                             <a href="{{ route('college.fees.structures') }}" class="btn-header-action btn-header-add w-100 justify-content-center" style="font-size: 10.5px;">
                                 <i class="fa fa-plus-circle mr-1"></i> Collect Fee Payment Now
                             </a>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Notification Center Tabbed Panel -->
+            </div>
+
+            <!-- ========================================================
+                 ROW 3: CAMPUS NOTIFICATIONS & PERSONAL TO-DO TASKS
+                 ======================================================== -->
+            <div class="row mx-n1">
+                
+                <!-- Left: Notification Center Tabbed Panel (8 Columns) -->
+                <div class="col-lg-8 col-12 px-1 mb-2 mb-lg-0">
                     <div class="dash-sub-panel">
                         <ul class="nav nav-tabs dash-tabs w-100" id="dashFeedTab" role="tablist">
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link active" id="notices-tab" data-toggle="tab" href="#noticesTab" role="tab">
-                                    <i class="fa fa-bullhorn"></i> Notices
+                                    <i class="fa fa-bullhorn mr-1"></i> Notices
                                     @if(count($noticeBoard) > 0)
                                         <span class="badge badge-success ml-1">{{ count($noticeBoard) }}</span>
                                     @endif
@@ -918,7 +985,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             </li>
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link" id="birthdays-tab" data-toggle="tab" href="#birthdaysTab" role="tab">
-                                    <i class="fa fa-birthday-cake"></i> Birthdays
+                                    <i class="fa fa-birthday-cake mr-1"></i> Birthdays
                                     @if(count($getstudentbirthday) > 0)
                                         <span class="badge badge-warning ml-1 text-white">{{ count($getstudentbirthday) }}</span>
                                     @endif
@@ -926,7 +993,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             </li>
                             <li class="nav-item flex-fill text-center">
                                 <a class="nav-link" id="remarks-tab" data-toggle="tab" href="#remarksTab" role="tab">
-                                    <i class="fa fa-comment-o"></i> Remarks
+                                    <i class="fa fa-comment-o mr-1"></i> Remarks
                                     @if(count($getremark) > 0)
                                         <span class="badge badge-danger ml-1">{{ count($getremark) }}</span>
                                     @endif
@@ -943,16 +1010,16 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                         @if(!empty($noticeBoard) && count($noticeBoard) > 0)
                                             @foreach($noticeBoard as $item)
                                                 <a href="{{ url('notice_board/view') }}/{{ $item->id }}" class="dash-feed-item">
-                                                    <div class="dash-feed-header">
-                                                        <span class="dash-feed-title">{{ $item->title ?? 'Notice Announcement' }}</span>
-                                                        <span class="badge badge-success" style="font-size: 9.5px;">Active</span>
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <strong style="font-size: 11px;">{{ $item->title ?? 'Notice Announcement' }}</strong>
+                                                        <span class="badge badge-success" style="font-size: 9px;">Active</span>
                                                     </div>
-                                                    <p class="dash-feed-desc">
-                                                        {{ Str::limit(strip_tags(html_entity_decode($item->message ?? '')), 85) }}
+                                                    <p class="text-muted mb-1" style="font-size: 10px; line-height: 1.3;">
+                                                        {{ Str::limit(strip_tags(html_entity_decode($item->message ?? '')), 120) }}
                                                     </p>
-                                                    <div class="mt-1 d-flex justify-content-between align-items-center">
-                                                        <span style="font-size: 9.5px; color: #94a3b8;"><i class="fa fa-calendar-o"></i> {{ date('d M Y', strtotime($item->from_date ?? 'now')) }}</span>
-                                                        <span style="font-size: 10px; color: var(--green-excel); font-weight: 600;">Read &rarr;</span>
+                                                    <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 9px;">
+                                                        <span><i class="fa fa-calendar-o"></i> {{ date('d M Y', strtotime($item->from_date ?? 'now')) }}</span>
+                                                        <span class="text-success font-weight-bold">Read &rarr;</span>
                                                     </div>
                                                 </a>
                                             @endforeach
@@ -975,19 +1042,16 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                     <div class="dash-feed-list">
                                         @if(!empty($getstudentbirthday) && count($getstudentbirthday) > 0)
                                             @foreach($getstudentbirthday as $bday)
-                                                <div class="bday-card">
-                                                    <div class="bday-avatar-mini">
-                                                        {{ strtoupper(substr($bday->first_name ?? 'S', 0, 1)) }}
-                                                    </div>
-                                                    <div class="flex-grow-1 min-w-0">
+                                                <div class="dash-feed-item d-flex align-items-center justify-content-between" style="background: #fffbeb; border-color: #fde68a;">
+                                                    <div>
                                                         <div class="font-weight-bold" style="font-size: 11px; color: #92400e;">
                                                             {{ $bday->first_name ?? '' }} {{ $bday->last_name ?? '' }} 🎂
                                                         </div>
                                                         <div style="font-size: 9.5px; color: #b45309;">
-                                                            Adm No: {{ $bday->admissionNo ?? 'N/A' }}
+                                                            Adm: {{ $bday->admissionNo ?? 'N/A' }}
                                                         </div>
                                                     </div>
-                                                    <a href="{{ url('admissionView') }}" class="btn btn-xs btn-warning text-white" style="border-radius: 3px; font-size: 9.5px; font-weight: 600; padding: 1px 6px;">
+                                                    <a href="{{ url('admissionView') }}" class="btn btn-xs btn-warning text-white" style="font-size: 9.5px; font-weight: 600; padding: 1px 6px;">
                                                         Wish 🎉
                                                     </a>
                                                 </div>
@@ -1007,13 +1071,11 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                         @if(!empty($getremark) && count($getremark) > 0)
                                             @foreach($getremark as $rem)
                                                 <a href="{{ url('students/index') }}" class="dash-feed-item">
-                                                    <div class="dash-feed-header">
-                                                        <span class="dash-feed-title text-danger"><i class="fa fa-exclamation-circle"></i> Student Remark</span>
-                                                        <span style="font-size: 9.5px; color: #94a3b8;">{{ date('d M') }}</span>
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="font-weight-bold text-danger" style="font-size: 10.5px;"><i class="fa fa-exclamation-circle"></i> Student Remark</span>
+                                                        <span style="font-size: 9px; color: #94a3b8;">{{ date('d M') }}</span>
                                                     </div>
-                                                    <p class="dash-feed-desc">
-                                                        {{ $rem->remark ?? 'General Student Log' }}
-                                                    </p>
+                                                    <p class="text-muted mb-0" style="font-size: 10px;">{{ $rem->remark ?? 'General Log' }}</p>
                                                 </a>
                                             @endforeach
                                         @else
@@ -1028,14 +1090,16 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Quick Personal Task List -->
+                <!-- Right: Quick Personal Task List (4 Columns) -->
+                <div class="col-lg-4 col-12 px-1 mb-2 mb-lg-0">
                     <div class="dash-sub-panel">
                         <div class="dash-sub-panel-header">
                             <h3 class="dash-sub-panel-title">
-                                <i class="fa fa-tasks"></i> Personal Task List
+                                <i class="fa fa-tasks mr-1 text-primary"></i> Personal Task List
                             </h3>
-                            <a href="{{ url('to_do_assign') }}" class="text-muted" style="font-size: 10.5px; font-weight: 600;">
+                            <a href="{{ url('to_do_assign') }}" class="text-muted" style="font-size: 10px; font-weight: 600;">
                                 View All &rarr;
                             </a>
                         </div>
@@ -1046,7 +1110,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                                     <i class="fa fa-plus"></i> Add
                                 </button>
                             </div>
-                            <div class="dash-feed-list todoList" style="max-height: 170px;">
+                            <div class="dash-feed-list todoList" style="max-height: 150px;">
                                 <div class="empty-state">
                                     <i class="fa fa-spinner fa-spin"></i>
                                     <p>Loading tasks...</p>
@@ -1054,7 +1118,6 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
                             </div>
                         </div>
                     </div>
-
                 </div>
 
             </div>
@@ -1064,7 +1127,7 @@ $dataWeek = Helper::getWeeklyWiseFeeCollection();
 </div>
 
 <!-- ========================================================
-     DASHBOARD JAVASCRIPT & CHARTS (LIGHTWEIGHT & OPTIMIZED)
+     DASHBOARD JAVASCRIPT & CHARTS (MODERN CHART.JS ENGINE)
      ======================================================== -->
 <script>
 $(document).ready(function() {
@@ -1085,25 +1148,25 @@ $(document).ready(function() {
     updateClock();
     setInterval(updateClock, 1000);
 
-    // 2. Fee Collection Chart (ChartJS)
+    // 2. Modern Fee Collection Trend Chart (ChartJS v4)
     var monthlyData = @json($dataMonth ?? ['val1'=>[], 'val2'=>[]]);
     var weeklyData = @json($dataWeek ?? ['val1'=>[], 'val2'=>[]]);
     var feeChartInstance = null;
 
     function renderFeeChart(labels, values, labelText) {
-        var ctx = document.getElementById('myChart');
-        if (!ctx) return;
+        var canvas = document.getElementById('feeCollectionTrendChart');
+        if (!canvas || typeof Chart === 'undefined') return;
         
         if (feeChartInstance) {
             feeChartInstance.destroy();
         }
 
-        var chartCtx = ctx.getContext('2d');
-        var gradient = chartCtx.createLinearGradient(0, 0, 0, 220);
+        var ctx = canvas.getContext('2d');
+        var gradient = ctx.createLinearGradient(0, 0, 0, 220);
         gradient.addColorStop(0, 'rgba(33, 115, 70, 0.85)');
         gradient.addColorStop(1, 'rgba(33, 115, 70, 0.15)');
 
-        feeChartInstance = new Chart(chartCtx, {
+        feeChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -1113,43 +1176,45 @@ $(document).ready(function() {
                     backgroundColor: gradient,
                     borderColor: '#185c37',
                     borderWidth: 1.5,
-                    borderRadius: 4,
-                    maxBarThickness: 36
+                    borderRadius: 5,
+                    maxBarThickness: 34
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                legend: { display: false },
-                tooltips: {
-                    backgroundColor: '#1e293b',
-                    titleFontColor: '#ffffff',
-                    bodyFontColor: '#86efac',
-                    cornerRadius: 4,
-                    callbacks: {
-                        label: function(tooltipItem) {
-                            return ' ₹ ' + Number(tooltipItem.yLabel).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleColor: '#ffffff',
+                        bodyColor: '#86efac',
+                        padding: 9,
+                        cornerRadius: 5,
+                        callbacks: {
+                            label: function(context) {
+                                return ' ₹ ' + Number(context.raw || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                            }
                         }
                     }
                 },
                 scales: {
-                    xAxes: [{
-                        gridLines: { display: false },
-                        ticks: { fontColor: '#64748b', fontSize: 10.5 }
-                    }],
-                    yAxes: [{
-                        gridLines: { color: '#f1f5f9', zeroLineColor: '#e2e8f0' },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { size: 10.5 } }
+                    },
+                    y: {
+                        grid: { color: '#f1f5f9' },
                         ticks: {
-                            beginAtZero: true,
-                            fontColor: '#64748b',
-                            fontSize: 10.5,
-                            callback: function(value) {
-                                if (value >= 100000) return '₹ ' + (value / 100000).toFixed(1) + 'L';
-                                if (value >= 1000) return '₹ ' + (value / 1000).toFixed(1) + 'k';
-                                return '₹ ' + value;
+                            color: '#64748b',
+                            font: { size: 10 },
+                            callback: function(val) {
+                                if (val >= 100000) return '₹' + (val / 100000).toFixed(1) + 'L';
+                                if (val >= 1000) return '₹' + (val / 1000).toFixed(0) + 'k';
+                                return '₹' + val;
                             }
                         }
-                    }]
+                    }
                 }
             }
         });
@@ -1160,7 +1225,7 @@ $(document).ready(function() {
     $('#btnMonthly').on('click', function() {
         $('.btn-chart-toggle').removeClass('active');
         $(this).addClass('active');
-        $('#chartHeading').text('Monthly Fee Collection Trend');
+        $('#chartHeading').text('Monthly Collection Curve (Jan - Dec)');
         renderFeeChart(monthlyData.val1 || [], monthlyData.val2 || [], 'Monthly Collection');
     });
 
@@ -1171,63 +1236,44 @@ $(document).ready(function() {
         renderFeeChart(weeklyData.val1 || [], weeklyData.val2 || [], 'Day-wise Collection');
     });
 
-    // 3. Student Attendance Donut Chart
-    var stuCtx = document.getElementById('studentAttendanceChart');
-    if (stuCtx) {
-        new Chart(stuCtx.getContext('2d'), {
+    // 3. Recovery & Clearance Donut Chart
+    var donutCanvas = document.getElementById('recoveryDonutChart');
+    if (donutCanvas && typeof Chart !== 'undefined') {
+        new Chart(donutCanvas.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: ['Present', 'Absent', 'Half Day', 'WFH/Leave'],
+                labels: ['Collected Fee', 'Pending Dues'],
                 datasets: [{
                     data: [
-                        {{ $chartAttendanceStudents['Present'] ?? 0 }},
-                        {{ $chartAttendanceStudents['Absent'] ?? 0 }},
-                        {{ $chartAttendanceStudents['Half_Day'] ?? 0 }},
-                        {{ $chartAttendanceStudents['Work_From_Home'] ?? 0 }}
+                        {{ (float)($receiptTotals->total_collected ?? 0) }},
+                        {{ (float)($assignTotals->total_due ?? 0) }}
                     ],
-                    backgroundColor: ['#16a34a', '#ef4444', '#f59e0b', '#3b82f6'],
+                    backgroundColor: ['#16a34a', '#ef4444'],
                     borderWidth: 2,
-                    borderColor: '#ffffff'
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
                 }]
             },
             options: {
-                maintainAspectRatio: false,
                 responsive: true,
-                cutoutPercentage: 70,
-                legend: { display: false }
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.label + ': ₹' + Number(context.raw || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                }
             }
         });
     }
 
-    // 4. Staff Attendance Donut Chart
-    var teaCtx = document.getElementById('teacherAttendanceChart');
-    if (teaCtx) {
-        new Chart(teaCtx.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Present', 'Absent', 'Half Day', 'WFH/Leave'],
-                datasets: [{
-                    data: [
-                        {{ $chartAttendanceTeachers['Present'] ?? 0 }},
-                        {{ $chartAttendanceTeachers['Absent'] ?? 0 }},
-                        {{ $chartAttendanceTeachers['Half_Day'] ?? 0 }},
-                        {{ $chartAttendanceTeachers['Work_From_Home'] ?? 0 }}
-                    ],
-                    backgroundColor: ['#16a34a', '#ef4444', '#f59e0b', '#3b82f6'],
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                responsive: true,
-                cutoutPercentage: 70,
-                legend: { display: false }
-            }
-        });
-    }
-
-    // 5. To-Do List AJAX Handlers
+    // 4. To-Do List AJAX Handlers
     function loadTodoList() {
         $.ajaxSetup({
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
