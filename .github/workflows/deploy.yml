@@ -8,16 +8,41 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH and Deploy to VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST || secrets.HOST }}
-          username: ${{ secrets.SSH_USER || secrets.USERNAME || 'root' }}
-          key: ${{ secrets.SSH_KEY || secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || secrets.PORT || '22' }}
-          script: |
-            TARGET="${{ secrets.TARGET_DIR || '/var/www/girraj.rusoft.in' }}"
-            echo "=== Deploying to directory: $TARGET ==="
+      - name: Deploy via Native SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
+        run: |
+          # 1. Validate Secrets
+          if [ -z "$SSH_HOST" ]; then
+            echo "::error::SSH_HOST secret is missing or empty in GitHub Secrets!"
+            exit 1
+          fi
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::SSH_KEY secret is missing or empty in GitHub Secrets!"
+            exit 1
+          fi
+
+          DEPLOY_USER="${SSH_USER:-root}"
+          DEPLOY_PORT="${SSH_PORT:-22}"
+          TARGET="${TARGET_DIR:-/var/www/girraj.rusoft.in}"
+
+          echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
+
+          # 2. Setup SSH Key
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf "%s\n" "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
+          # 3. Execute Deployment Commands on VPS
+          ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" -i ~/.ssh/id_deploy "$DEPLOY_USER@$SSH_HOST" "bash -s" << EOF
+            set -e
+            echo "=== Target Directory: $TARGET ==="
             cd "$TARGET"
             git pull origin master
             composer install --no-dev --optimize-autoloader --ignore-platform-reqs
@@ -27,3 +52,4 @@ jobs:
             php artisan route:cache
             php artisan view:cache
             echo "=== Deployment Completed Successfully ==="
+          EOF
