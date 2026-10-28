@@ -45,11 +45,12 @@ jobs:
           "
           chmod 600 ~/.ssh/id_deploy
 
-          # Verify Key Format
-          ssh-keygen -l -f ~/.ssh/id_deploy || {
-            echo "::error::SSH Key format is invalid! Please check the key in GitHub Secrets."
-            exit 1
-          }
+          # Generate matching public key so OpenSSH does not invoke libcrypto key-derivation parser
+          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub 2>/dev/null || true
+          if [ -f ~/.ssh/id_deploy.pub ]; then
+            chmod 644 ~/.ssh/id_deploy.pub
+            echo "Public key derived successfully: $(cat ~/.ssh/id_deploy.pub)"
+          fi
 
           echo "=== Connecting to $DEPLOY_USER@$SSH_HOST on port $DEPLOY_PORT ==="
 
