@@ -365,6 +365,16 @@
 
     background: #f4f6f9;
 
+    transition: gap 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+}
+
+
+
+.ledger-main-layout.filters-collapsed {
+
+    gap: 0;
+
 }
 
 
@@ -373,7 +383,53 @@
 
     width: 260px;
 
+    min-width: 260px;
+
+    max-width: 260px;
+
     flex-shrink: 0;
+
+    overflow: hidden;
+
+    opacity: 1;
+
+    transform: translateX(0);
+
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.28s ease,
+                transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+}
+
+
+
+.ledger-sidebar-inner {
+
+    width: 260px;
+
+    min-width: 260px;
+
+}
+
+
+
+.ledger-main-layout.filters-collapsed .ledger-sidebar {
+
+    width: 0 !important;
+
+    min-width: 0 !important;
+
+    max-width: 0 !important;
+
+    opacity: 0 !important;
+
+    transform: translateX(-24px);
+
+    pointer-events: none;
+
+    visibility: hidden;
 
 }
 
@@ -384,6 +440,8 @@
     flex-grow: 1;
 
     min-width: 0;
+
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 
 }
 
@@ -856,7 +914,19 @@
 
     font-size: 12px !important;
 
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+}
+
+.btn-filter-toggle i {
+
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+}
+
+.btn-filter-toggle.active i {
+
+    transform: rotate(180deg);
 
 }
 
@@ -868,9 +938,11 @@
 
     color: #047857 !important;
 
-    box-shadow: 0 0 0 1px #10b981 !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
 
 }
+
+
 
 .search-input-wrapper i {
 
@@ -2238,6 +2310,8 @@ tr.row-student-focused td .cell-fee-input {
 
                     <div class="ledger-sidebar" id="ledgerSidebar">
 
+                        <div class="ledger-sidebar-inner">
+
                         
 
                         <!-- Course Selector -->
@@ -2396,7 +2470,9 @@ tr.row-student-focused td .cell-fee-input {
 
 
 
-                    </div>
+                    </div> <!-- /ledger-sidebar-inner -->
+
+                        </div>
 
 
 
@@ -7854,36 +7930,44 @@ function addslashes(str) {
 
 // Toggle Left Filter Panel & Enter Full Width Table Mode
 function toggleFilterSidebarPanel() {
-    var $sidebar = $('#ledgerSidebar');
+    var $layout = $('.ledger-main-layout');
     var $btn = $('#btnToggleFilterPanel');
     var $icon = $('#iconFilterToggle');
-    var isHidden = $sidebar.is(':hidden');
+    var isCollapsed = $layout.hasClass('filters-collapsed');
 
-    if (isHidden) {
-        // Restore / Show Left Filter Panel
-        $sidebar.show();
+    if (isCollapsed) {
+        // Restore / Expand Left Filter Panel with smooth sliding animation
+        $layout.removeClass('filters-collapsed');
         $btn.removeClass('active').attr('title', 'Full Width (Hide Filters)');
         $icon.removeClass('fa-compress text-success').addClass('fa-expand');
         // Note: As required by user, the main application sidebar remains shrinked (collapsed)!
     } else {
-        // Hide Left Filter Panel & Ensure Main Application Sidebar is Collapsed/Shrinked
+        // Collapse Left Filter Panel & Ensure Main Application Sidebar is Collapsed/Shrinked
         if (!$('body').hasClass('sidebar-collapse')) {
             $('body').addClass('sidebar-collapse');
             if ($.fn.PushMenu) {
                 $('[data-widget="pushmenu"]').PushMenu('collapse');
             }
         }
-        $sidebar.hide();
+        $layout.addClass('filters-collapsed');
         $btn.addClass('active').attr('title', 'Show Filters (Exit Full Width)');
         $icon.removeClass('fa-expand').addClass('fa-compress text-success');
     }
 
+    // Smoothly re-adjust table scroll indicators and dimensions as animation progresses
+    var stepInterval = setInterval(function() {
+        if (typeof updateMatrixScrollIndicators === 'function') {
+            updateMatrixScrollIndicators();
+        }
+    }, 50);
+
     setTimeout(function() {
+        clearInterval(stepInterval);
         adjustMatrixTableHeight();
         if (typeof updateMatrixScrollIndicators === 'function') {
             updateMatrixScrollIndicators();
         }
-    }, 60);
+    }, 380);
 }
 
 
