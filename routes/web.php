@@ -909,6 +909,10 @@ Route::match(['get', 'post'], 'registration_fees_ledger_view', 'registration\Reg
         Route::post('/progression/execute', 'CollegeFees\CollegeFeeController@executeProgression')->name('college.fees.progression.execute');
 
         Route::get('/reports', 'CollegeFees\CollegeFeeController@reports')->name('college.fees.reports');
+
+        // Consolidated Course Fees Ledger
+        Route::get('/course-ledger', 'CollegeFees\CollegeFeeController@courseLedger')->name('college.fees.course_ledger');
+        Route::get('/course-ledger-data', 'CollegeFees\CollegeFeeController@getCourseLedgerData')->name('college.fees.course_ledger_data');
     });
 
 });

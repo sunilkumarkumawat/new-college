@@ -456,7 +456,7 @@ class CollegeFeeController extends Controller
     /**
      * Interactive Student Fee Ledger Matrix Data (AJAX)
      */
-    public function getLedgerMatrixData(Request $request)
+public function getLedgerMatrixData(Request $request)
     {
         $branchId = $this->getBranchId();
         $courseId = $request->get('course_id') ? (int)$request->get('course_id') : null;
@@ -480,6 +480,7 @@ class CollegeFeeController extends Controller
                 'rows' => []
             ]);
         }
+
         $course = Course::find($courseId);
         $courseName = $course ? $course->name : '';
         $maxSemesters = $course ? ($course->total_semester ?: 6) : 6;
@@ -505,19 +506,20 @@ class CollegeFeeController extends Controller
             ->orderBy('id', 'ASC')
             ->get();
 
-        $stdHeadNames = $standardStructures->pluck('head_name')->toArray();
         $stdBoysTotal = (float)$standardStructures->sum('amount_boys');
         $stdGirlsTotal = (float)$standardStructures->sum('amount_girls');
 
-        // 2. Fetch Enrolled Students for this Course & Batch
+        // 2. Fetch Enrolled Students for this Course & Batch (Optimized)
+        $classTypeIds = ClassType::where('course_id', $courseId)->pluck('id')->toArray();
+
         $studentsQuery = Admission::where('branch_id', $branchId)
             ->where('status', 1)
             ->where('school', 1)
-            ->where(function($q) use ($courseId, $courseName) {
-                $q->where('course', $courseName)
-                  ->orWhereHas('ClassTypes', function($sub) use ($courseId) {
-                      $sub->where('course_id', $courseId);
-                  });
+            ->where(function($q) use ($courseName, $classTypeIds) {
+                $q->where('course', $courseName);
+                if (!empty($classTypeIds)) {
+                    $q->orWhereIn('class_type_id', $classTypeIds);
+                }
             })
             ->when(!empty($batch), function($q) use ($batch) {
                 $q->where('batch', $batch);
@@ -542,26 +544,56 @@ class CollegeFeeController extends Controller
             });
         }
 
-        $students = $studentsQuery->orderBy('first_name', 'ASC')->get();
+        // Select only necessary fields to avoid hydrating massive Admission models
+        $students = $studentsQuery->select('id', 'first_name', 'last_name', 'admissionNo', 'userName', 'gender_id')
+            ->orderBy('first_name', 'ASC')
+            ->get();
         $studentIds = $students->pluck('id')->toArray();
 
-        // 3. Fetch Fee Assignments & Receipts
-        $allStudentAssignments = CollegeFeeAssignment::where('branch_id', $branchId)
+        // 3. Fetch Fee Assignments (direct DB query with only needed columns, respecting soft deletes)
+        $allStudentAssignments = DB::table('college_fee_assignments')
+            ->where('branch_id', $branchId)
             ->whereIn('student_id', $studentIds)
             ->where('semester_no', $semesterNo)
+            ->whereNull('deleted_at')
+            ->select('id', 'student_id', 'head_name', 'gross_amount', 'discount_amount', 'discount_reason', 'net_amount', 'paid_amount', 'due_amount')
             ->get();
-        $assignments = $allStudentAssignments->groupBy('student_id');
 
-        $receipts = CollegeFeeReceipt::where('branch_id', $branchId)
+        // 4. SQL Aggregation for receipts (replaces hydrating hundreds of receipt models, respecting soft deletes)
+        $receiptSums = DB::table('college_fee_receipts')
+            ->where('branch_id', $branchId)
             ->whereIn('student_id', $studentIds)
             ->where('semester_no', $semesterNo)
-            ->get()
-            ->groupBy('student_id');
+            ->whereNull('deleted_at')
+            ->groupBy('student_id')
+            ->select('student_id', DB::raw('SUM(amount_paid) as total_paid'))
+            ->pluck('total_paid', 'student_id')
+            ->toArray();
 
-        // Build distinct fee head columns: Standard Structures + Common Heads + all assigned fee heads
+        // 5. Check which students have progressed to a higher semester
+        $progressedMap = DB::table('college_fee_assignments')
+            ->where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->where('semester_no', '>', $semesterNo)
+            ->whereNull('deleted_at')
+            ->groupBy('student_id')
+            ->select('student_id', DB::raw('MIN(semester_no) as next_semester'))
+            ->pluck('next_semester', 'student_id')
+            ->toArray();
+
+        // 6. Historic discount reasons fallback (indexed, pluck, respecting soft deletes)
+        $otherDiscountReasons = DB::table('college_fee_assignments')
+            ->where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->whereNull('deleted_at')
+            ->whereNotNull('discount_reason')
+            ->where('discount_reason', '!=', '')
+            ->pluck('discount_reason', 'student_id')
+            ->toArray();
+
+        // 7. Build Fee Head Columns: Standard Structures + assigned heads
         $feeHeadMap = [];
 
-        // 3a. Add Standard Fee Structures (e.g. Tuition Fee)
         foreach ($standardStructures as $struct) {
             $hName = trim($struct->head_name);
             $normKey = rtrim(strtolower($hName), 's');
@@ -575,10 +607,18 @@ class CollegeFeeController extends Controller
             ];
         }
 
-        // 3b. Fee heads are strictly from configured standard structures and assigned heads for this semester
+        // Map student gender for fast lookup during fee head discovery
+        $studentGenderMap = [];
+        foreach ($students as $stu) {
+            $studentGenderMap[$stu->id] = in_array((int)$stu->gender_id, [2, 3]);
+        }
 
-        // 3c. Discover all other assigned fee heads across students in this batch & semester (e.g. Id card, Previous Dues)
+        // Process all assignments in a single O(N) array pass
+        $stuHeadValues = [];
+        $stuTotals = [];
+
         foreach ($allStudentAssignments as $assign) {
+            $sId = $assign->student_id;
             $hName = trim($assign->head_name);
             if (empty($hName)) continue;
             $normKey = rtrim(strtolower($hName), 's');
@@ -594,10 +634,8 @@ class CollegeFeeController extends Controller
                 ];
             }
 
-            $stu = $students->firstWhere('id', $assign->student_id);
-            $isGirl = $stu && in_array((int)$stu->gender_id, [2, 3]);
+            $isGirl = $studentGenderMap[$sId] ?? false;
             $assignGross = (float)$assign->gross_amount;
-
             if ($assignGross > 0) {
                 if ($isGirl) {
                     if ($feeHeadMap[$normKey]['amount_girls'] <= 0) {
@@ -608,6 +646,48 @@ class CollegeFeeController extends Controller
                         $feeHeadMap[$normKey]['amount_boys'] = $assignGross;
                     }
                 }
+            }
+
+            $stuHeadValues[$sId][$normKey] = $assign;
+
+            if (!isset($stuTotals[$sId])) {
+                $stuTotals[$sId] = [
+                    'gross' => 0.0,
+                    'discount' => 0.0,
+                    'net' => 0.0,
+                    'discount_reason' => '',
+                    'tuition_gross' => 0.0,
+                    'tuition_discount' => 0.0,
+                    'tuition_net' => 0.0,
+                    'tuition_paid' => 0.0,
+                    'has_tuition' => false,
+                    'first_gross' => $assignGross,
+                    'first_discount' => (float)$assign->discount_amount,
+                    'first_net' => (float)$assign->net_amount,
+                    'first_paid' => (float)$assign->paid_amount,
+                    'count' => 0
+                ];
+            }
+
+            $grossAmt = (float)$assign->gross_amount;
+            $discAmt = (float)$assign->discount_amount;
+            $netAmt = (float)$assign->net_amount;
+
+            $stuTotals[$sId]['gross'] += $grossAmt;
+            $stuTotals[$sId]['discount'] += $discAmt;
+            $stuTotals[$sId]['net'] += $netAmt;
+            $stuTotals[$sId]['count']++;
+
+            if (!empty($assign->discount_reason) && empty($stuTotals[$sId]['discount_reason'])) {
+                $stuTotals[$sId]['discount_reason'] = $assign->discount_reason;
+            }
+
+            if (strpos($normKey, 'tuit') !== false || strpos($normKey, 'tuti') !== false) {
+                $stuTotals[$sId]['tuition_gross'] = $grossAmt;
+                $stuTotals[$sId]['tuition_discount'] = $discAmt;
+                $stuTotals[$sId]['tuition_net'] = $netAmt;
+                $stuTotals[$sId]['tuition_paid'] = (float)$assign->paid_amount;
+                $stuTotals[$sId]['has_tuition'] = true;
             }
         }
 
@@ -621,7 +701,8 @@ class CollegeFeeController extends Controller
         }
         unset($fHead);
 
-        // Put Tuition Fee first if present, then sort remaining heads
+        // Sort fee head columns: Tuition Fee first
+        $feeHeadColumns = [];
         $tuitionKey = null;
         foreach (array_keys($feeHeadMap) as $k) {
             if (strpos($k, 'tuition') !== false || strpos($k, 'tution') !== false) {
@@ -629,7 +710,6 @@ class CollegeFeeController extends Controller
                 break;
             }
         }
-        $feeHeadColumns = [];
         if ($tuitionKey && isset($feeHeadMap[$tuitionKey])) {
             $feeHeadColumns[] = $feeHeadMap[$tuitionKey];
             unset($feeHeadMap[$tuitionKey]);
@@ -638,24 +718,7 @@ class CollegeFeeController extends Controller
             $feeHeadColumns[] = $fHead;
         }
 
-        // 4. Check which students have progressed to a higher semester
-        $progressedMap = CollegeFeeAssignment::where('branch_id', $branchId)
-            ->whereIn('student_id', $studentIds)
-            ->where('semester_no', '>', $semesterNo)
-            ->groupBy('student_id')
-            ->selectRaw('student_id, MIN(semester_no) as next_semester')
-            ->pluck('next_semester', 'student_id')
-            ->toArray();
-
-        // 4b. Prefetch historic discount reasons for all students in a single query (prevents N+1)
-        $otherDiscountReasons = CollegeFeeAssignment::where('branch_id', $branchId)
-            ->whereIn('student_id', $studentIds)
-            ->whereNotNull('discount_reason')
-            ->where('discount_reason', '!=', '')
-            ->pluck('discount_reason', 'student_id')
-            ->toArray();
-
-        // 5. Build Matrix Rows
+        // 8. Build Matrix Rows (Fast Array Lookups)
         $matrixRows = [];
         $totalNetPayable = 0;
         $totalAlreadyPaid = 0;
@@ -663,30 +726,27 @@ class CollegeFeeController extends Controller
         $assignedStudentsCount = 0;
 
         foreach ($students as $stu) {
-            $isProgressed = isset($progressedMap[$stu->id]);
-            $nextSemester = $isProgressed ? (int)$progressedMap[$stu->id] : null;
-            $stuAssigns = $assignments->get($stu->id, collect());
-            $stuReceipts = $receipts->get($stu->id, collect());
-
-            $isGirl = in_array((int)$stu->gender_id, [2, 3]);
+            $sId = $stu->id;
+            $isProgressed = isset($progressedMap[$sId]);
+            $nextSemester = $isProgressed ? (int)$progressedMap[$sId] : null;
+            $isGirl = $studentGenderMap[$sId] ?? false;
             $genderLabel = $isGirl ? 'Girl' : 'Boy';
 
-            if ($stuAssigns->isNotEmpty()) {
+            $t = $stuTotals[$sId] ?? null;
+            $hasAssignments = ($t !== null && $t['count'] > 0);
+
+            if ($hasAssignments) {
                 $assignedStudentsCount++;
             } else {
                 $toBeAssignedCount++;
             }
 
-            // Map all Fee Head values column by column
+            // Map all Fee Head values column by column (O(1) lookups)
             $headValues = [];
             foreach ($feeHeadColumns as $col) {
                 $colHeadName = $col['head_name'];
-                $colNormKey = rtrim(strtolower($colHeadName), 's');
-
-                $assign = $stuAssigns->first(function($a) use ($colNormKey) {
-                    return rtrim(strtolower(trim($a->head_name)), 's') === $colNormKey;
-                });
-
+                $normKey = rtrim(strtolower($colHeadName), 's');
+                $assign = $stuHeadValues[$sId][$normKey] ?? null;
                 $defAmt = $isGirl ? (float)$col['amount_girls'] : (float)$col['amount_boys'];
 
                 if ($assign) {
@@ -694,6 +754,8 @@ class CollegeFeeController extends Controller
                         'assigned' => true,
                         'assignment_id' => $assign->id,
                         'amount' => (float)$assign->gross_amount,
+                        'paid_amount' => (float)$assign->paid_amount,
+                        'due_amount' => (float)$assign->due_amount,
                         'default_amount' => $defAmt
                     ];
                 } else {
@@ -701,34 +763,44 @@ class CollegeFeeController extends Controller
                         'assigned' => false,
                         'assignment_id' => null,
                         'amount' => 0,
+                        'paid_amount' => 0,
+                        'due_amount' => 0,
                         'default_amount' => $defAmt
                     ];
                 }
             }
 
-            // Student-specific Custom Heads (empty array for backward compatibility)
             $customHeads = [];
 
             // Totals
-            $gross = (float)$stuAssigns->sum('gross_amount');
-            $discount = (float)$stuAssigns->sum('discount_amount');
-            $discountReason = $stuAssigns->whereNotNull('discount_reason')->where('discount_reason', '!=', '')->pluck('discount_reason')->first();
+            $gross = $t ? (float)$t['gross'] : 0.0;
+            $discount = $t ? (float)$t['discount'] : 0.0;
+            $discountReason = $t ? $t['discount_reason'] : '';
             if (empty($discountReason)) {
-                $discountReason = $otherDiscountReasons[$stu->id] ?? '';
+                $discountReason = $otherDiscountReasons[$sId] ?? '';
             }
-            $net = (float)$stuAssigns->sum('net_amount');
-            $paid = (float)$stuReceipts->sum('amount_paid');
+            $net = $t ? (float)$t['net'] : 0.0;
+            $paid = (float)($receiptSums[$sId] ?? 0.0);
 
-            // Tuition Fee specific tracking (Discounts apply strictly to Tuition only)
-            $tuitionAssign = $stuAssigns->first(function($a) {
-                $name = strtolower($a->head_name);
-                return strpos($name, 'tuit') !== false || strpos($name, 'tuti') !== false;
-            }) ?: $stuAssigns->first();
-
-            $tuitionGross = $tuitionAssign ? (float)$tuitionAssign->gross_amount : 0;
-            $tuitionDiscount = $tuitionAssign ? (float)$tuitionAssign->discount_amount : 0;
-            $tuitionNet = $tuitionAssign ? (float)$tuitionAssign->net_amount : 0;
-            $tuitionPaid = $tuitionAssign ? (float)$tuitionAssign->paid_amount : 0;
+            // Tuition Fee specific tracking (or first assign fallback)
+            if ($t) {
+                if ($t['has_tuition']) {
+                    $tuitionGross = (float)$t['tuition_gross'];
+                    $tuitionDiscount = (float)$t['tuition_discount'];
+                    $tuitionNet = (float)$t['tuition_net'];
+                    $tuitionPaid = (float)$t['tuition_paid'];
+                } else {
+                    $tuitionGross = (float)$t['first_gross'];
+                    $tuitionDiscount = (float)$t['first_discount'];
+                    $tuitionNet = (float)$t['first_net'];
+                    $tuitionPaid = (float)$t['first_paid'];
+                }
+            } else {
+                $tuitionGross = 0.0;
+                $tuitionDiscount = 0.0;
+                $tuitionNet = 0.0;
+                $tuitionPaid = 0.0;
+            }
 
             // Status & Outstanding Determination
             $transferredDues = 0;
@@ -738,7 +810,7 @@ class CollegeFeeController extends Controller
                 $status = 'Progressed';
             } else {
                 $outstanding = round($net - $paid, 2);
-                if ($stuAssigns->isEmpty()) {
+                if (!$hasAssignments) {
                     $status = 'Unassigned';
                 } elseif ($outstanding <= 0) {
                     $status = 'Paid';
@@ -760,9 +832,9 @@ class CollegeFeeController extends Controller
             $totalAlreadyPaid += $paid;
 
             $matrixRows[] = [
-                'student_id' => $stu->id,
+                'student_id' => $sId,
                 'name' => trim(($stu->first_name ?: '') . ' ' . ($stu->last_name ?: '')) ?: ($stu->userName ?: 'Student'),
-                'roll_no' => $stu->admissionNo ?: ($stu->userName ?: ('BC' . substr($batch, -2) . '-' . str_pad($stu->id, 3, '0', STR_PAD_LEFT))),
+                'roll_no' => $stu->admissionNo ?: ($stu->userName ?: ('BC' . substr($batch, -2) . '-' . str_pad($sId, 3, '0', STR_PAD_LEFT))),
                 'gender' => $genderLabel,
                 'is_girl' => $isGirl,
                 'head_values' => $headValues,
@@ -842,13 +914,15 @@ class CollegeFeeController extends Controller
                 ->first();
 
             if ($assign) {
+                // Rule: If payment has already been collected on this head, it is LOCKED from modification
+                if ($assign->paid_amount > 0) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Fee head '{$headName}' has collected payment (₹{$assign->paid_amount}). It cannot be modified directly."
+                    ], 422);
+                }
+
                 if ($newAmount == 0 && !$isPreviousDues) {
-                    if ($assign->paid_amount > 0) {
-                        return response()->json([
-                            'status' => 'error',
-                            'message' => 'Payment has already been collected on this fee head. Amount cannot be reset to zero.'
-                        ], 422);
-                    }
                     $assign->delete();
                 } else {
                     if (!$assign->structure_id) {

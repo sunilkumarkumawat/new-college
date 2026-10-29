@@ -497,6 +497,10 @@ body {
                     <a href="{{ route('college.fees.structures') }}" class="btn-header-light" title="Fee Matrix & Student Fee Ledger">
                         <i class="fa fa-table mr-1 text-primary"></i> Fee Matrix
                     </a>
+                    <!-- Course Fees Ledger Button -->
+                    <a href="{{ route('college.fees.course_ledger') }}" class="btn-header-light" title="Consolidated Course Multi-Semester Fee Ledger">
+                        <i class="fa fa-book mr-1 text-warning"></i> Course Ledger
+                    </a>
 
                     <!-- Semester Progression Button -->
                     <a href="{{ route('college.fees.progression') }}" class="btn-header-light" title="Semester Fee Progression">

@@ -1464,6 +1464,29 @@ tr.row-student-focused td .cell-fee-input {
     box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25) !important;
 }
 
+.cell-paid-locked-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: not-allowed;
+}
+
+.cell-paid-locked-wrapper .cell-fee-locked {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+    cursor: not-allowed !important;
+    padding-right: 18px !important;
+}
+
+.cell-paid-locked-wrapper .cell-lock-icon {
+    position: absolute;
+    right: 4px;
+    font-size: 10px;
+    pointer-events: none;
+}
+
 .btn-cell-add {
     font-size: 10px !important;
     padding: 1px 7px !important;
@@ -2152,6 +2175,10 @@ tr.row-student-focused td .cell-fee-input {
                             <i class="fa fa-calculator text-primary mr-1"></i> Cashier Terminal
                         </a>
                         --}}
+
+                        <a href="javascript:void(0)" onclick="goToCourseLedger()" class="btn-header-light" title="Consolidated Course Multi-Semester Ledger">
+                            <i class="fa fa-book text-warning mr-1"></i> Course Ledger
+                        </a>
 
                         <a href="{{ url('college/fees/dashboard') }}" class="btn-header-light" title="Fees Dashboard">
 
@@ -3804,6 +3831,14 @@ $(document).on('keydown', '.cell-fee-input', function(e) {
     }
 });
 
+// Warning toastr when clicking a locked paid cell
+$(document).on('click', '.cell-paid-locked-wrapper', function(e) {
+    var $inp = $(this).find('input');
+    var head = $inp.data('head-name') || 'Fee head';
+    var paid = parseFloat($inp.data('paid-amount')) || 0;
+    showCommonToast('warning', 'Payment of ₹' + numberFormat(paid) + ' has already been collected on ' + head + '. This fee head is locked from modification.');
+});
+
 $(document).ready(function() {
 
     // Initial URL sync
@@ -4513,13 +4548,28 @@ function renderMatrixTable(data) {
                     tbHtml += '<span class="text-muted">&mdash;</span>';
                 }
             } else if (isAssigned) {
-                var negStyle = (amount < 0) ? ' style="color: #0369a1 !important; font-weight: 700; background: #f0f9ff;" title="Advance credit carried forward from previous semester" ' : '';
-                tbHtml += '<input type="number" step="0.01" class="cell-fee-input" ' + negStyle + ' value="' + amount + '" ' +
-                          'data-student-id="' + stu.student_id + '" ' +
-                          'data-head-name="' + escapeHtml(h.head_name) + '" ' +
-                          'data-default-amount="' + defAmt + '" ' +
-                          'data-orig-val="' + amount + '" ' +
-                          'onblur="onCellFeeBlur(this)">';
+                var paidAmount = headVal ? (parseFloat(headVal.paid_amount) || 0) : 0;
+                if (paidAmount > 0) {
+                    tbHtml += '<div class="cell-paid-locked-wrapper" title="Payment of ₹' + numberFormat(paidAmount) + ' has already been collected on ' + escapeHtml(h.head_name) + '. Locked from modification.">' +
+                              '<input type="number" step="0.01" class="cell-fee-input cell-fee-locked" readonly disabled ' +
+                              'value="' + amount + '" ' +
+                              'data-student-id="' + stu.student_id + '" ' +
+                              'data-head-name="' + escapeHtml(h.head_name) + '" ' +
+                              'data-default-amount="' + defAmt + '" ' +
+                              'data-orig-val="' + amount + '" ' +
+                              'data-paid-amount="' + paidAmount + '">' +
+                              '<i class="fa fa-lock text-success cell-lock-icon" title="Payment collected: ₹' + numberFormat(paidAmount) + ' (Locked)"></i>' +
+                              '</div>';
+                } else {
+                    var negStyle = (amount < 0) ? ' style="color: #0369a1 !important; font-weight: 700; background: #f0f9ff;" title="Advance credit carried forward from previous semester" ' : '';
+                    tbHtml += '<input type="number" step="0.01" class="cell-fee-input" ' + negStyle + ' value="' + amount + '" ' +
+                              'data-student-id="' + stu.student_id + '" ' +
+                              'data-head-name="' + escapeHtml(h.head_name) + '" ' +
+                              'data-default-amount="' + defAmt + '" ' +
+                              'data-orig-val="' + amount + '" ' +
+                              'data-paid-amount="' + paidAmount + '" ' +
+                              'onblur="onCellFeeBlur(this)">';
+                }
             } else if (isPrevDues) {
                 // User requirement: previous dues head me kabhi bhi "+ Add" button nahi ayega
                 tbHtml += '<span class="text-muted" style="font-size: 11px;">&mdash;</span>';
@@ -4698,7 +4748,15 @@ function onCellFeeBlur(input) {
     var rawVal = $(input).val();
     var newVal = (rawVal === '' || isNaN(parseFloat(rawVal))) ? 0 : parseFloat(rawVal);
     var defAmt = parseFloat($(input).data('default-amount')) || 0;
+    var paidAmt = parseFloat($(input).data('paid-amount')) || 0;
     var $td = $(input).closest('td');
+
+    // Protection: Locked fee head check
+    if (paidAmt > 0) {
+        showCommonToast('error', 'Payment of ₹' + numberFormat(paidAmt) + ' has already been collected on ' + headName + '. This fee head is locked and cannot be modified.');
+        $(input).val(origVal);
+        return;
+    }
 
     // Case 1: Opened from "+ Add" (origVal == 0), but user cleared it or left it empty/0
     if (origVal === 0 && newVal === 0) {
@@ -4725,6 +4783,13 @@ function onCellFeeBlur(input) {
                      'title="Click to assign fee for this student" ' +
                      'style="font-size: 10px; padding: 1px 6px;">+ Add</button>');
         }
+        return;
+    }
+
+    // Protection: Amount cannot be less than collected payment
+    if (newVal < paidAmt) {
+        showCommonToast('error', 'Fee amount cannot be less than collected payment (₹' + numberFormat(paidAmt) + ').');
+        $(input).val(origVal);
         return;
     }
 
@@ -7742,6 +7807,18 @@ function addslashes(str) {
 
     return (str + '').replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
 
+}
+
+
+
+function goToCourseLedger() {
+    var cId = $('#selLedgerCourse').val();
+    var batch = $('#selLedgerBatch').val();
+    var url = '{{ url("college/fees/course-ledger") }}';
+    if (cId && batch) {
+        url += '?course_id=' + cId + '&batch=' + encodeURIComponent(batch);
+    }
+    window.location.href = url;
 }
 
 </script>

@@ -671,6 +671,9 @@ $recoveryRate = (float)($assignTotals->total_net ?? 0) > 0
                         <a href="{{ route('college.fees.structures') }}" class="btn-header-action" title="Batch Fee Structures & Matrix">
                             <i class="fa fa-table text-primary mr-1"></i> Fee Structures
                         </a>
+                        <a href="{{ route('college.fees.course_ledger') }}" class="btn-header-action" title="Consolidated Multi-Semester Course Fee Ledger">
+                            <i class="fa fa-book text-warning mr-1"></i> Course Ledger
+                        </a>
                         <a href="{{ route('college.fees.dashboard') }}" class="btn-header-action" title="College Fees Executive Cockpit">
                             <i class="fa fa-line-chart text-info mr-1"></i> Fees Cockpit
                         </a>

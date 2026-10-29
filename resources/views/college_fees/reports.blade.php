@@ -518,7 +518,11 @@ body {
                     College Fee Reports &amp; Registers
                 </h3>
                 <div class="d-flex align-items-center gap-2">
-                    <a href="{{ route('college.fees.dashboard') }}" class="btn-header-light" title="College Fees Dashboard">
+                    <a href="{{ route('college.fees.course_ledger') }}" class="btn-header-light" title="Consolidated Course Multi-Semester Fee Ledger">
+                            <i class="fa fa-book text-warning mr-1"></i> Course Ledger
+                        </a>
+
+                        <a href="{{ route('college.fees.dashboard') }}" class="btn-header-light" title="College Fees Dashboard">
                         <i class="fa fa-dashboard text-success mr-1"></i> Dashboard
                     </a>
                 </div>
