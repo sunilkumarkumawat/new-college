@@ -1524,11 +1524,13 @@ tr.row-student-focused td .cell-fee-input {
 
 
 
-/* Editable Cell */
+/* Editable Cell with Auto-Adjusting Width & Hidden Spinners */
 
 .cell-fee-input {
 
-    width: 68px;
+    min-width: 68px;
+
+    width: auto;
 
     height: 24px;
 
@@ -1548,7 +1550,23 @@ tr.row-student-focused td .cell-fee-input {
 
     background: #ffffff;
 
-    transition: all 0.15s ease;
+    transition: width 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+
+    box-sizing: border-box;
+
+    -moz-appearance: textfield !important;
+
+}
+
+/* Hide spin buttons across all browsers for clean spreadsheet input */
+
+.cell-fee-input::-webkit-outer-spin-button,
+
+.cell-fee-input::-webkit-inner-spin-button {
+
+    -webkit-appearance: none !important;
+
+    margin: 0 !important;
 
 }
 
@@ -1573,22 +1591,29 @@ tr.row-student-focused td .cell-fee-input {
     display: inline-flex;
     align-items: center;
     cursor: not-allowed;
+    width: auto;
 }
 
 .cell-paid-locked-wrapper .cell-fee-locked {
-    background: #f1f5f9 !important;
+    background: #f8fafc !important;
     border-color: #cbd5e1 !important;
-    color: #334155 !important;
+    color: #1e293b !important;
     font-weight: 700 !important;
     cursor: not-allowed !important;
-    padding-right: 18px !important;
+    padding-left: 20px !important;
+    padding-right: 6px !important;
+    min-width: 78px;
 }
 
 .cell-paid-locked-wrapper .cell-lock-icon {
     position: absolute;
-    right: 4px;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 10px;
+    color: #16a34a !important;
     pointer-events: none;
+    z-index: 2;
 }
 
 .btn-cell-add {
@@ -4553,6 +4578,24 @@ function renderEmptyCourseBatchPrompt() {
     $('#btnQuickAssignCount').text('0');
 }
 
+// Helper to dynamically calculate optimal input width based on characters and lock status
+function calcInputWidth(val, isLocked) {
+    var str = String((val === null || val === undefined || val === '') ? '0' : val);
+    var len = Math.max(str.length, 3);
+    var basePad = isLocked ? 30 : 16;
+    var calculated = Math.ceil(len * 8.5) + basePad;
+    var minW = isLocked ? 78 : 68;
+    return Math.max(minW, calculated) + 'px';
+}
+
+// Real-time auto-adjust input width on keystroke
+$(document).on('input', '.cell-fee-input', function() {
+    var isLocked = $(this).hasClass('cell-fee-locked');
+    $(this).css('width', calcInputWidth($(this).val(), isLocked));
+});
+
+
+
 function renderMatrixTable(data) {
 
     var stdHeads = data.standard_heads || [];
@@ -4666,20 +4709,23 @@ function renderMatrixTable(data) {
                 }
             } else if (isAssigned) {
                 var paidAmount = headVal ? (parseFloat(headVal.paid_amount) || 0) : 0;
-                if (paidAmount > 0) {
-                    tbHtml += '<div class="cell-paid-locked-wrapper" title="Payment of ₹' + numberFormat(paidAmount) + ' has already been collected on ' + escapeHtml(h.head_name) + '. Locked from modification.">' +
-                              '<input type="number" step="0.01" class="cell-fee-input cell-fee-locked" readonly disabled ' +
+                var isLocked = (paidAmount > 0);
+                var cellW = calcInputWidth(amount, isLocked);
+
+                if (isLocked) {
+                    tbHtml += '<div class="cell-paid-locked-wrapper" title="Payment of ' + numberFormat(paidAmount) + ' has already been collected on ' + escapeHtml(h.head_name) + '. Locked from modification.">' +
+                              '<i class="fa fa-lock text-success cell-lock-icon" title="Payment collected: ' + numberFormat(paidAmount) + ' (Locked)"></i>' +
+                              '<input type="number" step="0.01" class="cell-fee-input cell-fee-locked" style="width: ' + cellW + ';" readonly disabled ' +
                               'value="' + amount + '" ' +
                               'data-student-id="' + stu.student_id + '" ' +
                               'data-head-name="' + escapeHtml(h.head_name) + '" ' +
                               'data-default-amount="' + defAmt + '" ' +
                               'data-orig-val="' + amount + '" ' +
                               'data-paid-amount="' + paidAmount + '">' +
-                              '<i class="fa fa-lock text-success cell-lock-icon" title="Payment collected: ₹' + numberFormat(paidAmount) + ' (Locked)"></i>' +
                               '</div>';
                 } else {
-                    var negStyle = (amount < 0) ? ' style="color: #0369a1 !important; font-weight: 700; background: #f0f9ff;" title="Advance credit carried forward from previous semester" ' : '';
-                    tbHtml += '<input type="number" step="0.01" class="cell-fee-input" ' + negStyle + ' value="' + amount + '" ' +
+                    var negStyle = (amount < 0) ? 'color: #0369a1 !important; font-weight: 700; background: #f0f9ff;' : '';
+                    tbHtml += '<input type="number" step="0.01" class="cell-fee-input" style="width: ' + cellW + '; ' + negStyle + '" value="' + amount + '" ' +
                               'data-student-id="' + stu.student_id + '" ' +
                               'data-head-name="' + escapeHtml(h.head_name) + '" ' +
                               'data-default-amount="' + defAmt + '" ' +
@@ -4716,7 +4762,8 @@ function renderMatrixTable(data) {
             tbHtml += '  </div>';
         } else {
             tbHtml += '  <div class="d-flex align-items-center justify-content-end" style="gap: 4px;">';
-            tbHtml += '    <input type="number" step="0.01" class="cell-fee-input" style="width: 62px;" value="' + stu.discount + '" ' +
+            var discW = calcInputWidth(stu.discount, false);
+            tbHtml += '    <input type="number" step="0.01" class="cell-fee-input" style="width: ' + discW + ';" value="' + stu.discount + '" ' +
                       'data-student-id="' + stu.student_id + '" ' +
                       'data-orig-val="' + stu.discount + '" ' +
                       'onblur="onDiscountBlur(this)">';
@@ -4969,6 +5016,7 @@ function activateCellInput(btn, studentId, headName, defAmt) {
     var defaultVal = (parseFloat(defAmt) > 0) ? parseFloat(defAmt) : '';
 
     var inputHtml = '<input type="number" step="0.01" class="cell-fee-input cell-newly-added" ' +
+                    'style="width: ' + calcInputWidth(defaultVal, false) + ';" ' +
                     'value="' + defaultVal + '" ' +
                     'placeholder="0" ' +
                     'data-student-id="' + studentId + '" ' +
