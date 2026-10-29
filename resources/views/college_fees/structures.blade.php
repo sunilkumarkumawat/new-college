@@ -836,7 +836,39 @@
 
     position: relative;
 
-    width: 250px;
+    width: 195px;
+
+}
+
+.btn-filter-toggle {
+
+    width: 29px !important;
+
+    height: 29px !important;
+
+    padding: 0 !important;
+
+    display: inline-flex !important;
+
+    align-items: center !important;
+
+    justify-content: center !important;
+
+    font-size: 12px !important;
+
+    transition: all 0.2s ease;
+
+}
+
+.btn-filter-toggle.active {
+
+    background: #ecfdf5 !important;
+
+    border-color: #10b981 !important;
+
+    color: #047857 !important;
+
+    box-shadow: 0 0 0 1px #10b981 !important;
 
 }
 
@@ -2204,7 +2236,7 @@ tr.row-student-focused td .cell-fee-input {
 
                     <!-- Left Sidebar Controls -->
 
-                    <div class="ledger-sidebar">
+                    <div class="ledger-sidebar" id="ledgerSidebar">
 
                         
 
@@ -2380,22 +2412,30 @@ tr.row-student-focused td .cell-fee-input {
 
                             <div class="matrix-action-bar">
 
-                                <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
+                                <div class="d-flex align-items-center flex-wrap" style="gap: 5px;">
 
+                                    <!-- Expand / Shrink Filter Toggle Button -->
+                                    <button type="button" class="btn-matrix-tool btn-filter-toggle" id="btnToggleFilterPanel" onclick="toggleFilterSidebarPanel()" title="Full Width (Hide Filters)">
+                                        <i class="fa fa-expand" id="iconFilterToggle"></i>
+                                    </button>
+
+                                    <!-- Compact Search Input -->
                                     <div class="search-input-wrapper">
 
                                         <i class="fa fa-search"></i>
 
-                                        <input type="text" id="matrixSearchInput" class="search-input-field" placeholder="Search by student name or roll no..." onkeyup="onSearchInput(this.value)">
+                                        <input type="text" id="matrixSearchInput" class="search-input-field" placeholder="Search student / roll..." onkeyup="onSearchInput(this.value)">
 
                                     </div>
 
-                                    <span class="badge badge-light border text-dark font-weight-bold" id="badgeSelectedCount" style="font-size: 11px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <!-- Selected Count Badge -->
+                                    <span class="badge badge-light border text-dark font-weight-bold" id="badgeSelectedCount" style="font-size: 11px; padding: 5px 7px; display: inline-flex; align-items: center; gap: 4px;" title="Selected students count">
 
-                                        <i class="fa fa-check-square-o text-success"></i> <span id="txtSelectedCount">0</span> Selected
+                                        <i class="fa fa-check-square-o text-success"></i> <span id="txtSelectedCount">0</span>
 
                                     </span>
 
+                                    <!-- Select All & Clear Buttons -->
                                     <button type="button" class="btn-matrix-tool" onclick="selectAllStudents(true)" title="Select all students in table">
 
                                         <i class="fa fa-check-square-o text-success mr-1"></i> All
@@ -2410,23 +2450,24 @@ tr.row-student-focused td .cell-fee-input {
 
                                 </div>
 
-                                <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
+                                <div class="d-flex align-items-center flex-wrap" style="gap: 5px;">
 
-
-
+                                    <!-- Notes Toggle Button -->
                                     <button type="button" class="btn-matrix-tool" id="btnToggleGlobalNotes" onclick="toggleDiscountNotesGlobal()" title="Toggle discount notes visibility for students">
-                                        <i class="fa fa-eye text-primary mr-1" id="iconGlobalNotes"></i> <span id="lblGlobalNotes">Show Notes</span>
+                                        <i class="fa fa-eye text-primary mr-1" id="iconGlobalNotes"></i> <span id="lblGlobalNotes">Notes</span>
                                     </button>
 
-                                    <button type="button" class="btn-search-action px-3" onclick="openQuickAssignFeesModal()" id="btnQuickAssignFees" title="Assign common fee heads to selected students">
+                                    <!-- Quick Assign Fees Button -->
+                                    <button type="button" class="btn-search-action px-2" onclick="openQuickAssignFeesModal()" id="btnQuickAssignFees" title="Assign common fee heads to selected students">
 
-                                        <i class="fa fa-magic mr-1"></i> Quick Assign Fees (<span id="btnQuickAssignCount">0</span>)
+                                        <i class="fa fa-magic mr-1"></i> Quick Assign (<span id="btnQuickAssignCount">0</span>)
 
                                     </button>
 
+                                    <!-- Export CSV Button -->
                                     <button type="button" class="btn-matrix-tool" onclick="exportMatrixTable()" title="Export Fee Matrix to CSV">
 
-                                        <i class="fa fa-download text-primary mr-1"></i> Export CSV
+                                        <i class="fa fa-download text-primary mr-1"></i> Export
 
                                     </button>
 
@@ -5080,7 +5121,7 @@ function toggleDiscountNotesGlobal() {
         $('.discount-note-pill').css('display', 'none');
         btn.removeClass('active').css({ 'background': '', 'border-color': '', 'color': '', 'font-weight': '' });
         icon.removeClass('fa-eye-slash text-warning').addClass('fa-eye text-primary');
-        lbl.text('Show Notes');
+        lbl.text('Notes');
     }
 }
 
@@ -7807,6 +7848,42 @@ function addslashes(str) {
 
     return (str + '').replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
 
+}
+
+
+
+// Toggle Left Filter Panel & Enter Full Width Table Mode
+function toggleFilterSidebarPanel() {
+    var $sidebar = $('#ledgerSidebar');
+    var $btn = $('#btnToggleFilterPanel');
+    var $icon = $('#iconFilterToggle');
+    var isHidden = $sidebar.is(':hidden');
+
+    if (isHidden) {
+        // Restore / Show Left Filter Panel
+        $sidebar.show();
+        $btn.removeClass('active').attr('title', 'Full Width (Hide Filters)');
+        $icon.removeClass('fa-compress text-success').addClass('fa-expand');
+        // Note: As required by user, the main application sidebar remains shrinked (collapsed)!
+    } else {
+        // Hide Left Filter Panel & Ensure Main Application Sidebar is Collapsed/Shrinked
+        if (!$('body').hasClass('sidebar-collapse')) {
+            $('body').addClass('sidebar-collapse');
+            if ($.fn.PushMenu) {
+                $('[data-widget="pushmenu"]').PushMenu('collapse');
+            }
+        }
+        $sidebar.hide();
+        $btn.addClass('active').attr('title', 'Show Filters (Exit Full Width)');
+        $icon.removeClass('fa-expand').addClass('fa-compress text-success');
+    }
+
+    setTimeout(function() {
+        adjustMatrixTableHeight();
+        if (typeof updateMatrixScrollIndicators === 'function') {
+            updateMatrixScrollIndicators();
+        }
+    }, 60);
 }
 
 
