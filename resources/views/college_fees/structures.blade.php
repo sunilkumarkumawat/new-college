@@ -1348,8 +1348,8 @@
 .col-matrix-student,
 .matrix-table th.col-matrix-student,
 .matrix-table td.col-matrix-student {
-    min-width: 200px !important;
-    max-width: 260px !important;
+    min-width: 220px !important;
+    max-width: 280px !important;
     white-space: nowrap !important;
     padding: 3px 8px !important;
     position: sticky !important;
@@ -1663,7 +1663,19 @@ tr.row-student-focused td .cell-fee-input {
 
     margin-top: 1px;
 
-    line-height: 1.1;
+    line-height: 1.15;
+
+}
+
+.student-cell-father {
+
+    max-width: 155px;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
 
 }
 
@@ -2525,7 +2537,7 @@ tr.row-student-focused td .cell-fee-input {
 
                                         <i class="fa fa-search"></i>
 
-                                        <input type="text" id="matrixSearchInput" class="search-input-field" placeholder="Search student / roll..." onkeyup="onSearchInput(this.value)">
+                                        <input type="text" id="matrixSearchInput" class="search-input-field" placeholder="Search student / roll / father..." onkeyup="onSearchInput(this.value)">
 
                                     </div>
 
@@ -4612,7 +4624,7 @@ function renderMatrixTable(data) {
 
     thHtml += '<th class="col-matrix-idx">#</th>';
 
-    thHtml += '<th class="col-matrix-student">Student / Roll</th>';
+    thHtml += '<th class="col-matrix-student" title="Student Name, Father Name & Roll No">Student / Father / Roll</th>';
 
     stdHeads.forEach(function(h) {
 
@@ -4678,17 +4690,24 @@ function renderMatrixTable(data) {
         // #
         tbHtml += '<td class="col-matrix-idx text-muted align-middle" style="font-size: 11px;">' + (idx + 1) + '</td>';
 
-        // Student Info
+        // Student Info (Name, Father's Name, Roll, Gender)
         var genderBadge = stu.is_girl 
-            ? '<span class="badge" style="background: #fce7f3; color: #be185d; font-size: 8.5px; padding: 1px 3px; font-weight: 600; line-height: 1; border-radius: 3px;">Girl</span>'
-            : '<span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 8.5px; padding: 1px 3px; font-weight: 600; line-height: 1; border-radius: 3px;">Boy</span>';
+            ? '<span class="badge" style="background: #fce7f3; color: #be185d; font-size: 8.5px; padding: 1px 3px; font-weight: 600; line-height: 1; border-radius: 3px; flex-shrink: 0;">Girl</span>'
+            : '<span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 8.5px; padding: 1px 3px; font-weight: 600; line-height: 1; border-radius: 3px; flex-shrink: 0;">Boy</span>';
+
+        var fatherDisplay = stu.father_name 
+            ? '<span class="text-secondary font-weight-500" title="Father: ' + escapeHtml(stu.father_name) + '"><span class="text-muted" style="font-size: 8.5px; font-weight: 600;">F:</span> ' + escapeHtml(stu.father_name) + '</span>'
+            : '<span class="text-muted font-italic" style="opacity: 0.5; font-size: 8.5px;">-</span>';
 
         tbHtml += '<td class="col-matrix-student align-middle">';
-        tbHtml += '  <div class="d-flex align-items-center" style="gap: 4px;">';
-        tbHtml += '    <span class="student-cell-name" title="' + escapeHtml(stu.name) + '">' + escapeHtml(stu.name) + '</span>';
+        tbHtml += '  <div class="d-flex align-items-center justify-content-between" style="gap: 4px;">';
+        tbHtml += '    <span class="student-cell-name text-truncate" title="' + escapeHtml(stu.name) + '">' + escapeHtml(stu.name) + '</span>';
         tbHtml += '    ' + genderBadge;
         tbHtml += '  </div>';
-        tbHtml += '  <div class="student-cell-sub"><i class="fa fa-id-badge mr-1 text-muted"></i>' + escapeHtml(stu.roll_no) + '</div>';
+        tbHtml += '  <div class="student-cell-sub d-flex align-items-center justify-content-between" style="gap: 4px; margin-top: 1px;">';
+        tbHtml += '    <span class="student-cell-father text-truncate" style="flex: 1; min-width: 0;">' + fatherDisplay + '</span>';
+        tbHtml += '    <span class="student-cell-roll text-nowrap text-muted ml-1" style="font-size: 9px; flex-shrink: 0;" title="Roll / Admission No"><i class="fa fa-id-badge mr-1 text-muted" style="font-size: 8.5px;"></i>' + escapeHtml(stu.roll_no) + '</span>';
+        tbHtml += '  </div>';
         tbHtml += '</td>';
 
         // Standard Fee Head Columns
@@ -5580,7 +5599,9 @@ function renderCollectModal(data) {
     }
     $('#collect_student_avatar').text(initials.toUpperCase());
     $('#collect_student_name').text(stu.name || 'Student');
-    $('#collect_student_sub').text((stu.roll_no || '') + ' • ' + (stu.course_name || '') + ' • Batch ' + (stu.batch || '') + ' • Semester ' + (stu.semester_no || currentSemester));
+    var parentRelation = stu.is_girl ? 'D/o ' : 'S/o ';
+    var fatherInfo = stu.father_name ? (' • ' + parentRelation + stu.father_name) : '';
+    $('#collect_student_sub').text((stu.roll_no || '') + fatherInfo + ' • ' + (stu.course_name || '') + ' • Batch ' + (stu.batch || '') + ' • Semester ' + (stu.semester_no || currentSemester));
 
     // Status Badge
     var badgeClass = 'badge-secondary';
@@ -7905,7 +7926,7 @@ function exportMatrixTable() {
 
     // Header
 
-    var headerRow = ['Roll No', 'Student Name', 'Gender'];
+    var headerRow = ['Roll No', 'Student Name', "Father's Name", 'Gender'];
 
     stdHeads.forEach(function(h) { headerRow.push(h.head_name); });
 
@@ -7924,6 +7945,8 @@ function exportMatrixTable() {
             '"' + r.roll_no + '"',
 
             '"' + r.name + '"',
+
+            '"' + (r.father_name || '') + '"',
 
             r.gender
 
