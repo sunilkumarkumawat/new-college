@@ -3952,4 +3952,345 @@ public function printReceipt($id)
         if ($num < 10000000) return $this->numberToWords((int)($num / 100000)) . " Lakh" . (($num % 100000 != 0) ? " " . $this->numberToWords($num % 100000) : "");
         return $this->numberToWords((int)($num / 10000000)) . " Crore" . (($num % 10000000 != 0) ? " " . $this->numberToWords($num % 10000000) : "");
     }
+/**
+     * View: Consolidated Course Fees Ledger (Multi-Semester Grid & Excel Export)
+     */
+    public function courseLedger(Request $request)
+    {
+        $branchId = $this->getBranchId();
+
+        $courses = Course::where('branch_id', $branchId)->orderBy('name', 'ASC')->get();
+        if ($courses->isEmpty()) {
+            $courses = Course::orderBy('name', 'ASC')->get();
+        }
+
+        $batches = Admission::where('branch_id', $branchId)
+            ->whereNotNull('batch')
+            ->where('batch', '!=', '')
+            ->distinct()
+            ->orderBy('batch', 'DESC')
+            ->pluck('batch')
+            ->toArray();
+
+        if (empty($batches)) {
+            $batches = ['2026', '2025', '2024', '2023', '2022', '2021'];
+        }
+
+        $courseId = $request->get('course_id') ? (int)$request->get('course_id') : ($courses->first() ? $courses->first()->id : null);
+        $batch = $request->get('batch') ? (string)$request->get('batch') : (!empty($batches) ? $batches[0] : '2025');
+
+        return view('college_fees.course_ledger', compact('courses', 'batches', 'courseId', 'batch'));
+    }
+
+    /**
+     * AJAX: Get Consolidated Multi-Semester Course Fee Ledger Data
+     */
+    public function getCourseLedgerData(Request $request)
+    {
+        $branchId = $this->getBranchId();
+        $courseId = $request->get('course_id') ? (int)$request->get('course_id') : null;
+        $batch = $request->get('batch') ? (string)$request->get('batch') : null;
+        $statusFilter = strtolower($request->get('status', 'all'));
+        $genderFilter = strtolower($request->get('gender', 'all'));
+        $search = trim($request->get('search', ''));
+
+        if (empty($courseId) || empty($batch)) {
+            return response()->json([
+                'status' => 'empty',
+                'message' => 'Please select a Course and Batch to view the consolidated fee ledger.',
+                'course' => null,
+                'batch' => $batch,
+                'kpi' => [
+                    'total_enrolled' => 0,
+                    'filtered_count' => 0,
+                    'total_net' => 0,
+                    'total_paid' => 0,
+                    'total_due' => 0,
+                    'collection_rate' => 0,
+                    'paid_students' => 0,
+                    'partial_students' => 0,
+                    'unpaid_students' => 0,
+                ],
+                'semesters' => [],
+                'rows' => [],
+                'grand_totals' => []
+            ]);
+        }
+
+        $course = Course::find($courseId);
+        if (!$course) {
+            return response()->json(['status' => 'error', 'message' => 'Selected course not found.']);
+        }
+
+        $totalSemesters = (int)($course->total_semester ?: ($course->duration ? $course->duration * 2 : 4));
+        if ($totalSemesters <= 0) $totalSemesters = 4;
+        $courseName = $course->name;
+
+        // Fetch students (optimized query)
+        $classTypeIds = ClassType::where('course_id', $courseId)->pluck('id')->toArray();
+        $studentsQuery = Admission::where('branch_id', $branchId)
+            ->where('status', 1)
+            ->where('school', 1)
+            ->where(function($q) use ($courseId, $courseName, $classTypeIds) {
+                $q->where('course', $courseName);
+                if (!empty($classTypeIds)) {
+                    $q->orWhereIn('class_type_id', $classTypeIds);
+                }
+            })
+            ->when(!empty($batch), function($q) use ($batch) {
+                $q->where('batch', $batch);
+            })
+            ->orderBy('first_name', 'ASC');
+
+        $allStudents = $studentsQuery->select('id', 'first_name', 'last_name', 'father_name', 'mobile', 'admissionNo', 'userName', 'gender_id')->get();
+        $totalEnrolled = $allStudents->count();
+
+        if ($allStudents->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'course' => [
+                    'id' => $course->id,
+                    'name' => $course->name,
+                    'duration' => $course->duration,
+                    'total_semesters' => $totalSemesters
+                ],
+                'batch' => $batch,
+                'kpi' => [
+                    'total_enrolled' => 0,
+                    'filtered_count' => 0,
+                    'total_net' => 0,
+                    'total_paid' => 0,
+                    'total_due' => 0,
+                    'collection_rate' => 0,
+                    'paid_students' => 0,
+                    'partial_students' => 0,
+                    'unpaid_students' => 0,
+                ],
+                'semesters' => range(1, $totalSemesters),
+                'rows' => [],
+                'grand_totals' => []
+            ]);
+        }
+
+        $studentIds = $allStudents->pluck('id')->toArray();
+
+        // Fetch all assignments across all semesters for this course (direct DB query, fast & respecting soft deletes)
+        $rawAssignments = DB::table('college_fee_assignments')
+            ->where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->whereNull('deleted_at')
+            ->select('id', 'student_id', 'semester_no', 'head_name', 'gross_amount', 'discount_amount', 'net_amount', 'paid_amount', 'due_amount', 'is_carried_dues')
+            ->get();
+
+        $assignmentsMap = [];
+        foreach ($rawAssignments as $as) {
+            $assignmentsMap[$as->student_id][] = $as;
+        }
+
+        $rows = [];
+        $kpi = [
+            'total_enrolled' => $totalEnrolled,
+            'filtered_count' => 0,
+            'total_net' => 0.0,
+            'total_paid' => 0.0,
+            'total_due' => 0.0,
+            'collection_rate' => 0.0,
+            'paid_students' => 0,
+            'partial_students' => 0,
+            'unpaid_students' => 0,
+        ];
+
+        $grandTotals = [
+            'total_gross' => 0.0,
+            'total_discount' => 0.0,
+            'total_net' => 0.0,
+            'total_paid' => 0.0,
+            'total_due' => 0.0,
+            'sem_totals' => [],
+            'prev_dues_total' => ['gross' => 0.0, 'net' => 0.0, 'paid' => 0.0, 'due' => 0.0]
+        ];
+
+        for ($s = 1; $s <= $totalSemesters; $s++) {
+            $grandTotals['sem_totals'][$s] = [
+                'gross' => 0.0,
+                'discount' => 0.0,
+                'net' => 0.0,
+                'paid' => 0.0,
+                'due' => 0.0
+            ];
+        }
+
+        foreach ($allStudents as $stu) {
+            $sId = $stu->id;
+            $stuAssigns = $assignmentsMap[$sId] ?? [];
+
+            $semData = [];
+            for ($s = 1; $s <= $totalSemesters; $s++) {
+                $semData[$s] = [
+                    'gross' => 0.0,
+                    'discount' => 0.0,
+                    'net' => 0.0,
+                    'paid' => 0.0,
+                    'due' => 0.0,
+                    'heads' => []
+                ];
+            }
+
+            $prevDuesData = [
+                'gross' => 0.0,
+                'discount' => 0.0,
+                'net' => 0.0,
+                'paid' => 0.0,
+                'due' => 0.0
+            ];
+
+            $stuGross = 0.0;
+            $stuDisc = 0.0;
+            $stuNet = 0.0;
+            $stuPaid = 0.0;
+            $stuDue = 0.0;
+
+            foreach ($stuAssigns as $as) {
+                $sNo = (int)$as->semester_no;
+                $isPrev = ((int)$as->is_carried_dues === 1 || strtolower(trim($as->head_name)) === 'previous dues');
+
+                $g = (float)$as->gross_amount;
+                $d = (float)$as->discount_amount;
+                $n = (float)$as->net_amount;
+                $p = (float)$as->paid_amount;
+                $du = (float)$as->due_amount;
+
+                if ($isPrev) {
+                    $prevDuesData['gross'] += $g;
+                    $prevDuesData['net'] += $n;
+                    $prevDuesData['paid'] += $p;
+                    $prevDuesData['due'] += $du;
+                } else {
+                    if (isset($semData[$sNo])) {
+                        $semData[$sNo]['gross'] += $g;
+                        $semData[$sNo]['discount'] += $d;
+                        $semData[$sNo]['net'] += $n;
+                        $semData[$sNo]['paid'] += $p;
+                        $semData[$sNo]['due'] += $du;
+                        $semData[$sNo]['heads'][] = [
+                            'name' => $as->head_name,
+                            'net' => $n,
+                            'paid' => $p,
+                            'due' => $du
+                        ];
+                    }
+                }
+
+                $stuGross += $g;
+                $stuDisc += $d;
+                $stuNet += $n;
+                $stuPaid += $p;
+                $stuDue += $du;
+            }
+
+            $overallStatus = ($stuDue <= 0 && $stuNet > 0) ? 'Paid' : (($stuPaid > 0 && $stuDue > 0) ? 'Partial' : ($stuNet > 0 ? 'Unpaid' : ($stuDue <= 0 ? 'Paid' : 'Unpaid')));
+            if ($stuDue <= 0 && $stuPaid <= 0 && $stuNet <= 0) {
+                $overallStatus = 'Paid';
+            }
+
+            // Gender filter
+            $genderStr = ((int)$stu->gender_id === 1) ? 'boys' : 'girls';
+            if ($genderFilter !== 'all' && $genderFilter !== $genderStr) {
+                continue;
+            }
+
+            // Status filter
+            if ($statusFilter !== 'all') {
+                if ($statusFilter === 'paid' && $overallStatus !== 'Paid') continue;
+                if ($statusFilter === 'partial' && $overallStatus !== 'Partial') continue;
+                if ($statusFilter === 'unpaid' && $overallStatus !== 'Unpaid') continue;
+                if ($statusFilter === 'overdue' && ($stuDue <= 0)) continue;
+            }
+
+            // Search filter
+            $fullName = trim(($stu->first_name ?: '') . ' ' . ($stu->last_name ?: ''));
+            $fatherName = trim($stu->father_name ?: '');
+            $admNo = trim($stu->admissionNo ?: ($stu->userName ?: ''));
+
+            if (!empty($search)) {
+                $searchLower = strtolower($search);
+                $match = (
+                    strpos(strtolower($fullName), $searchLower) !== false ||
+                    strpos(strtolower($fatherName), $searchLower) !== false ||
+                    strpos(strtolower($admNo), $searchLower) !== false
+                );
+                if (!$match) continue;
+            }
+
+            // Update KPI counts
+            if ($overallStatus === 'Paid') {
+                $kpi['paid_students']++;
+            } elseif ($overallStatus === 'Partial') {
+                $kpi['partial_students']++;
+            } else {
+                $kpi['unpaid_students']++;
+            }
+
+            $kpi['total_net'] += $stuNet;
+            $kpi['total_paid'] += $stuPaid;
+            $kpi['total_due'] += $stuDue;
+
+            // Grand totals
+            $grandTotals['total_gross'] += $stuGross;
+            $grandTotals['total_discount'] += $stuDisc;
+            $grandTotals['total_net'] += $stuNet;
+            $grandTotals['total_paid'] += $stuPaid;
+            $grandTotals['total_due'] += $stuDue;
+
+            for ($s = 1; $s <= $totalSemesters; $s++) {
+                $grandTotals['sem_totals'][$s]['gross'] += $semData[$s]['gross'];
+                $grandTotals['sem_totals'][$s]['discount'] += $semData[$s]['discount'];
+                $grandTotals['sem_totals'][$s]['net'] += $semData[$s]['net'];
+                $grandTotals['sem_totals'][$s]['paid'] += $semData[$s]['paid'];
+                $grandTotals['sem_totals'][$s]['due'] += $semData[$s]['due'];
+            }
+
+            $grandTotals['prev_dues_total']['gross'] += $prevDuesData['gross'];
+            $grandTotals['prev_dues_total']['net'] += $prevDuesData['net'];
+            $grandTotals['prev_dues_total']['paid'] += $prevDuesData['paid'];
+            $grandTotals['prev_dues_total']['due'] += $prevDuesData['due'];
+
+            $rows[] = [
+                'student_id' => $sId,
+                'admission_no' => $admNo,
+                'student_name' => $fullName,
+                'father_name' => $fatherName,
+                'mobile' => $stu->mobile ?: '',
+                'gender' => ((int)$stu->gender_id === 1) ? 'Male' : 'Female',
+                'semesters' => $semData,
+                'previous_dues' => $prevDuesData,
+                'totals' => [
+                    'gross' => $stuGross,
+                    'discount' => $stuDisc,
+                    'net' => $stuNet,
+                    'paid' => $stuPaid,
+                    'due' => $stuDue,
+                    'status' => $overallStatus
+                ]
+            ];
+        }
+
+        $kpi['filtered_count'] = count($rows);
+        $kpi['collection_rate'] = ($kpi['total_net'] > 0) ? round(($kpi['total_paid'] / $kpi['total_net']) * 100, 1) : 0;
+
+        return response()->json([
+            'status' => 'success',
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'duration' => $course->duration,
+                'total_semesters' => $totalSemesters
+            ],
+            'batch' => $batch,
+            'kpi' => $kpi,
+            'semesters' => range(1, $totalSemesters),
+            'rows' => $rows,
+            'grand_totals' => $grandTotals
+        ]);
+    }
 }
