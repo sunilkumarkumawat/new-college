@@ -6,7 +6,7 @@
         : 'FY ' . ($paymentYear - 1) . '-' . substr((string)$paymentYear, -2);
 
     $totalItems = count($receipt->items);
-    $minRows = 5;
+    $minRows = $receipt->trashed() ? 4 : 5;
     $emptyRowsNeeded = max(0, $minRows - ($totalItems > 0 ? $totalItems : 1));
 @endphp
 <!DOCTYPE html>
@@ -15,9 +15,9 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Fee Receipt - {{ $receipt->receipt_no }}</title>
     <style>
-        @page {
+                @page {
             size: a5 landscape;
-            margin: 4mm 0mm;
+            margin: 4mm 4mm;
         }
         * {
             box-sizing: border-box;
@@ -32,36 +32,44 @@
         }
         .receipt-container {
             border: 2px solid #217346;
-            padding: 8px 12px;
-            height: 133mm;
-            margin: 0 5mm;
+            padding: 7px 12px;
+            height: 135mm;
+            margin: 0;
             position: relative;
             background: #ffffff;
+            box-sizing: border-box;
+            page-break-inside: avoid;
         }
         .watermark {
             position: absolute;
-            top: 45%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
+            top: 40%;
+            left: 37%;
+            transform: rotate(-15deg);
             font-size: 72px;
             font-weight: bold;
-            color: rgba(33, 115, 70, 0.04);
+            color: rgba(33, 115, 70, 0.08);
             text-transform: uppercase;
-            z-index: 0;
+            z-index: 9999;
+            pointer-events: none;
+            white-space: nowrap;
         }
         .cancelled-watermark-pdf {
             position: absolute;
-            top: 38%;
-            left: 18%;
-            font-size: 58px;
+            top: 36%;
+            left: 18.5%;
+            transform: rotate(-15deg);
+            font-size: 56px;
             font-weight: bold;
-            color: #fca5a5;
-            border: 4px dashed #ef4444;
-            padding: 6px 20px;
+            color: rgba(220, 38, 38, 0.22);
+            border: 3.5px dashed rgba(220, 38, 38, 0.28);
+            padding: 6px 30px;
+            border-radius: 8px;
             text-transform: uppercase;
-            z-index: 0;
-            letter-spacing: 4px;
+            z-index: 9999;
+            letter-spacing: 5px;
             text-align: center;
+            white-space: nowrap;
+            pointer-events: none;
         }
         .content-layer {
             position: relative;
@@ -73,7 +81,7 @@
             width: 100%;
             border-bottom: 2px solid #217346;
             padding-bottom: 5px;
-            margin-bottom: 7px;
+            margin-bottom: 5px;
         }
         .header-table td {
             vertical-align: middle;
@@ -115,12 +123,12 @@
         .info-grid {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 7px;
+            margin-bottom: 5px;
             background: #f8fafc;
             border: 1px solid #cbd5e1;
         }
         .info-grid td {
-            padding: 3.5px 7px;
+            padding: 3px 6px;
             font-size: 9.5px;
             border: 1px solid #e2e8f0;
         }
@@ -139,23 +147,23 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 7px;
+            margin-bottom: 5px;
         }
         .items-table th {
             background: #e7eff5;
             color: #1e3a5f;
             border-top: 1.5px solid #217346;
             border-bottom: 1.5px solid #217346;
-            padding: 4px 8px;
+            padding: 3px 6px;
             font-size: 9.5px;
             text-align: left;
             font-weight: bold;
         }
         .items-table td {
             border-bottom: 1px solid #e2e8f0;
-            padding: 4px 8px;
+            padding: 4px 6px;
             font-size: 9.5px;
-            height: 21px;
+            height: 18px;
         }
         .text-right {
             text-align: right;
@@ -171,7 +179,7 @@
         .words-box {
             background: #fafafa;
             border: 1px dashed #cbd5e1;
-            padding: 4px 8px;
+            padding: 4px 6px;
             margin-bottom: 8px;
             font-size: 9px;
         }
@@ -186,7 +194,7 @@
             font-size: 8.5px;
         }
         .seal-space {
-            height: 48px;
+            height: 70px;
         }
         .sign-line {
             border-top: 1.2px solid #0f172a;
@@ -199,11 +207,7 @@
 </head>
 <body>
     <div class="receipt-container" style="{{ $receipt->trashed() ? 'border-color: #ef4444;' : '' }}">
-        @if($receipt->trashed())
-            <div class="cancelled-watermark-pdf">CANCELLED</div>
-        @else
-            <div class="watermark">PAID</div>
-        @endif
+        
         <div class="content-layer">
             
             @if($receipt->trashed())
@@ -211,6 +215,9 @@
                     THIS RECEIPT HAS BEEN CANCELLED (VOID)
                     @if($receipt->deleted_at)
                         &bull; Cancelled on {{ date('d-M-Y h:i A', strtotime($receipt->deleted_at)) }}
+                    @endif
+                    @if(!empty($receipt->remark))
+                        &bull; Reason: {{ $receipt->remark }}
                     @endif
                 </div>
             @endif
@@ -307,15 +314,15 @@
                     <!-- Total Row -->
                     @if($receipt->trashed())
                     <tr style="border-top: 1.5px solid #dc2626; border-bottom: 1.5px solid #dc2626; background: #fef2f2;">
-                        <td colspan="2" class="text-right bold" style="font-size: 10px; padding: 4px 8px; color: #991b1b;">TOTAL AMOUNT (VOID):</td>
-                        <td class="text-right bold" style="color: #dc2626; font-size: 11px; padding: 4px 8px;">
+                        <td colspan="2" class="text-right bold" style="font-size: 10px; padding: 3px 6px; color: #991b1b;">TOTAL AMOUNT (VOID):</td>
+                        <td class="text-right bold" style="color: #dc2626; font-size: 11px; padding: 3px 6px;">
                             <del>&#8377;{{ number_format($receipt->amount_paid, 2) }}</del> <span style="font-size: 8px;">(CANCELLED)</span>
                         </td>
                     </tr>
                     @else
                     <tr style="border-top: 1.5px solid #217346; border-bottom: 1.5px solid #217346; background: #f0fdf4;">
-                        <td colspan="2" class="text-right bold" style="font-size: 10px; padding: 4px 8px;">TOTAL AMOUNT RECEIVED:</td>
-                        <td class="text-right bold" style="color: #166534; font-size: 11.5px; padding: 4px 8px;">&#8377;{{ number_format($receipt->amount_paid, 2) }}</td>
+                        <td colspan="2" class="text-right bold" style="font-size: 10px; padding: 3px 6px;">TOTAL AMOUNT RECEIVED:</td>
+                        <td class="text-right bold" style="color: #166534; font-size: 11.5px; padding: 3px 6px;">&#8377;{{ number_format($receipt->amount_paid, 2) }}</td>
                     </tr>
                     @endif
                 </tbody>
@@ -345,6 +352,12 @@
             </table>
 
         </div>
+            <!-- Watermark positioned with highest z-index so it stays visible over tables -->
+        @if($receipt->trashed())
+            <div class="cancelled-watermark-pdf">CANCELLED</div>
+        @else
+            <div class="watermark">PAID</div>
+        @endif
     </div>
 </body>
 </html>

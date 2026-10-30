@@ -2943,6 +2943,15 @@ tr.row-student-focused td .cell-fee-input {
                         <div id="confirmModalSubnote" class="text-muted mt-2" style="font-size: 11px;"></div>
                     </div>
                 </div>
+                <div id="confirmModalInputWrapper" class="mt-3 pt-2" style="border-top: 1px dashed #e2e8f0; display: none;">
+                    <label id="confirmModalInputLabel" class="font-weight-bold text-dark mb-1" style="font-size: 11.5px;">
+                        Cancellation Note / Remark <span class="text-danger">*</span>
+                    </label>
+                    <textarea id="confirmModalInput" class="form-control" rows="2" style="font-size: 12px; border: 1.5px solid #cbd5e1; border-radius: 4px; resize: vertical;" placeholder="Enter cancellation reason (mandatory)..."></textarea>
+                    <div id="confirmModalInputError" class="text-danger mt-1 font-weight-bold" style="font-size: 11px; display: none;">
+                        <i class="fa fa-exclamation-circle mr-1"></i>Please enter a cancellation note / remark before proceeding.
+                    </div>
+                </div>
             </div>
             <div class="modal-footer px-3 py-2 d-flex justify-content-end" style="background: #f8fafc; border-top: 1px solid #e2e8f0; gap: 8px;">
                 <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-dismiss="modal" data-bs-dismiss="modal" id="btnConfirmModalCancel">
@@ -5361,11 +5370,27 @@ var isSplitPaymentActive = false;
 var splitPaymentRows = [];
 var isHistoryExpanded = false;
 
+var activeConfirmOptions = null;
+
 function showFeeActionConfirm(options) {
+    activeConfirmOptions = options;
     $('#confirmModalTitle').html(options.title || 'Confirm Action');
     $('#confirmModalMessage').html(options.message || 'Are you sure you want to proceed?');
     $('#confirmModalSubnote').html(options.subnote || '');
     
+    // Configurable input/note field
+    if (options.showInput) {
+        $('#confirmModalInputWrapper').show();
+        $('#confirmModalInputLabel').html(options.inputLabel || 'Note / Remark <span class="text-danger">*</span>');
+        $('#confirmModalInput').val(options.inputValue || '').attr('placeholder', options.inputPlaceholder || 'Enter note / remark...');
+        $('#confirmModalInput').css('border-color', '#cbd5e1');
+        $('#confirmModalInputError').hide();
+    } else {
+        $('#confirmModalInputWrapper').hide();
+        $('#confirmModalInput').val('');
+        $('#confirmModalInputError').hide();
+    }
+
     var iconWrapper = $('#confirmModalIconWrapper');
     var icon = $('#confirmModalIcon');
     var actionBtn = $('#btnConfirmModalAction');
@@ -5386,14 +5411,32 @@ function showFeeActionConfirm(options) {
 
     pendingConfirmCallback = options.onConfirm || null;
     $('#modalFeeActionConfirm').modal('show');
+    if (options.showInput) {
+        setTimeout(function() { $('#confirmModalInput').focus(); }, 350);
+    }
 }
 
 $(document).on('click', '#btnConfirmModalAction', function() {
+    var inputVal = $('#confirmModalInput').val() ? $('#confirmModalInput').val().trim() : '';
+    if (activeConfirmOptions && activeConfirmOptions.showInput && activeConfirmOptions.inputRequired) {
+        if (!inputVal) {
+            $('#confirmModalInput').css('border-color', '#dc2626').focus();
+            $('#confirmModalInputError').show();
+            return;
+        }
+    }
     $('#modalFeeActionConfirm').modal('hide');
     if (typeof pendingConfirmCallback === 'function') {
         var cb = pendingConfirmCallback;
         pendingConfirmCallback = null;
-        cb();
+        cb(inputVal);
+    }
+});
+
+$(document).on('input', '#confirmModalInput', function() {
+    if ($(this).val().trim().length > 0) {
+        $(this).css('border-color', '#cbd5e1');
+        $('#confirmModalInputError').hide();
     }
 });
 
@@ -5495,7 +5538,14 @@ function openCollectFeeModal(studentId) {
 
 function renderCollectModal(data) {
     var stu = data.student || {};
-    var heads = data.heads || [];
+    var heads = (data.heads || []).slice().sort(function(a, b) {
+        var prioA = getHeadSortPriority(a.head_name);
+        var prioB = getHeadSortPriority(b.head_name);
+        if (prioA !== prioB) {
+            return prioA - prioB;
+        }
+        return (a.assignment_id || 0) - (b.assignment_id || 0);
+    });
     var receipts = data.receipts || [];
     var isProgressed = stu.is_progressed || false;
 
@@ -5758,8 +5808,15 @@ function renderCollectModal(data) {
             histHtml += '    <span class="font-weight-bold ' + amtClass + '" style="' + amtStyle + '">₹' + numberFormat(r.amount_paid) + '</span>';
             histHtml += '  </div>';
 
-            if (isCancelled && r.cancelled_at) {
-                histHtml += '  <div class="text-danger mt-1" style="font-size: 9.5px; font-weight: 600;"><i class="fa fa-ban mr-1"></i>Receipt cancelled on ' + r.cancelled_at + '</div>';
+            if (isCancelled) {
+                if (r.cancelled_at) {
+                    histHtml += '  <div class="text-danger mt-1" style="font-size: 9.5px; font-weight: 600;"><i class="fa fa-ban mr-1"></i>Receipt cancelled on ' + r.cancelled_at + '</div>';
+                }
+                if (r.remark) {
+                    histHtml += '  <div class="mt-1" style="font-size: 10px; font-weight: 600; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 3px; padding: 2px 7px; display: inline-block;"><i class="fa fa-commenting-o mr-1"></i>Note: ' + escapeHtml(r.remark) + '</div>';
+                }
+            } else if (r.remark) {
+                histHtml += '  <div class="text-muted mt-1" style="font-size: 9.5px;"><i class="fa fa-comment-o mr-1"></i>Note: ' + escapeHtml(r.remark) + '</div>';
             }
 
             histHtml += '  <div class="d-flex align-items-center justify-content-between mt-1 pt-1" style="border-top: 1px dashed #e2e8f0;">';
@@ -6290,24 +6347,46 @@ function resetTotalModeToFullDue() {
     recalculateCollectTotals();
 }
 
+function getHeadSortPriority(headName) {
+    var name = (headName || '').toLowerCase().trim();
+    if (name.indexOf('previous dues') !== -1 || name.indexOf('prev dues') !== -1 || name.indexOf('previous fee') !== -1 || name.indexOf('prev fee') !== -1) {
+        return 1; // Previous Dues first
+    }
+    if (name.indexOf('tuition') !== -1 || name.indexOf('tution') !== -1) {
+        return 2; // Tuition Fee second
+    }
+    return 3; // Others
+}
+
 function allocateTotalAcrossHeads(heads, totalAmount) {
     var allocations = [];
     var remaining = totalAmount;
 
-    // Filter positive due heads (Tuition, Exam, Previous Dues, etc.)
-    var positiveHeads = heads.filter(function(h) {
+    // Sort heads strictly: 1. Previous Dues, 2. Tuition Fee, 3. Others (preserving ID order within same priority)
+    var sortedHeads = (heads || []).slice().sort(function(a, b) {
+        var prioA = getHeadSortPriority(a.head_name);
+        var prioB = getHeadSortPriority(b.head_name);
+        if (prioA !== prioB) {
+            return prioA - prioB;
+        }
+        return (a.assignment_id || 0) - (b.assignment_id || 0);
+    });
+
+    // Filter positive due heads (only heads that have outstanding dues > 0)
+    var positiveHeads = sortedHeads.filter(function(h) {
         return (parseFloat(h.due) || 0) > 0;
     });
 
     // Fallback if no positive heads: find tuition head
-    if (positiveHeads.length === 0 && heads.length > 0) {
-        var tHead = heads.find(function(h) {
+    if (positiveHeads.length === 0 && sortedHeads.length > 0) {
+        var tHead = sortedHeads.find(function(h) {
             var n = (h.head_name || '').toLowerCase();
             return n.indexOf('tuition') !== -1 || n.indexOf('tution') !== -1;
-        }) || heads[0];
+        }) || sortedHeads[0];
         positiveHeads = [tHead];
     }
 
+    // Allocate sequentially: 1st Previous Dues (up to positive due), 2nd Tuition Fee, 3rd Others
     positiveHeads.forEach(function(h) {
         if (remaining <= 0) return;
         var due = Math.max(0, parseFloat(h.due) || 0);
@@ -6326,7 +6405,7 @@ function allocateTotalAcrossHeads(heads, totalAmount) {
     // If remaining amount (advance excess paid beyond all positive dues)
     // USER RULE: Advance amount ONLY belongs to Tuition Fee head, NEVER Previous Dues or other heads!
     if (remaining > 0.009) {
-        var tuitionHead = heads.find(function(h) {
+        var tuitionHead = sortedHeads.find(function(h) {
             var n = (h.head_name || '').toLowerCase();
             return n.indexOf('tuition') !== -1 || n.indexOf('tution') !== -1;
         });
@@ -6469,17 +6548,26 @@ function confirmCancelReceipt(receiptId, receiptNo, amount) {
         title: '<i class="fa fa-ban text-danger mr-1"></i> Cancel Fee Receipt',
         message: 'Are you sure you want to <strong>CANCEL Receipt ' + escapeHtml(receiptNo) + '</strong> (₹' + numberFormat(amount) + ')?',
         subnote: "This will reverse all payments allocated by this receipt and recalculate the student's outstanding fees.",
+        showInput: true,
+        inputRequired: true,
+        inputLabel: 'Cancellation Note / Remark <span class="text-danger">*</span>',
+        inputPlaceholder: 'Enter cancellation reason (e.g. Wrong amount collected, Cash refund, Batch change)...',
         type: 'danger',
         icon: 'fa fa-ban',
         btnText: 'Yes, Cancel Receipt',
-        onConfirm: function() {
+        onConfirm: function(cancellationRemark) {
+            if (!cancellationRemark || !cancellationRemark.trim()) {
+                showCommonToast('error', 'Cancellation note / remark is mandatory.');
+                return;
+            }
             $('#matrixLoadingOverlay').show();
             $.ajax({
                 url: "{{ route('college.fees.cancel_receipt') }}",
                 type: "POST",
                 data: {
                     _token: "{{ csrf_token() }}",
-                    receipt_id: receiptId
+                    receipt_id: receiptId,
+                    remark: cancellationRemark.trim()
                 },
                 dataType: 'json',
                 success: function(res) {
@@ -6500,6 +6588,8 @@ function confirmCancelReceipt(receiptId, receiptNo, amount) {
         }
     });
 }
+
+
 
 // Start Edit Mode for an Existing Receipt
 function startEditReceipt(receiptId) {
@@ -7926,7 +8016,7 @@ function exportMatrixTable() {
 
     // Header
 
-    var headerRow = ['Roll No', 'Student Name', "Father's Name", 'Gender'];
+    var headerRow = ['Roll No', 'Student Name', "Father's Name", 'Mobile No', 'Gender'];
 
     stdHeads.forEach(function(h) { headerRow.push(h.head_name); });
 
@@ -7947,6 +8037,8 @@ function exportMatrixTable() {
             '"' + r.name + '"',
 
             '"' + (r.father_name || '') + '"',
+
+            '"' + (r.mobile || '') + '"',
 
             r.gender
 

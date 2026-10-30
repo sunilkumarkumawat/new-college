@@ -546,7 +546,7 @@ public function getLedgerMatrixData(Request $request)
         }
 
         // Select only necessary fields to avoid hydrating massive Admission models
-        $students = $studentsQuery->select('id', 'first_name', 'last_name', 'father_name', 'admissionNo', 'userName', 'gender_id')
+        $students = $studentsQuery->select('id', 'first_name', 'last_name', 'father_name', 'mobile', 'admissionNo', 'userName', 'gender_id')
             ->orderBy('first_name', 'ASC')
             ->get();
         $studentIds = $students->pluck('id')->toArray();
@@ -836,6 +836,7 @@ public function getLedgerMatrixData(Request $request)
                 'student_id' => $sId,
                 'name' => trim(($stu->first_name ?: '') . ' ' . ($stu->last_name ?: '')) ?: ($stu->userName ?: 'Student'),
                 'father_name' => trim($stu->father_name ?: ''),
+                'mobile' => trim($stu->mobile ?: ''),
                 'roll_no' => $stu->admissionNo ?: ($stu->userName ?: ('BC' . substr($batch, -2) . '-' . str_pad($sId, 3, '0', STR_PAD_LEFT))),
                 'gender' => $genderLabel,
                 'is_girl' => $isGirl,
@@ -2218,6 +2219,7 @@ public function saveStructure(Request $request)
         $rollNo = $student->admissionNo ?: ($student->userName ?: ('BC' . substr($batch, -2) . '-' . str_pad($student->id, 3, '0', STR_PAD_LEFT)));
 
         // 1. Fetch assigned fee heads for this student & semester (excluding invalid non-positive carried dues)
+        // Strictly ordered by priority: 1. Previous Dues, 2. Tuition Fee, 3. Other heads
         $assignments = CollegeFeeAssignment::where('branch_id', $branchId)
             ->where('student_id', $student->id)
             ->where('semester_no', $semesterNo)
@@ -2225,6 +2227,11 @@ public function saveStructure(Request $request)
                 $q->where('is_carried_dues', 0)
                   ->orWhere('gross_amount', '!=', 0);
             })
+            ->orderByRaw("CASE 
+                WHEN LOWER(head_name) LIKE '%previous dues%' OR LOWER(head_name) LIKE '%prev dues%' OR LOWER(head_name) LIKE '%previous fee%' THEN 1
+                WHEN LOWER(head_name) LIKE '%tuition%' OR LOWER(head_name) LIKE '%tution%' THEN 2
+                ELSE 3 
+            END ASC")
             ->orderBy('id', 'ASC')
             ->get();
 
@@ -2281,6 +2288,7 @@ public function saveStructure(Request $request)
                 'payment_mode' => $r->payment_mode ?: 'Cash',
                 'transaction_id' => $r->transaction_id ?: '',
                 'amount_paid' => (float)$r->amount_paid,
+                'remark' => $r->remark ?: '',
                 'items' => $itemsSummary,
                 'is_cancelled' => $isCancelled,
                 'cancelled_at' => $isCancelled ? date('d M Y, h:i A', strtotime($r->deleted_at)) : null,
@@ -2542,11 +2550,16 @@ public function saveStructure(Request $request)
                     }
                 }
             } else {
-                // FIFO fallback allocation across unpaid assignments
+                // FIFO fallback allocation across unpaid assignments (Priority: 1. Previous Dues, 2. Tuition Fee, 3. Others)
                 $unpaidAssignments = CollegeFeeAssignment::where('branch_id', $branchId)
                     ->where('student_id', $student->id)
                     ->where('due_amount', '>', 0)
                     ->orderBy('semester_no', 'ASC')
+                    ->orderByRaw("CASE 
+                        WHEN LOWER(head_name) LIKE '%previous dues%' OR LOWER(head_name) LIKE '%prev dues%' OR LOWER(head_name) LIKE '%previous fee%' THEN 1
+                        WHEN LOWER(head_name) LIKE '%tuition%' OR LOWER(head_name) LIKE '%tution%' THEN 2
+                        ELSE 3 
+                    END ASC")
                     ->orderBy('id', 'ASC')
                     ->get();
 
@@ -2694,6 +2707,14 @@ public function printReceipt($id)
     {
         $branchId = $this->getBranchId();
         $receiptId = (int)$request->receipt_id;
+        $remark = trim((string)($request->remark ?: $request->cancellation_reason ?: $request->note ?: ''));
+
+        if (empty($remark)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Cancellation note / remark is mandatory.'
+            ], 422);
+        }
 
         $receipt = CollegeFeeReceipt::withTrashed()
             ->with('items')
@@ -2732,6 +2753,10 @@ public function printReceipt($id)
                     }
                 }
             }
+
+            // Save mandatory cancellation remark before soft deleting
+            $receipt->remark = $remark;
+            $receipt->save();
 
             // Soft delete the receipt (KEEP receipt items intact for history & printing with CANCELLED watermark)
             $receipt->delete();
@@ -3758,7 +3783,7 @@ public function printReceipt($id)
         $receiptsQuery = CollegeFeeReceipt::select([
             'id', 'receipt_no', 'branch_id', 'student_id', 'course_id',
             'semester_no', 'session_id', 'amount_paid', 'payment_mode',
-            'payment_date', 'transaction_id', 'bank_name', 'cashier_id',
+            'payment_date', 'transaction_id', 'bank_name', 'remark', 'cashier_id',
             'deleted_at'
         ])
         ->with([
@@ -3867,6 +3892,7 @@ public function printReceipt($id)
                         'transaction_id' => $r->transaction_id ?? '',
                         'bank_name' => $r->bank_name ?? '',
                         'amount_paid' => (float)$r->amount_paid,
+                        'remark' => $r->remark ?: '',
                         'cashier_name' => trim(($r->cashier->first_name ?? '') . ' ' . ($r->cashier->last_name ?? '')) ?: 'System / Admin',
                         'receipt_url' => route('college.fees.receipt', $r->id),
                         'is_cancelled' => $isCancelled,

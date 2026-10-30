@@ -32,32 +32,32 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-25deg);
+            transform: translate(-50%, -50%) rotate(-15deg);
             font-size: 75px;
             font-weight: 900;
-            color: rgba(33, 115, 70, 0.05);
+            color: rgba(33, 115, 70, 0.08);
             text-transform: uppercase;
             pointer-events: none;
             white-space: nowrap;
-            z-index: 0;
+            z-index: 9999;
         }
 
         .cancelled-watermark {
             position: absolute;
             top: 48%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-25deg);
-            font-size: 85px;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 80px;
             font-weight: 900;
             color: rgba(220, 38, 38, 0.22);
-            border: 8px dashed rgba(220, 38, 38, 0.35);
-            padding: 8px 35px;
-            border-radius: 12px;
+            border: 4px dashed rgba(220, 38, 38, 0.28);
+            padding: 6px 32px;
+            border-radius: 10px;
             text-transform: uppercase;
             pointer-events: none;
             white-space: nowrap;
-            z-index: 99;
-            letter-spacing: 6px;
+            z-index: 9999;
+            letter-spacing: 5px;
         }
 
         .receipt-content {
@@ -222,6 +222,9 @@
                     <i class="fa fa-ban mr-1"></i> THIS RECEIPT HAS BEEN CANCELLED (VOID)
                     @if($receipt->deleted_at)
                         &bull; Cancelled on {{ date('d M Y, h:i A', strtotime($receipt->deleted_at)) }}
+                    @endif
+                    @if(!empty($receipt->remark))
+                        &bull; Reason: {{ $receipt->remark }}
                     @endif
                 </div>
             @endif
