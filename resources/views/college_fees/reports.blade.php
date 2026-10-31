@@ -1270,6 +1270,44 @@ body {
 
 
 
+                        <!-- Bulk Receipt Group Filter -->
+
+                        <div class="col-md-3 form-group mb-1" id="group_rep_bulk_batch_id" style="{{ $activeTab === 'defaulters' ? 'display: none;' : '' }}">
+
+                            <label class="toolbar-label">Receipt Group / Bulk Batch</label>
+
+                            <select name="bulk_batch_id" id="rep_bulk_batch_id" class="toolbar-control" onchange="applyReportsFilter()">
+
+                                <option value="">All (Individual &amp; Bulk)</option>
+
+                                <option value="individual" {{ ($bulkBatchId ?? '') === 'individual' ? 'selected' : '' }}>Individual Receipts Only</option>
+
+                                <option value="all_bulk" {{ ($bulkBatchId ?? '') === 'all_bulk' ? 'selected' : '' }}>All Bulk Batches</option>
+
+                                @if(!empty($bulkCollections) && count($bulkCollections) > 0)
+
+                                    <optgroup label="Specific Bulk Batches">
+
+                                        @foreach($bulkCollections as $bb)
+
+                                            <option value="{{ $bb->id }}" {{ ($bulkBatchId ?? '') == $bb->id ? 'selected' : '' }}>
+
+                                                {{ $bb->bulk_code }} &bull; {{ $bb->head_name }} ({{ $bb->total_students }})
+
+                                            </option>
+
+                                        @endforeach
+
+                                    </optgroup>
+
+                                @endif
+
+                            </select>
+
+                        </div>
+
+
+
                         <!-- From Date -->
 
                         <div class="col-md-2 form-group mb-1">
@@ -1394,6 +1432,25 @@ body {
 
                             <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
 
+                                <!-- Selected Receipts Bulk Action Bar -->
+                                <div id="boxBulkReceiptActions" class="align-items-center" style="gap: 6px; display: none !important;">
+                                    <span class="badge badge-primary font-weight-bold" style="font-size: 11px; padding: 4px 8px; background: #2563eb;">
+                                        <span id="lblSelectedReceiptsCount">0</span> Selected
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-success font-weight-bold" onclick="generateSelectedReceiptsPdf()" title="Print combined PDF of all selected receipts" style="background: #16a34a; border-color: #15803d; height: 26px; font-size: 11px; padding: 2px 10px; display: inline-flex; align-items: center; gap: 5px;">
+                                        <i class="fa fa-file-pdf-o"></i> Print Selected (<span id="lblBtnSelectedCount">0</span>)
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearReceiptSelections()" title="Deselect all receipts" style="height: 26px; font-size: 11px; padding: 2px 8px;">
+                                        <i class="fa fa-times mr-1"></i> Clear
+                                    </button>
+                                </div>
+
+                                @if(!empty($bulkBatchId) && is_numeric($bulkBatchId))
+                                    <a href="{{ route('college.fees.bulk_receipt_pdf', $bulkBatchId) }}" target="_blank" class="btn btn-matrix-tool font-weight-bold text-danger" title="Open combined PDF for this bulk batch">
+                                        <i class="fa fa-file-pdf-o text-danger mr-1"></i> Print Batch PDF
+                                    </a>
+                                @endif
+
                                 <button type="button" class="btn-matrix-tool" onclick="exportActiveTabToCSV()" title="Export current fee receipts to CSV">
 
                                     <i class="fa fa-file-excel-o text-success mr-1"></i> Export CSV
@@ -1416,6 +1473,9 @@ body {
 
                                     <tr>
 
+                                        <th style="width: 38px;" class="text-center">
+                                            <input type="checkbox" id="chkSelectAllReceipts" title="Select / Deselect all visible receipts" style="cursor: pointer; width: 15px; height: 15px; accent-color: #15803d;">
+                                        </th>
                                         <th class="col-matrix-idx">#</th>
 
                                         <th style="min-width: 125px;">Receipt No</th>
@@ -1458,6 +1518,10 @@ body {
 
                                         <tr class="receipt-data-row {{ $isCancelled ? 'receipt-row-cancelled' : '' }}" data-status="{{ $isCancelled ? 'cancelled' : 'paid' }}" data-mobile="{{ $r->student->mobile ?? '' }}" data-father="{{ $r->student->father_name ?? '' }}" data-search="{{ strtolower($r->receipt_no . ' ' . ($isCancelled ? 'cancelled void' : 'paid active') . ' ' . $studentName . ' ' . ($r->student->father_name ?? '') . ' ' . ($r->student->admissionNo ?? '') . ' ' . ($r->student->mobile ?? '') . ' ' . ($r->course->name ?? '') . ' ' . ($r->student->batch ?? '') . ' ' . ($r->remark ?? '')) }}">
 
+                                            <td class="text-center" style="vertical-align: middle;">
+                                                <input type="checkbox" class="chk-receipt-item" value="{{ $r->id }}" data-id="{{ $r->id }}" data-receipt-no="{{ $r->receipt_no }}" style="cursor: pointer; width: 15px; height: 15px; accent-color: #15803d;">
+                                            </td>
+
                                             <td class="col-matrix-idx text-muted font-weight-bold">{{ $idx + 1 }}</td>
 
                                             <td>
@@ -1467,6 +1531,14 @@ body {
                                                     {{ $r->receipt_no }}
 
                                                 </a>
+
+                                                @if($r->bulkCollection)
+                                                    <div style="margin-top: 2px;">
+                                                        <a href="{{ route('college.fees.bulk_receipt_pdf', $r->bulk_batch_id) }}" target="_blank" class="badge badge-info" style="font-size: 9px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 600; text-decoration: none;" title="Bulk Batch: {{ $r->bulkCollection->bulk_code }} - {{ $r->bulkCollection->head_name }}">
+                                                            <i class="fa fa-cubes mr-1"></i>{{ $r->bulkCollection->bulk_code }}
+                                                        </a>
+                                                    </div>
+                                                @endif
 
                                             </td>
 
@@ -1622,7 +1694,7 @@ body {
 
                                         <tr id="rowReceiptsEmpty">
 
-                                            <td colspan="11" class="text-center py-5 text-muted">
+                                            <td colspan="12" class="text-center py-5 text-muted">
 
                                                 <i class="fa fa-file-text-o fa-2x text-muted mb-2"></i><br>
 
@@ -1642,7 +1714,7 @@ body {
 
                                     <tr>
 
-                                        <td colspan="7" class="text-right font-weight-bold text-uppercase">Total Active Collection:</td>
+                                        <td colspan="8" class="text-right font-weight-bold text-uppercase">Total Active Collection:</td>
 
                                         <td class="text-right font-weight-bold text-success" style="font-size: 12.5px;" id="lblTableTotalCollected">
 
@@ -1967,6 +2039,7 @@ function switchReportTab(tabKey) {
         $('#group_rep_payment_mode').hide();
 
         $('#group_rep_cashier_id').hide();
+        $('#group_rep_bulk_batch_id').hide();
 
     } else {
 
@@ -1989,6 +2062,7 @@ function switchReportTab(tabKey) {
         $('#group_rep_payment_mode').show();
 
         $('#group_rep_cashier_id').show();
+        $('#group_rep_bulk_batch_id').show();
 
     }
 
@@ -2117,6 +2191,7 @@ function filterReceiptsLive(val) {
     
 
     $('#lblReceiptsCount').text(visibleCount);
+    updateReceiptSelectionUI();
 
 }
 
@@ -2179,6 +2254,8 @@ function resetReportsFilter() {
     $('#rep_payment_mode').val('');
 
     $('#rep_cashier_id').val('');
+    $('#rep_bulk_batch_id').val('');
+    clearReceiptSelections();
 
     $('#rep_min_dues').val('1');
 
@@ -2346,7 +2423,7 @@ function renderReportsData(res) {
 
     if (!res.receipts || res.receipts.length === 0) {
 
-        rBody = '<tr id="rowReceiptsEmpty"><td colspan="11" class="text-center py-5 text-muted"><i class="fa fa-file-text-o fa-2x text-muted mb-2"></i><br><strong>No fee receipts match your selected filter criteria.</strong></td></tr>';
+        rBody = '<tr id="rowReceiptsEmpty"><td colspan="12" class="text-center py-5 text-muted"><i class="fa fa-file-text-o fa-2x text-muted mb-2"></i><br><strong>No fee receipts match your selected filter criteria.</strong></td></tr>';
 
     } else {
 
@@ -2414,11 +2491,17 @@ function renderReportsData(res) {
 
 
 
+            var bulkBadgeHtml = r.bulk_code ? '<div style="margin-top: 2px;"><a href="' + (r.bulk_pdf_url || '#') + '" target="_blank" class="badge badge-info" style="font-size: 9px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 600; text-decoration: none;" title="Bulk Batch: ' + escapeHtml(r.bulk_code) + ' - ' + escapeHtml(r.bulk_head_name || '') + '"><i class="fa fa-cubes mr-1"></i>' + escapeHtml(r.bulk_code) + '</a></div>' : '';
+
             rBody += '<tr class="' + rowClass + '" data-status="' + (isCancelled ? 'cancelled' : 'paid') + '" data-mobile="' + escapeHtml(r.mobile || '') + '" data-father="' + escapeHtml(r.father_name || '') + '" data-search="' + searchData + '">' +
+
+                '<td class="text-center" style="vertical-align: middle;">' +
+                    '<input type="checkbox" class="chk-receipt-item" value="' + r.id + '" data-id="' + r.id + '" data-receipt-no="' + escapeHtml(r.receipt_no) + '" style="cursor: pointer; width: 15px; height: 15px; accent-color: #15803d;">' +
+                '</td>' +
 
                 '<td class="col-matrix-idx text-muted font-weight-bold">' + (idx + 1) + '</td>' +
 
-                '<td><a href="' + r.receipt_url + '" target="_blank" class="font-weight-bold" style="color: ' + receiptLinkColor + '; text-decoration: none;">' + r.receipt_no + '</a></td>' +
+                '<td><a href="' + r.receipt_url + '" target="_blank" class="font-weight-bold" style="color: ' + receiptLinkColor + '; text-decoration: none;">' + r.receipt_no + '</a>' + bulkBadgeHtml + '</td>' +
 
                 '<td class="text-center">' + statusBadge + '</td>' +
 
@@ -2473,6 +2556,7 @@ function renderReportsData(res) {
     }
 
     $('#receiptsTableBody').html(rBody);
+    updateReceiptSelectionUI();
 
 
 
@@ -2644,43 +2728,43 @@ function exportActiveTabToCSV() {
 
                 var cols = $(this).find('td');
 
-                var receiptNo = cols.eq(1).text().trim();
+                var receiptNo = cols.eq(2).text().trim();
 
-                var status = cols.eq(2).text().trim();
+                var status = cols.eq(3).text().trim();
 
-                var paymentDate = cols.eq(3).text().trim();
+                var paymentDate = cols.eq(4).text().trim();
 
-                var studentName = cols.eq(4).find('.student-cell-name').text().trim();
+                var studentName = cols.eq(5).find('.student-cell-name').text().trim();
 
-                var admText = cols.eq(4).find('.student-cell-sub:first').text().trim();
+                var admText = cols.eq(5).find('.student-cell-sub:first').text().trim();
 
                 var admMatch = admText.match(/Adm:\s*([^\s]+)/);
 
                 var admNo = admMatch ? admMatch[1].trim() : '';
 
-                var fatherName = $(this).attr('data-father') || cols.eq(4).find('.student-cell-sub:contains("F:")').text().replace('F:', '').trim();
+                var fatherName = $(this).attr('data-father') || cols.eq(5).find('.student-cell-sub:contains("F:")').text().replace('F:', '').trim();
 
                 var mob = $(this).attr('data-mobile') || '';
 
 
 
-                var courseName = cols.eq(5).find('.badge-tag-course').text().trim();
+                var courseName = cols.eq(6).find('.badge-tag-course').text().trim();
 
-                var batchName = cols.eq(5).find('.badge-tag-batch').text().replace('Batch', '').trim();
+                var batchName = cols.eq(6).find('.badge-tag-batch').text().replace('Batch', '').trim();
 
-                var semName = cols.eq(5).find('.badge-tag-sem').text().replace('Sem', '').trim();
+                var semName = cols.eq(6).find('.badge-tag-sem').text().replace('Sem', '').trim();
 
 
 
-                var mode = cols.eq(6).find('.badge-mode-pill').text().trim();
+                var mode = cols.eq(7).find('.badge-mode-pill').text().trim();
 
-                var txnText = cols.eq(6).find('.text-muted').text().replace('Txn:', '').trim();
+                var txnText = cols.eq(7).find('.text-muted').text().replace('Txn:', '').trim();
 
-                var amount = cols.eq(7).text().replace('₹', '').replace('Void / Reverted', '').replace(/,/g, '').trim();
+                var amount = cols.eq(8).text().replace('₹', '').replace('Void / Reverted', '').replace(/,/g, '').trim();
 
-                var noteRemark = cols.eq(8).text().trim();
+                var noteRemark = cols.eq(9).text().trim();
 
-                var cashier = cols.eq(9).text().trim();
+                var cashier = cols.eq(10).text().trim();
 
 
 
@@ -2842,6 +2926,115 @@ function exportActiveTabToCSV() {
 
     URL.revokeObjectURL(url);
 
+}
+
+
+
+// ========================================================
+// RECEIPT SELECTION & BULK COMBINED PDF GENERATION
+// ========================================================
+var selectedReceiptIds = new Set();
+
+function updateReceiptSelectionUI() {
+    var count = selectedReceiptIds.size;
+    $('#lblSelectedReceiptsCount').text(count);
+    $('#lblBtnSelectedCount').text(count);
+
+    if (count > 0) {
+        $('#boxBulkReceiptActions').attr('style', 'display: inline-flex !important; gap: 6px;');
+    } else {
+        $('#boxBulkReceiptActions').attr('style', 'display: none !important;');
+    }
+
+    // Update row highlighting
+    $('.chk-receipt-item').each(function() {
+        var id = parseInt($(this).val());
+        var row = $(this).closest('tr');
+        if (selectedReceiptIds.has(id)) {
+            $(this).prop('checked', true);
+            row.addClass('table-warning').css('background', '#fef9c3');
+        } else {
+            $(this).prop('checked', false);
+            row.removeClass('table-warning').css('background', '');
+        }
+    });
+
+    // Update Select All Checkbox state
+    var totalVisible = $('.chk-receipt-item:visible').length;
+    var checkedVisible = $('.chk-receipt-item:visible:checked').length;
+    if (totalVisible > 0 && checkedVisible === totalVisible) {
+        $('#chkSelectAllReceipts').prop('checked', true).prop('indeterminate', false);
+    } else if (checkedVisible > 0) {
+        $('#chkSelectAllReceipts').prop('checked', false).prop('indeterminate', true);
+    } else {
+        $('#chkSelectAllReceipts').prop('checked', false).prop('indeterminate', false);
+    }
+}
+
+// Checkbox item change handler
+$(document).on('change', '.chk-receipt-item', function() {
+    var id = parseInt($(this).val());
+    if ($(this).is(':checked')) {
+        selectedReceiptIds.add(id);
+    } else {
+        selectedReceiptIds.delete(id);
+    }
+    updateReceiptSelectionUI();
+});
+
+// Select All Checkbox handler
+$(document).on('change', '#chkSelectAllReceipts', function() {
+    var isChecked = $(this).is(':checked');
+    $('.chk-receipt-item:visible').each(function() {
+        var id = parseInt($(this).val());
+        if (isChecked) {
+            selectedReceiptIds.add(id);
+        } else {
+            selectedReceiptIds.delete(id);
+        }
+    });
+    updateReceiptSelectionUI();
+});
+
+function clearReceiptSelections() {
+    selectedReceiptIds.clear();
+    updateReceiptSelectionUI();
+}
+
+function generateSelectedReceiptsPdf() {
+    var ids = Array.from(selectedReceiptIds);
+    if (ids.length === 0) {
+        if (typeof toastr !== 'undefined') {
+            toastr.warning('Please select at least one receipt to print.');
+        } else {
+            alert('Please select at least one receipt to print.');
+        }
+        return;
+    }
+
+    // Submit via dynamic POST form to open in a new tab without URL length issues
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{{ route('college.fees.selected_receipts_pdf') }}";
+    form.target = '_blank';
+
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = '_token';
+    csrf.value = "{{ csrf_token() }}";
+    form.appendChild(csrf);
+
+    ids.forEach(function(id) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'receipt_ids[]';
+        input.value = id;
+        form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
 }
 
 </script>

@@ -17,6 +17,7 @@ use App\Models\CollegeFees\CollegeFeeAssignment;
 use App\Models\CollegeFees\CollegeFeeReceipt;
 use App\Models\CollegeFees\CollegeFeeReceiptItem;
 use App\Models\CollegeFees\CollegeFeeHead;
+use App\Models\CollegeFees\CollegeFeeBulkCollection;
 use App\Helpers\helper;
 
 class CollegeFeeController extends Controller
@@ -2654,6 +2655,583 @@ public function saveStructure(Request $request)
         }
     }
 
+    /**
+     * 5d. Bulk Fee Collection for Selected Students (Single Head, Uniform Fixed Amount)
+     */
+    public function bulkCollectPayment(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_clean();
+        }
+
+        $branchId = $this->getBranchId();
+
+        $request->validate([
+            'course_id' => 'required|integer',
+            'batch' => 'required|string',
+            'semester_no' => 'required|integer',
+            'student_ids' => 'required|array|min:1',
+            'head_name' => 'required|string',
+            'amount_per_student' => 'nullable|numeric',
+            'payment_date' => 'nullable|date',
+            'payment_mode' => 'nullable|string'
+        ]);
+
+        $courseId = (int)$request->course_id;
+        $batch = (string)$request->batch;
+        $semesterNo = (int)$request->semester_no;
+        $studentIds = array_values(array_unique(array_filter(array_map('intval', (array)$request->student_ids))));
+        $headName = trim((string)$request->head_name);
+        $defaultAmount = round((float)($request->amount_per_student ?? 0), 2);
+        $defaultDate = $request->payment_date ?: date('Y-m-d');
+        $defaultMode = $request->payment_mode ?: 'Cash';
+        $defaultTransactionId = $request->transaction_id ? trim((string)$request->transaction_id) : null;
+        $bankName = $request->bank_name ? trim((string)$request->bank_name) : null;
+        $normHead = strtolower($headName);
+        $userId = Session::get('id') ?: 1;
+
+        if (empty($studentIds)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Please select at least one student for bulk fee collection.'
+            ], 422);
+        }
+
+        // Parse student_details (if provided from individual row edits)
+        $studentDetailsInput = $request->student_details;
+        $studentDetailsMap = [];
+        if (is_string($studentDetailsInput)) {
+            $studentDetailsInput = json_decode($studentDetailsInput, true);
+        }
+        if (is_array($studentDetailsInput)) {
+            foreach ($studentDetailsInput as $sItem) {
+                if (isset($sItem['student_id'])) {
+                    $studentDetailsMap[(int)$sItem['student_id']] = $sItem;
+                }
+            }
+        }
+
+        // Guard: Tuition fees and Previous Dues cannot be collected in Bulk
+        if (strpos($normHead, 'tuition') !== false || strpos($normHead, 'tution') !== false || strpos($normHead, 'previous') !== false || strpos($normHead, 'prev') !== false) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Fee head '{$headName}' cannot be collected in Bulk. Tuition fees and Previous Dues/Fees must be collected individually."
+            ], 422);
+        }
+
+        // Check if standard structure exists for this head and enforces maximum amount
+        $matchingStruct = CollegeFeeStructure::where('branch_id', $branchId)
+            ->where('course_id', $courseId)
+            ->where('semester_no', $semesterNo)
+            ->whereRaw('LOWER(TRIM(head_name)) = ?', [$normHead])
+            ->first();
+
+        $maxAllowed = $matchingStruct ? max((float)$matchingStruct->amount_boys, (float)$matchingStruct->amount_girls) : 0;
+
+        foreach ($studentIds as $sId) {
+            $sAmt = isset($studentDetailsMap[$sId]['amount']) ? round((float)$studentDetailsMap[$sId]['amount'], 2) : $defaultAmount;
+            if ($sAmt <= 0) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Collection amount must be greater than zero for all students.'
+                ], 422);
+            }
+            if ($maxAllowed > 0 && $sAmt > $maxAllowed) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Collection amount (₹" . number_format($sAmt, 2) . ") cannot exceed the configured maximum fee of ₹" . number_format($maxAllowed, 2) . " for '{$headName}'."
+                ], 422);
+            }
+        }
+
+        // 1. Verify students belong to this branch
+        $students = Admission::where('branch_id', $branchId)
+            ->whereIn('id', $studentIds)
+            ->select('id', 'first_name', 'last_name', 'father_name', 'admissionNo', 'userName', 'gender_id', 'mobile')
+            ->get();
+
+        if ($students->count() !== count($studentIds)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'One or more selected students could not be found.'
+            ], 422);
+        }
+
+        // Check if any student has progressed to a higher semester
+        $progressedStudents = CollegeFeeAssignment::where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->where('semester_no', '>', $semesterNo)
+            ->whereNull('deleted_at')
+            ->pluck('student_id')
+            ->unique()
+            ->toArray();
+
+        if (!empty($progressedStudents)) {
+            $progNames = $students->whereIn('id', $progressedStudents)->map(function($s) {
+                return ($s->first_name . ' ' . $s->last_name) . ' (' . ($s->admissionNo ?: $s->userName) . ')';
+            })->implode(', ');
+
+            return response()->json([
+                'status' => 'error',
+                'message' => "Fee collection is closed for Semester {$semesterNo} for progressed student(s): {$progNames}."
+            ], 422);
+        }
+
+        // 2. CRITICAL USER PRE-CONDITION:
+        // "head par kisi bhi student ka amount collected nahi hona chaiye agar aisa hota hai to rollback kr do uploaded data ko and user ko alert show kro with student details"
+        $paidStudentIds = [];
+        $paidAmountsMap = [];
+
+        // Check assignments for paid amounts on this head
+        $existingAssignmentsWithPayment = CollegeFeeAssignment::where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->where('semester_no', $semesterNo)
+            ->whereNull('deleted_at')
+            ->where(function($q) use ($normHead) {
+                $q->whereRaw('LOWER(TRIM(head_name)) = ?', [$normHead]);
+            })
+            ->where('paid_amount', '>', 0)
+            ->get();
+
+        foreach ($existingAssignmentsWithPayment as $ea) {
+            $paidStudentIds[] = $ea->student_id;
+            $paidAmountsMap[$ea->student_id] = (float)$ea->paid_amount;
+        }
+
+        // Also check receipt items to guarantee zero prior collection
+        $existingReceiptItems = DB::table('college_fee_receipt_items as ri')
+            ->join('college_fee_receipts as r', 'ri.receipt_id', '=', 'r.id')
+            ->where('r.branch_id', $branchId)
+            ->whereIn('r.student_id', $studentIds)
+            ->where('r.semester_no', $semesterNo)
+            ->whereNull('r.deleted_at')
+            ->whereRaw('LOWER(TRIM(ri.head_name)) = ?', [$normHead])
+            ->where('ri.amount_allocated', '>', 0)
+            ->select('r.student_id', DB::raw('SUM(ri.amount_allocated) as total_allocated'))
+            ->groupBy('r.student_id')
+            ->get();
+
+        foreach ($existingReceiptItems as $ri) {
+            $sId = $ri->student_id;
+            if (!in_array($sId, $paidStudentIds)) {
+                $paidStudentIds[] = $sId;
+            }
+            $paidAmountsMap[$sId] = max($paidAmountsMap[$sId] ?? 0, (float)$ri->total_allocated);
+        }
+
+        if (!empty($paidStudentIds)) {
+            $conflictDetails = $students->whereIn('id', $paidStudentIds)->map(function($stu) use ($paidAmountsMap, $headName) {
+                return [
+                    'student_id' => $stu->id,
+                    'name' => trim(($stu->first_name ?: '') . ' ' . ($stu->last_name ?: '')) ?: ($stu->userName ?: 'Student'),
+                    'roll_no' => $stu->admissionNo ?: ($stu->userName ?: ('ID-' . $stu->id)),
+                    'father_name' => $stu->father_name ?: 'N/A',
+                    'mobile' => $stu->mobile ?: 'N/A',
+                    'head_name' => $headName,
+                    'already_paid' => (float)($paidAmountsMap[$stu->id] ?? 0)
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'status' => 'error',
+                'error_type' => 'HEAD_ALREADY_COLLECTED',
+                'message' => "Fee collection aborted! One or more selected students already have recorded payments on fee head '{$headName}'. To prevent double-collection, no receipts were created.",
+                'head_name' => $headName,
+                'conflict_count' => count($conflictDetails),
+                'conflict_students' => $conflictDetails
+            ], 422);
+        }
+
+        // 3. Pre-condition Validation: Check for Unassigned Students
+        $autoAssignConfirmed = filter_var($request->input('auto_assign_confirmed', false), FILTER_VALIDATE_BOOLEAN);
+
+        $existingAssignments = CollegeFeeAssignment::where('branch_id', $branchId)
+            ->whereIn('student_id', $studentIds)
+            ->where('semester_no', $semesterNo)
+            ->whereNull('deleted_at')
+            ->whereRaw('LOWER(TRIM(head_name)) = ?', [$normHead])
+            ->get()
+            ->keyBy('student_id');
+
+        $unassignedStudentIds = [];
+        foreach ($studentIds as $sId) {
+            if (!isset($existingAssignments[$sId])) {
+                $unassignedStudentIds[] = $sId;
+            }
+        }
+
+        if (!empty($unassignedStudentIds) && !$autoAssignConfirmed) {
+            $unassignedDetails = $students->whereIn('id', $unassignedStudentIds)->map(function($stu) use ($headName) {
+                return [
+                    'student_id' => $stu->id,
+                    'name' => trim(($stu->first_name ?: '') . ' ' . ($stu->last_name ?: '')) ?: ($stu->userName ?: 'Student'),
+                    'roll_no' => $stu->admissionNo ?: ($stu->userName ?: ('ID-' . $stu->id)),
+                    'father_name' => $stu->father_name ?: 'N/A',
+                    'mobile' => $stu->mobile ?: 'N/A',
+                    'head_name' => $headName,
+                ];
+            })->values()->toArray();
+
+            return response()->json([
+                'status' => 'error',
+                'error_type' => 'HEAD_NOT_ASSIGNED',
+                'message' => count($unassignedDetails) . " student(s) do not have fee head '{$headName}' assigned yet. Please confirm whether to auto-assign or exclude them.",
+                'head_name' => $headName,
+                'unassigned_count' => count($unassignedDetails),
+                'unassigned_students' => $unassignedDetails
+            ], 422);
+        }
+
+        // 4. Dynamic financial session resolution
+        $dynamicSession = helper::resolveCurrentFinancialSession($branchId);
+        $sessionId = $dynamicSession ? $dynamicSession->id : 1;
+        $year = date('Y', strtotime($defaultDate));
+
+        DB::beginTransaction();
+        try {
+            // Calculate total batch amount
+            $totalBatchAmount = 0;
+            foreach ($studentIds as $sId) {
+                $totalBatchAmount += isset($studentDetailsMap[$sId]['amount']) ? round((float)$studentDetailsMap[$sId]['amount'], 2) : $defaultAmount;
+            }
+            $totalBatchAmount = round($totalBatchAmount, 2);
+
+            // A. Create Bulk Collection Group Record
+            $bulkCode = CollegeFeeBulkCollection::generateNextBulkCode($year);
+            $bulk = new CollegeFeeBulkCollection();
+            $bulk->bulk_code = $bulkCode;
+            $bulk->branch_id = $branchId;
+            $bulk->session_id = $sessionId;
+            $bulk->course_id = $courseId;
+            $bulk->batch = $batch;
+            $bulk->semester_no = $semesterNo;
+            $bulk->head_name = $headName;
+            $bulk->amount_per_student = count($studentIds) > 0 ? round($totalBatchAmount / count($studentIds), 2) : $defaultAmount;
+            $bulk->total_students = count($studentIds);
+            $bulk->total_amount = $totalBatchAmount;
+            $bulk->payment_date = $defaultDate;
+            $bulk->payment_mode = $defaultMode;
+            $bulk->transaction_id = $defaultTransactionId;
+            $bulk->bank_name = $bankName;
+            $bulk->remark = "Bulk Collection [{$bulkCode}] - {$headName}";
+            $bulk->cashier_id = $userId;
+            $bulk->save();
+
+            // Find matching standard structure (if any)
+            $matchingStruct = CollegeFeeStructure::where('branch_id', $branchId)
+                ->where('course_id', $courseId)
+                ->where('semester_no', $semesterNo)
+                ->whereRaw('LOWER(TRIM(head_name)) = ?', [$normHead])
+                ->first();
+
+            $now = date('Y-m-d H:i:s');
+
+            // Handle assignments: bulk insert new assignments, update existing ones
+            $newAssignmentsToInsert = [];
+            foreach ($studentIds as $sId) {
+                $sDetail = $studentDetailsMap[$sId] ?? [];
+                $sAmount = isset($sDetail['amount']) ? round((float)$sDetail['amount'], 2) : $defaultAmount;
+
+                if (!isset($existingAssignments[$sId])) {
+                    $newAssignmentsToInsert[] = [
+                        'branch_id' => $branchId,
+                        'student_id' => $sId,
+                        'course_id' => $courseId,
+                        'semester_no' => $semesterNo,
+                        'structure_id' => $matchingStruct ? $matchingStruct->id : null,
+                        'head_name' => $headName,
+                        'gross_amount' => $sAmount,
+                        'discount_amount' => 0,
+                        'net_amount' => $sAmount,
+                        'paid_amount' => $sAmount,
+                        'due_amount' => 0,
+                        'is_carried_dues' => 0,
+                        'status' => 'Paid',
+                        'created_by' => $userId,
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
+                } else {
+                    $assign = $existingAssignments[$sId];
+                    if ((float)$assign->net_amount < $sAmount) {
+                        $assign->gross_amount = $sAmount;
+                        $assign->discount_amount = 0;
+                        $assign->net_amount = $sAmount;
+                    }
+                    $assign->paid_amount = $sAmount;
+                    $assign->due_amount = max(0, $assign->net_amount - $assign->paid_amount);
+                    $assign->status = ($assign->due_amount <= 0) ? 'Paid' : 'Partial';
+                    $assign->save();
+                }
+            }
+
+            if (!empty($newAssignmentsToInsert)) {
+                DB::table('college_fee_assignments')->insert($newAssignmentsToInsert);
+            }
+
+            // Reload all assignments keyBy student_id for quick O(1) in-memory lookup
+            $allAssignments = CollegeFeeAssignment::where('branch_id', $branchId)
+                ->whereIn('student_id', $studentIds)
+                ->where('semester_no', $semesterNo)
+                ->whereNull('deleted_at')
+                ->whereRaw('LOWER(TRIM(head_name)) = ?', [$normHead])
+                ->get()
+                ->keyBy('student_id');
+
+            // Pre-fetch starting sequence number once
+            $receiptSequence = CollegeFeeReceipt::getStartingSequenceNumber($year);
+
+            $receiptRows = [];
+            $receiptMetaList = [];
+
+            foreach ($studentIds as $sId) {
+                $sDetail = $studentDetailsMap[$sId] ?? [];
+                $sAmount = isset($sDetail['amount']) ? round((float)$sDetail['amount'], 2) : $defaultAmount;
+                $sDate = !empty($sDetail['payment_date']) ? $sDetail['payment_date'] : $defaultDate;
+                $sMode = !empty($sDetail['payment_mode']) ? $sDetail['payment_mode'] : $defaultMode;
+                $sRef = isset($sDetail['transaction_id']) ? trim((string)$sDetail['transaction_id']) : $defaultTransactionId;
+
+                $receiptYear = date('Y', strtotime($sDate));
+                $receiptNo = 'RCPT-' . $receiptYear . '-' . str_pad($receiptSequence++, 4, '0', STR_PAD_LEFT);
+
+                $receiptRows[] = [
+                    'receipt_no' => $receiptNo,
+                    'branch_id' => $branchId,
+                    'session_id' => $sessionId,
+                    'student_id' => $sId,
+                    'course_id' => $courseId,
+                    'semester_no' => $semesterNo,
+                    'payment_date' => $sDate,
+                    'payment_mode' => $sMode,
+                    'transaction_id' => $sRef,
+                    'bank_name' => $bankName,
+                    'amount_paid' => $sAmount,
+                    'discount_given' => 0,
+                    'remark' => "Bulk Collection [{$bulkCode}] - {$headName}",
+                    'cashier_id' => $userId,
+                    'bulk_batch_id' => $bulk->id,
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ];
+
+                $receiptMetaList[] = [
+                    'student_id' => $sId,
+                    'receipt_no' => $receiptNo,
+                    'amount' => $sAmount
+                ];
+            }
+
+            // Bulk insert all receipts in a single query (Ultra-fast)
+            DB::table('college_fee_receipts')->insert($receiptRows);
+            $firstReceiptId = (int)DB::getPdo()->lastInsertId();
+
+            // Bulk insert all receipt items in a single query (Ultra-fast)
+            $receiptItemRows = [];
+            foreach ($receiptMetaList as $idx => $meta) {
+                $sId = $meta['student_id'];
+                $receiptId = $firstReceiptId + $idx;
+                $assign = $allAssignments[$sId] ?? null;
+
+                $receiptItemRows[] = [
+                    'receipt_id' => $receiptId,
+                    'assignment_id' => $assign ? $assign->id : null,
+                    'head_name' => $headName,
+                    'amount_allocated' => $meta['amount'],
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ];
+            }
+
+            DB::table('college_fee_receipt_items')->insert($receiptItemRows);
+
+            // Commit transaction AFTER all data is successfully prepared and written
+            DB::commit();
+
+            $firstReceiptNo = $receiptMetaList[0]['receipt_no'] ?? '';
+            $lastReceiptNo = end($receiptMetaList)['receipt_no'] ?? '';
+
+            if (ob_get_length()) {
+                ob_clean();
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Bulk fee collection completed successfully! {$bulk->total_students} receipts generated under Batch {$bulkCode}.",
+                'bulk_batch_id' => $bulk->id,
+                'bulk_code' => $bulkCode,
+                'head_name' => $headName,
+                'amount_per_student' => $bulk->amount_per_student,
+                'total_amount' => $bulk->total_amount,
+                'receipt_count' => count($receiptMetaList),
+                'first_receipt_no' => $firstReceiptNo,
+                'last_receipt_no' => $lastReceiptNo,
+                'pdf_url' => route('college.fees.bulk_receipt_pdf', $bulk->id)
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk fee collection error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+
+            if (ob_get_length()) {
+                ob_clean();
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bulk fee collection failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * 5e. Stream Combined PDF for All Receipts in a Bulk Collection Batch
+     */
+    public function streamBulkReceiptPdf($bulkBatchId)
+    {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        $branchId = $this->getBranchId();
+
+        $bulkCollection = CollegeFeeBulkCollection::where('branch_id', $branchId)
+            ->with(['course', 'cashier'])
+            ->findOrFail($bulkBatchId);
+
+        $receipts = CollegeFeeReceipt::withTrashed()
+            ->where('branch_id', $branchId)
+            ->where('bulk_batch_id', $bulkBatchId)
+            ->with(['student', 'course', 'cashier', 'items'])
+            ->orderBy('id', 'ASC')
+            ->get();
+
+        if ($receipts->isEmpty()) {
+            abort(404, 'No receipts found for this bulk batch.');
+        }
+
+        $setting = Setting::where('branch_id', $bulkCollection->branch_id)->first() ?: Setting::first();
+        $receiptWordsMap = [];
+        foreach ($receipts as $r) {
+            $receiptWordsMap[$r->id] = $this->numberToWords((int)$r->amount_paid);
+        }
+
+        $pdf = \PDF::loadView('college_fees.receipt_bulk_pdf', compact('bulkCollection', 'receipts', 'setting', 'receiptWordsMap'));
+        $pdf->setPaper('a5', 'landscape');
+
+        return $pdf->stream('Bulk-Receipts-' . $bulkCollection->bulk_code . '.pdf');
+    }
+
+    /**
+     * 5ee. Stream Combined PDF for Any Arbitrary Selected Receipts (or Bulk Batch)
+     */
+    public function streamSelectedReceiptsPdf(Request $request)
+    {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        $branchId = $this->getBranchId();
+
+        $receiptIds = $request->input('receipt_ids');
+        $bulkBatchId = $request->input('bulk_batch_id');
+
+        if (is_string($receiptIds)) {
+            $receiptIds = explode(',', $receiptIds);
+        }
+        $receiptIds = array_values(array_unique(array_filter(array_map('intval', (array)$receiptIds))));
+
+        $bulkCollection = null;
+        if (!empty($bulkBatchId)) {
+            $bulkCollection = CollegeFeeBulkCollection::where('branch_id', $branchId)->find($bulkBatchId);
+        }
+
+        $query = CollegeFeeReceipt::withTrashed()
+            ->where('branch_id', $branchId)
+            ->with(['student', 'course', 'cashier', 'items', 'bulkCollection']);
+
+        if (!empty($receiptIds)) {
+            $query->whereIn('id', $receiptIds);
+        } elseif (!empty($bulkBatchId)) {
+            $query->where('bulk_batch_id', $bulkBatchId);
+        } else {
+            abort(400, 'Please select at least one receipt to generate PDF.');
+        }
+
+        $receipts = $query->orderBy('payment_date', 'ASC')->orderBy('id', 'ASC')->get();
+
+        if ($receipts->isEmpty()) {
+            abort(404, 'No receipts found for the selection.');
+        }
+
+        // If all selected receipts belong to a single bulk batch, associate it
+        if (!$bulkCollection) {
+            $firstBulkId = $receipts->first()->bulk_batch_id;
+            if ($firstBulkId && $receipts->every(function($r) use ($firstBulkId) { return $r->bulk_batch_id == $firstBulkId; })) {
+                $bulkCollection = $receipts->first()->bulkCollection;
+            }
+        }
+
+        $setting = Setting::where('branch_id', $branchId)->first() ?: Setting::first();
+        $receiptWordsMap = [];
+        foreach ($receipts as $r) {
+            $receiptWordsMap[$r->id] = $this->numberToWords((int)$r->amount_paid);
+        }
+
+        $pdf = \PDF::loadView('college_fees.receipt_bulk_pdf', compact('bulkCollection', 'receipts', 'setting', 'receiptWordsMap'));
+        $pdf->setPaper('a5', 'landscape');
+
+        $filename = 'Selected-Receipts-' . count($receipts) . '-' . date('Ymd-His') . '.pdf';
+        if ($bulkCollection && count($receiptIds) === (int)$bulkCollection->total_students) {
+            $filename = 'Bulk-Receipts-' . $bulkCollection->bulk_code . '.pdf';
+        }
+
+        return $pdf->stream($filename);
+    }
+
+    /**
+     * 5f. Get Past Bulk Collections History
+     */
+    public function getBulkCollectionsHistory(Request $request)
+    {
+        $branchId = $this->getBranchId();
+        $courseId = $request->get('course_id');
+        $batch = $request->get('batch');
+        $semesterNo = $request->get('semester_no');
+
+        $query = CollegeFeeBulkCollection::where('branch_id', $branchId)
+            ->with(['course', 'cashier'])
+            ->orderBy('id', 'DESC');
+
+        if ($courseId) {
+            $query->where('course_id', $courseId);
+        }
+        if ($batch) {
+            $query->where('batch', $batch);
+        }
+        if ($semesterNo) {
+            $query->where('semester_no', $semesterNo);
+        }
+
+        $history = $query->take(30)->get()->map(function($b) {
+            return [
+                'id' => $b->id,
+                'bulk_code' => $b->bulk_code,
+                'head_name' => $b->head_name,
+                'amount_per_student' => (float)$b->amount_per_student,
+                'total_students' => $b->total_students,
+                'total_amount' => (float)$b->total_amount,
+                'payment_date' => date('d M Y', strtotime($b->payment_date)),
+                'payment_mode' => $b->payment_mode,
+                'cashier_name' => $b->cashier ? trim($b->cashier->first_name . ' ' . $b->cashier->last_name) : 'Admin',
+                'pdf_url' => route('college.fees.bulk_receipt_pdf', $b->id),
+                'created_at' => $b->created_at ? $b->created_at->format('d M Y, h:i A') : ''
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'history' => $history
+        ]);
+    }
+
 public function printReceipt($id)
     {
         $branchId = $this->getBranchId();
@@ -3757,6 +4335,7 @@ public function printReceipt($id)
         $currentSessionId = $dynamicSession ? $dynamicSession->id : ($financialYears->first()->id ?? null);
 
         $cashiers = User::where('branch_id', $branchId)->select('id', 'first_name', 'last_name')->orderBy('first_name', 'ASC')->get();
+        $bulkCollections = CollegeFeeBulkCollection::where('branch_id', $branchId)->orderBy('id', 'DESC')->get();
 
         $sessionId = $request->get('session_id');
         $fromDate = $request->has('from_date') ? $request->get('from_date') : date('Y-m-01');
@@ -3766,6 +4345,7 @@ public function printReceipt($id)
         $semesterNo = $request->get('semester_no');
         $paymentMode = $request->get('payment_mode');
         $cashierId = $request->get('cashier_id');
+        $bulkBatchId = $request->get('bulk_batch_id');
         $minDues = (float)$request->get('min_dues', 1);
         $receiptStatus = $request->get('receipt_status', 'all'); // 'all', 'paid', 'cancelled'
         $activeTab = $request->get('tab', 'register');
@@ -3784,12 +4364,13 @@ public function printReceipt($id)
             'id', 'receipt_no', 'branch_id', 'student_id', 'course_id',
             'semester_no', 'session_id', 'amount_paid', 'payment_mode',
             'payment_date', 'transaction_id', 'bank_name', 'remark', 'cashier_id',
-            'deleted_at'
+            'deleted_at', 'bulk_batch_id'
         ])
         ->with([
             'student:id,admissionNo,first_name,last_name,father_name,batch,mobile',
             'course:id,name',
-            'cashier:id,first_name,last_name'
+            'cashier:id,first_name,last_name',
+            'bulkCollection:id,bulk_code,head_name'
         ])
         ->where('branch_id', $branchId);
 
@@ -3829,6 +4410,15 @@ public function printReceipt($id)
         }
         if (!empty($cashierId)) {
             $receiptsQuery->where('cashier_id', $cashierId);
+        }
+
+        // Filter by Bulk Batch / Group
+        if ($bulkBatchId === 'individual') {
+            $receiptsQuery->whereNull('bulk_batch_id');
+        } elseif ($bulkBatchId === 'all_bulk') {
+            $receiptsQuery->whereNotNull('bulk_batch_id');
+        } elseif (!empty($bulkBatchId)) {
+            $receiptsQuery->where('bulk_batch_id', (int)$bulkBatchId);
         }
 
         $receipts = $receiptsQuery->orderBy('payment_date', 'DESC')->orderBy('id', 'DESC')->get();
@@ -3895,6 +4485,10 @@ public function printReceipt($id)
                         'remark' => $r->remark ?: '',
                         'cashier_name' => trim(($r->cashier->first_name ?? '') . ' ' . ($r->cashier->last_name ?? '')) ?: 'System / Admin',
                         'receipt_url' => route('college.fees.receipt', $r->id),
+                        'bulk_batch_id' => $r->bulk_batch_id,
+                        'bulk_code' => $r->bulkCollection->bulk_code ?? '',
+                        'bulk_head_name' => $r->bulkCollection->head_name ?? '',
+                        'bulk_pdf_url' => $r->bulk_batch_id ? route('college.fees.bulk_receipt_pdf', $r->bulk_batch_id) : null,
                         'is_cancelled' => $isCancelled,
                         'status' => $isCancelled ? 'cancelled' : 'paid',
                         'status_label' => $isCancelled ? 'Cancelled' : 'Paid'
@@ -3942,6 +4536,8 @@ public function printReceipt($id)
             'semesterNo',
             'paymentMode',
             'cashierId',
+            'bulkCollections',
+            'bulkBatchId',
             'receiptStatus',
             'activeTab',
             'receipts',

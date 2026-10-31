@@ -1927,6 +1927,47 @@ tr.row-student-focused td .cell-fee-input {
 
 
 
+/* Bulk Collect Modal Specific Header & Controls Overrides */
+#modalBulkCollectFees .modal-header {
+    background: #15803d !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid #166534 !important;
+    padding: 10px 16px !important;
+    min-height: 48px !important;
+}
+#modalBulkCollectFees .modal-header .modal-title {
+    color: #ffffff !important;
+}
+#modalBulkCollectFees .modal-header .close {
+    color: #ffffff !important;
+    opacity: 0.9 !important;
+    text-shadow: none !important;
+}
+#modalBulkCollectFees #bulkCollectCourseBatchSub {
+    color: #bbf7d0 !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    margin-top: 3px !important;
+    letter-spacing: 0.2px !important;
+}
+#modalBulkCollectFees .btn-bulk-history {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.65) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    padding: 4px 11px !important;
+    border-radius: 4px !important;
+    font-size: 11.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: all 0.15s ease !important;
+}
+#modalBulkCollectFees .btn-bulk-history:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
+}
+
 /* Quick Assign Modal Custom Styling */
 
 .btn-qa-head-chip {
@@ -2575,6 +2616,11 @@ tr.row-student-focused td .cell-fee-input {
 
                                         <i class="fa fa-magic mr-1"></i> Quick Assign (<span id="btnQuickAssignCount">0</span>)
 
+                                    </button>
+
+                                    <!-- Bulk Collect Fees Button -->
+                                    <button type="button" class="btn-matrix-tool px-2 font-weight-bold" onclick="openBulkCollectModal()" id="btnBulkCollectFees" title="Bulk collect uniform fee for selected students" style="border-color: #16a34a !important; color: #15803d !important; background: #f0fdf4;">
+                                        <i class="fa fa-money text-success mr-1"></i> Bulk Collect (<span id="btnBulkCollectCount">0</span>)
                                     </button>
 
                                     <!-- Export CSV Button -->
@@ -3788,6 +3834,471 @@ tr.row-student-focused td .cell-fee-input {
 
 
 
+
+<!-- ========================================================
+     MODAL: BULK COLLECT FEES (Single Head, Batch Controls & Per-Student Customization)
+     ======================================================== -->
+<div class="modal fade" id="modalBulkCollectFees" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: 1140px; width: 96%; margin: 1.5rem auto;">
+        <div class="modal-content" style="border: 1px solid #9aa7b1; border-radius: 6px; box-shadow: 0 12px 35px rgba(0,0,0,0.25); max-height: calc(100vh - 40px); display: flex; flex-direction: column; overflow: hidden;">
+            
+            <!-- Header (Fixed) -->
+            <div class="modal-header d-flex align-items-center justify-content-between px-3 py-2 flex-shrink-0" style="background: #15803d !important; color: #ffffff !important; border-bottom: 2px solid #166534 !important; min-height: 48px;">
+                <div class="d-flex align-items-center" style="gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #15803d; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        <i class="fa fa-money"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title font-weight-bold text-white mb-0" style="font-size: 15px; color: #ffffff !important;">
+                            Bulk Fee Collection &mdash; <span id="lblBulkCollectSelectedCount">0 Students Selected</span>
+                        </h5>
+                        <div id="bulkCollectCourseBatchSub" style="font-size: 11.5px; color: #bbf7d0 !important; font-weight: 600; margin-top: 2px;">
+                            Course &bull; Batch &bull; Semester
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center" style="gap: 10px;">
+                    <button type="button" class="btn btn-xs btn-bulk-history" onclick="openBulkHistoryModal()" title="View past bulk collections">
+                        <i class="fa fa-history" style="margin-right: 5px;"></i> Past Bulk Batches
+                    </button>
+                    <button type="button" class="close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; text-shadow: none; font-size: 22px; line-height: 1; padding: 0 4px; margin: 0; color: #ffffff !important;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body (Scrollable internally if screen is very short, fits neatly on screen) -->
+            <div class="modal-body p-3" style="background: #f8fafc; overflow-y: auto; flex: 1 1 auto;">
+                
+                <!-- Top Row: Left = Setup Controls (col-md-7), Right = English Note (col-md-5) -->
+                <div class="row mb-2">
+                    
+                    <!-- Left Side: Form Controls (Master / Bulk Applicator) -->
+                    <div class="col-lg-7 col-md-7 pr-md-2 mb-2 mb-md-0">
+                        <div class="p-2.5 rounded h-100" style="background: #ffffff; border: 1.5px solid #cbd5e1; padding: 12px;">
+                            
+                            <div class="row mb-1">
+                                <!-- Fee Head Selection (Single Head at a time, strictly non-tuition, non-previous) -->
+                                <div class="col-sm-7 form-group mb-2">
+                                    <label class="side-label font-weight-bold text-dark mb-1" style="font-size: 11.5px;">
+                                        <i class="fa fa-tag text-success" style="margin-right: 7px;"></i> Select Fee Head <span class="text-danger">*</span>
+                                    </label>
+                                    <select id="bulk_collect_head" class="form-control form-control-sm font-weight-bold" onchange="onBulkCollectHeadChange()" style="font-size: 12px; border: 1.5px solid #94a3b8; height: 32px;">
+                                        <option value="">-- Choose Fee Head --</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-0.5 text-truncate" id="bulk_head_info_hint" style="font-size: 10.5px;">Choose fee head to collect.</small>
+                                </div>
+
+                                <!-- Fixed Uniform Amount per student (capped to max allowed) -->
+                                <div class="col-sm-5 form-group mb-2">
+                                    <label class="side-label font-weight-bold text-dark mb-1" style="font-size: 11.5px;">
+                                        <i class="fa fa-inr text-success" style="margin-right: 7px;"></i> Fixed Amount (₹) <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text font-weight-bold" style="background: #f1f5f9; border-color: #94a3b8; padding: 0 8px;">₹</span>
+                                        </div>
+                                        <input type="number" step="0.01" min="1" id="bulk_collect_amount" class="form-control text-right font-weight-bold" placeholder="0.00" oninput="onBulkAmountChange()" style="font-size: 13.5px; border: 1.5px solid #16a34a; color: #15803d; height: 32px;">
+                                    </div>
+                                    <small class="text-muted d-block mt-0.5" id="bulk_amount_subhint" style="font-size: 10px;">Applied to all selected students.</small>
+                                </div>
+                            </div>
+
+                            <div class="row pt-1" style="border-top: 1px dashed #e2e8f0;">
+                                <!-- Payment Date -->
+                                <div class="col-sm-4 form-group mb-0">
+                                    <label class="side-label font-weight-bold text-dark mb-1" style="font-size: 10.5px;">
+                                        <i class="fa fa-calendar text-primary" style="margin-right: 7px;"></i> Date <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" id="bulk_collect_date" class="form-control form-control-sm font-weight-bold" onchange="onBulkDateChange()" style="font-size: 11.5px; border-color: #cbd5e1; height: 30px;" value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+
+                                <!-- Payment Mode -->
+                                <div class="col-sm-4 form-group mb-0">
+                                    <label class="side-label font-weight-bold text-dark mb-1" style="font-size: 10.5px;">
+                                        <i class="fa fa-credit-card text-primary" style="margin-right: 7px;"></i> Mode <span class="text-danger">*</span>
+                                    </label>
+                                    <select id="bulk_collect_mode" class="form-control form-control-sm font-weight-bold" onchange="onBulkModeChange()" style="font-size: 11.5px; border-color: #cbd5e1; height: 30px;">
+                                        <option value="Cash" selected>Cash</option>
+                                        <option value="UPI">UPI</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Card">Card</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
+
+                                <!-- Ref / Transaction ID -->
+                                <div class="col-sm-4 form-group mb-0">
+                                    <label class="side-label font-weight-bold text-dark mb-1" style="font-size: 10.5px;">
+                                        <i class="fa fa-hashtag text-primary" style="margin-right: 7px;"></i> Ref / UTR
+                                    </label>
+                                    <input type="text" id="bulk_collect_ref" class="form-control form-control-sm" placeholder="Optional" oninput="onBulkRefChange()" style="font-size: 11.5px; border-color: #cbd5e1; height: 30px;">
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Right Side: English Note Callout -->
+                    <div class="col-lg-5 col-md-5 pl-md-1">
+                        <div class="p-2.5 rounded h-100 d-flex flex-column justify-content-between" style="background: #f0fdf4; border: 1.5px solid #86efac; color: #14532d; padding: 12px; font-size: 11px; line-height: 1.45;">
+                            <div>
+                                <div class="d-flex align-items-center mb-1.5 text-success font-weight-bold" style="font-size: 12px;">
+                                    <i class="fa fa-info-circle text-success" style="font-size: 15px; margin-right: 8px;"></i>
+                                    <span>Bulk Fee Collection Guidelines &amp; Rules</span>
+                                </div>
+                                <ul class="pl-3 mb-0" style="padding-left: 17px;">
+                                    <li class="mb-1.5">
+                                        <strong>Bulk Defaults &amp; Individual Edit:</strong> Changing top Date, Amount, Mode, or UTR applies instantly to all selected students. You can also customize any individual student directly in the batch table below.
+                                    </li>
+                                    <li class="mb-1.5">
+                                        <strong>Zero Previous Collection Rule:</strong> None of the selected students must have any prior payments on this head. If any student has recorded payment, the batch safely rolls back with zero changes.
+                                    </li>
+                                    <li>
+                                        <strong>Sequential Receipts &amp; Combined PDF:</strong> Generates individual official receipts (<code>RCPT-YYYY-XXXX</code>) grouped under a Batch ID. A single merged multi-page PDF opens automatically in a new tab.
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="mt-2 pt-1 border-top text-muted d-flex align-items-center justify-content-between" style="border-color: #bbf7d0 !important; font-size: 10.5px;">
+                                <span><i class="fa fa-check-circle text-success" style="margin-right: 5px;"></i> Auto Rollback Protection</span>
+                                <span><i class="fa fa-file-pdf-o text-danger" style="margin-right: 5px;"></i> Merged Print Output</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Section: Selected Students List Table -->
+                <div class="mb-2">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="font-weight-bold text-dark" style="font-size: 11.5px;">
+                            <i class="fa fa-users text-primary" style="margin-right: 7px;"></i> Selected Students for this Collection Batch (<span id="bulkStudentsCountBadge">0</span>)
+                        </span>
+                        <span class="text-muted" style="font-size: 10.5px;">
+                            <i class="fa fa-pencil text-muted" style="margin-right: 4px;"></i> Edit Amount, Date, Mode &amp; UTR individually per student &bull; Click &times; to exclude
+                        </span>
+                    </div>
+
+                    <div class="table-responsive border rounded" style="max-height: 240px; overflow-y: auto; background: #ffffff; border-color: #cbd5e1 !important;">
+                        <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 11px;">
+                            <thead class="thead-light" style="position: sticky; top: 0; z-index: 2;">
+                                <tr>
+                                    <th style="width: 32px; text-align: center;">#</th>
+                                    <th style="width: 95px;">Roll No</th>
+                                    <th>Student Name</th>
+                                    <th>Father's Name</th>
+                                    <th style="width: 100px; text-align: right;">Amount (₹)</th>
+                                    <th style="width: 130px;">Payment Date</th>
+                                    <th style="width: 110px;">Payment Mode</th>
+                                    <th style="width: 125px;">Ref / UTR</th>
+                                    <th style="width: 42px; text-align: center;">Exclude</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkCollectStudentsTbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Summary Bar (Redesigned with generous padding & clean vertical dividers) -->
+                <div class="p-2.5 rounded d-flex align-items-center justify-content-between flex-wrap" style="background: #e2e8f0; border: 1px solid #cbd5e1;">
+                    <div class="d-flex align-items-center flex-wrap" style="gap: 18px; font-size: 11.5px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-users text-primary mr-2" style="font-size: 13px;"></i>
+                            <span class="text-muted mr-1.5">Eligible Students:</span>
+                            <span class="badge badge-primary px-2.5 py-1 font-weight-bold ml-1" id="bulkSummaryStudentCount" style="font-size: 11.5px;">0</span>
+                        </div>
+                        <div class="d-flex align-items-center px-3" style="border-left: 2px solid #cbd5e1;">
+                            <i class="fa fa-tag text-success mr-2" style="font-size: 13px;"></i>
+                            <span class="text-muted mr-1.5">Fee Head:</span>
+                            <strong class="text-dark font-weight-bold ml-1" id="bulkSummaryHeadName">-</strong>
+                        </div>
+                        <div class="d-flex align-items-center pl-3" style="border-left: 2px solid #cbd5e1;">
+                            <i class="fa fa-inr text-success mr-2" style="font-size: 13px;"></i>
+                            <span class="text-muted mr-1.5">Amount / Student:</span>
+                            <span class="badge badge-success px-2.5 py-1 font-weight-bold ml-1" id="bulkSummaryAmountPerStu" style="font-size: 11.5px;">₹0.00</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <i class="fa fa-calculator text-dark mr-1.5" style="font-size: 13px;"></i>
+                        <span class="text-muted mr-1.5" style="font-size: 11.5px;">Total Batch Collection:</span>
+                        <strong class="text-success font-weight-bold ml-1" id="bulkSummaryTotalAmount" style="font-size: 15px;">₹0.00</strong>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer (Fixed) -->
+            <div class="modal-footer px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0" style="background: #f1f5f9; border-top: 1px solid #cbd5e1;">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-dismiss="modal" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-sm btn-success px-4 font-weight-bold" id="btnSubmitBulkCollect" onclick="submitBulkCollect()" style="background: #16a34a; border-color: #15803d;">
+                    <i class="fa fa-check-circle" style="margin-right: 7px;"></i> Collect Fees &amp; Generate Receipts
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================
+     MODAL: BULK COLLECT CONFLICT / PRE-CONDITION ALERT
+     ======================================================== -->
+<div class="modal fade" id="modalBulkCollectConflict" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1080;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 620px;" role="document">
+        <div class="modal-content" style="border: 2px solid #ef4444; border-radius: 6px; box-shadow: 0 12px 35px rgba(239, 68, 68, 0.25); overflow: hidden;">
+            <div class="modal-header d-flex align-items-center justify-content-between px-3 py-2" style="background: #fee2e2; border-bottom: 1.5px solid #fca5a5;">
+                <div class="d-flex align-items-center" style="gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #dc2626; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fa fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title font-weight-bold text-danger mb-0" style="font-size: 14.5px;">
+                            Fee Collection Aborted &mdash; Previous Payments Detected
+                        </h5>
+                        <div class="text-danger" style="font-size: 11px;">
+                            Data safely rolled back &bull; Zero receipts created
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="close text-danger" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8; font-size: 22px;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body p-3" style="background: #ffffff;">
+                <div class="alert alert-danger py-2 px-3 mb-3" style="font-size: 11.5px; border-left: 4px solid #dc2626; line-height: 1.45;">
+                    <strong class="d-block mb-1">Pre-condition Validation Failed:</strong>
+                    Fee collection on <strong id="lblConflictHeadName" class="text-dark">-</strong> cannot proceed because the following student(s) already have payments recorded on this head. To avoid double-charging, the entire operation has been aborted with zero changes made.
+                </div>
+
+                <label class="font-weight-bold text-dark mb-1" style="font-size: 11.5px;">
+                    <i class="fa fa-list text-danger mr-1"></i> Conflicting Students (<span id="lblConflictCount">0</span>):
+                </label>
+
+                <div class="table-responsive border rounded mb-2" style="max-height: 220px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered table-striped mb-0" style="font-size: 11px;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 30px; text-align: center;">#</th>
+                                <th style="width: 95px;">Roll No</th>
+                                <th>Student Name</th>
+                                <th>Father's Name</th>
+                                <th class="text-right" style="width: 105px;">Already Paid (₹)</th>
+                                <th class="text-center" style="width: 75px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblConflictStudentsBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-muted" style="font-size: 11px;">
+                    <i class="fa fa-info-circle mr-1 text-primary"></i> <strong>Quick Resolution:</strong> Click <em>"Exclude Conflicting Students"</em> below to remove them from the batch and proceed with the remaining students immediately.
+                </div>
+            </div>
+
+            <div class="modal-footer px-3 py-2 d-flex justify-content-between align-items-center" style="background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-dismiss="modal" data-bs-dismiss="modal">
+                    Cancel / Close
+                </button>
+                <button type="button" class="btn btn-sm btn-danger px-3 font-weight-bold" id="btnExcludeAllConflicts" onclick="excludeAllConflictStudents()">
+                    <i class="fa fa-user-times mr-1"></i> Exclude Conflicting Students (<span id="lblConflictExcludeBtnCount">0</span>) &amp; Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================
+     MODAL: BULK COLLECT UNASSIGNED CONFIRMATION / PROMPT
+     ======================================================== -->
+<div class="modal fade" id="modalBulkUnassignedPrompt" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1080;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 660px;" role="document">
+        <div class="modal-content" style="border: 2px solid #f59e0b; border-radius: 6px; box-shadow: 0 12px 35px rgba(245, 158, 11, 0.25); overflow: hidden;">
+            <div class="modal-header d-flex align-items-center justify-content-between px-3 py-2" style="background: #fef3c7; border-bottom: 1.5px solid #fcd34d;">
+                <div class="d-flex align-items-center" style="gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #d97706; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fa fa-question-circle"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title font-weight-bold mb-0" style="font-size: 14.5px; color: #92400e;">
+                            Fee Head Not Assigned &mdash; Confirmation Required
+                        </h5>
+                        <div style="font-size: 11px; color: #b45309;">
+                            Action required: Choose whether to auto-assign or exclude these students
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="close text-dark" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.7; font-size: 22px;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body p-3" style="background: #ffffff;">
+                <div class="alert alert-warning py-2 px-3 mb-3" style="font-size: 11.5px; background: #fffbeb; border-color: #fde68a; border-left: 4px solid #f59e0b; color: #92400e; line-height: 1.45;">
+                    <strong class="d-block mb-1"><i class="fa fa-info-circle mr-1"></i> Fee Head Unassigned Detection:</strong>
+                    Fee Head <strong id="lblUnassignedHeadName" class="text-dark">-</strong> is currently <strong>not assigned</strong> to <span id="lblUnassignedCount" class="font-weight-bold badge badge-warning px-2 py-1" style="font-size: 11px;">0</span> student(s) in this selection.
+                    Would you like to <strong>Auto-Assign</strong> this head and collect fees, or <strong>Exclude</strong> these students from this batch?
+                </div>
+
+                <label class="font-weight-bold text-dark mb-1" style="font-size: 11.5px;">
+                    <i class="fa fa-users text-warning mr-1"></i> Unassigned Students (<span id="lblUnassignedCountList">0</span>):
+                </label>
+
+                <div class="table-responsive border rounded mb-2" style="max-height: 220px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered table-striped mb-0" style="font-size: 11px;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 30px; text-align: center;">#</th>
+                                <th style="width: 95px;">Roll No</th>
+                                <th>Student Name</th>
+                                <th>Father's Name</th>
+                                <th class="text-center" style="width: 105px;">Status</th>
+                                <th class="text-center" style="width: 75px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblUnassignedStudentsBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-muted" style="font-size: 11px;">
+                    <i class="fa fa-lightbulb-o mr-1 text-warning"></i> <strong>Options:</strong>
+                    Click <strong>"Auto-Assign &amp; Collect All"</strong> to assign the fee head and generate receipts for everyone, or click <strong>"Exclude Unassigned"</strong> to collect only for students who already have the fee head assigned.
+                </div>
+            </div>
+
+            <div class="modal-footer px-3 py-2 d-flex justify-content-between align-items-center" style="background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-dismiss="modal" data-bs-dismiss="modal">
+                    Cancel / Review
+                </button>
+                <div class="d-flex align-items-center" style="gap: 8px;">
+                    <button type="button" class="btn btn-sm btn-outline-danger px-3 font-weight-bold" id="btnExcludeAllUnassigned" onclick="proceedBulkCollectExcludeUnassigned()">
+                        <i class="fa fa-user-times mr-1"></i> Exclude Unassigned (<span id="lblUnassignedExcludeBtnCount">0</span>) &amp; Continue
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success px-3 font-weight-bold" id="btnAutoAssignAndProceed" onclick="proceedBulkCollectAutoAssign()" style="background: #16a34a; border-color: #15803d;">
+                        <i class="fa fa-check-circle mr-1"></i> Auto-Assign Head &amp; Collect All (<span id="lblUnassignedAllBtnCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================
+     MODAL: BULK COLLECT SUCCESS (Batch Code & Multi-Receipt PDF)
+     ======================================================== -->
+<div class="modal fade" id="modalBulkCollectSuccess" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1080;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;" role="document">
+        <div class="modal-content" style="border: 2px solid #16a34a; border-radius: 6px; box-shadow: 0 12px 35px rgba(22, 163, 74, 0.22); overflow: hidden;">
+            <div class="modal-header d-flex align-items-center justify-content-between px-3 py-2" style="background: #15803d; color: #ffffff;">
+                <div class="d-flex align-items-center" style="gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #15803d; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title font-weight-bold text-white mb-0" style="font-size: 14.5px;">
+                            Bulk Fee Collection Successful!
+                        </h5>
+                    </div>
+                </div>
+                <button type="button" class="close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 22px;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body p-3 text-center" style="background: #ffffff;">
+                <div class="my-2">
+                    <span class="badge badge-success px-3 py-1 font-weight-bold" style="font-size: 14px;" id="lblSuccessBulkCode">
+                        BLK-2026-0001
+                    </span>
+                </div>
+
+                <h6 class="font-weight-bold text-dark mt-2 mb-1" id="lblSuccessMessage">
+                    Receipts Generated Successfully
+                </h6>
+
+                <div class="p-3 my-3 rounded text-left" style="background: #f8fafc; border: 1px solid #cbd5e1; font-size: 11.5px;">
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Fee Head Collected:</span>
+                        <strong class="text-dark" id="lblSuccessHeadName">-</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Total Students:</span>
+                        <strong class="text-dark" id="lblSuccessStudentCount">0 Students</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Receipt Range:</span>
+                        <strong class="text-primary font-weight-bold" id="lblSuccessReceiptRange">-</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted">Total Amount Collected:</span>
+                        <strong class="text-success font-weight-bold" style="font-size: 13px;" id="lblSuccessTotalAmount">₹0.00</strong>
+                    </div>
+                </div>
+
+                <div class="alert alert-light border p-2 mb-3 text-left" style="font-size: 11px; background: #f0fdf4; border-color: #86efac !important; color: #166534;">
+                    <i class="fa fa-info-circle mr-1"></i> A single consolidated PDF containing all generated receipts has been opened in a new tab. If your browser blocked popups, click the button below to view/print.
+                </div>
+
+                <div class="d-flex justify-content-center" style="gap: 10px;">
+                    <a href="#" target="_blank" class="btn btn-sm btn-primary font-weight-bold px-3" id="lnkSuccessPdf">
+                        <i class="fa fa-file-pdf-o mr-1"></i> Open All Receipts (PDF)
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-dismiss="modal" data-bs-dismiss="modal">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================
+     MODAL: BULK COLLECTIONS HISTORY
+     ======================================================== -->
+<div class="modal fade" id="modalBulkCollectionsHistory" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1075;">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content" style="border: 1px solid #94a3b8; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); overflow: hidden;">
+            <div class="modal-header d-flex align-items-center justify-content-between px-3 py-2" style="background: #1e293b; color: #ffffff;">
+                <h5 class="modal-title font-weight-bold text-white mb-0" style="font-size: 14px;">
+                    <i class="fa fa-history mr-2 text-info"></i> Past Bulk Collection Batches
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-3" style="background: #ffffff;">
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 11.5px;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Batch Code</th>
+                                <th>Date</th>
+                                <th>Fee Head</th>
+                                <th class="text-right">Per Student (₹)</th>
+                                <th class="text-center">Students</th>
+                                <th class="text-right">Total (₹)</th>
+                                <th>Mode</th>
+                                <th>Cashier</th>
+                                <th class="text-center">All Receipts PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblBulkHistoryBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ========================================================
 
      MODAL: EDIT DISCOUNT REASON (INDIVIDUAL)
@@ -4597,6 +5108,7 @@ function renderEmptyCourseBatchPrompt() {
     $('#batchFeeStatusText span').text('No batch selected');
     $('#selectedCountBadge').html('<i class="fa fa-check-square-o mr-1"></i> 0 Selected');
     $('#btnQuickAssignCount').text('0');
+    $('#btnBulkCollectCount').text('0');
 }
 
 // Helper to dynamically calculate optimal input width based on characters and lock status
@@ -6919,6 +7431,7 @@ function onStudentSelectChange() {
     $('#txtSelectedCount').text(count);
 
     $('#btnQuickAssignCount').text(count);
+    $('#btnBulkCollectCount').text(count);
 
 
 
@@ -7713,6 +8226,893 @@ $(document).on('input', '.qa-selected-input-girls', function() {
 });
 
 
+
+
+// ========================================================
+// BULK COLLECT FEES (BATCH MASTER CONTROLS & PER-STUDENT CUSTOMIZATION)
+// ========================================================
+
+var activeBulkStudentIds = [];
+var bulkStudentDetails = {}; // Map: { student_id: { amount, date, payment_mode, transaction_id } }
+
+// Filter helper: strictly exclude Tuition Fees and Previous Dues / Fees
+function isExcludedBulkHead(headName) {
+    var norm = (headName || '').toLowerCase().trim();
+    if (norm.indexOf('tuition') !== -1 || norm.indexOf('tution') !== -1) {
+        return true;
+    }
+    if (norm.indexOf('previous') !== -1 || norm.indexOf('prev') !== -1) {
+        return true;
+    }
+    return false;
+}
+
+function openBulkCollectModal() {
+    var selectedIds = getSelectedStudentIds();
+    if (selectedIds.length === 0) {
+        showCommonToast('error', 'Please select at least one student using the checkboxes first.');
+        return;
+    }
+
+    if (!ledgerDataCache || !ledgerDataCache.rows) {
+        showCommonToast('error', 'Student ledger data is not loaded.');
+        return;
+    }
+
+    activeBulkStudentIds = selectedIds.slice();
+    bulkStudentDetails = {};
+
+    // Set course & batch labels with explicit bright high-contrast color
+    $('#lblBulkCollectSelectedCount').text(activeBulkStudentIds.length + ' Students Selected');
+    var courseName = $('#selLedgerCourse option:selected').text() || 'Course';
+    $('#bulkCollectCourseBatchSub').html(
+        '<span style="color: #bbf7d0 !important; font-weight: 600;">' + escapeHtml(courseName) + ' &bull; Batch ' + escapeHtml(currentBatch) + ' &bull; Semester ' + escapeHtml(currentSemester) + '</span>'
+    );
+
+    // Populate Head Dropdown (Single head selection - STRICTLY excluding Tuition Fees and Previous Dues)
+    var headSelect = $('#bulk_collect_head');
+    headSelect.empty().append('<option value="">-- Choose Fee Head --</option>');
+
+    var headOptions = [];
+    var seenHeads = {};
+
+    // 1. From standard heads
+    var stdHeads = ledgerDataCache.standard_heads || [];
+    stdHeads.forEach(function(h) {
+        var hName = $.trim(h.head_name);
+        if (isExcludedBulkHead(hName)) {
+            return; // Skip Tuition and Previous Dues
+        }
+        var norm = hName.toLowerCase();
+        if (!seenHeads[norm]) {
+            seenHeads[norm] = true;
+            var bAmt = parseFloat(h.amount_boys) || 0;
+            var gAmt = parseFloat(h.amount_girls) || 0;
+            headOptions.push({
+                name: hName,
+                boys_amt: bAmt,
+                girls_amt: gAmt,
+                max_amt: Math.max(bAmt, gAmt)
+            });
+        }
+    });
+
+    // 2. From student assignments in current matrix
+    ledgerDataCache.rows.forEach(function(r) {
+        if (r.head_values) {
+            Object.keys(r.head_values).forEach(function(k) {
+                var hName = $.trim(k);
+                if (isExcludedBulkHead(hName)) {
+                    return; // Skip Tuition and Previous Dues
+                }
+                var norm = hName.toLowerCase();
+                if (!seenHeads[norm]) {
+                    seenHeads[norm] = true;
+                    var hv = r.head_values[k];
+                    var defAmt = hv ? (parseFloat(hv.default_amount) || 0) : 0;
+                    headOptions.push({
+                        name: hName,
+                        boys_amt: defAmt,
+                        girls_amt: defAmt,
+                        max_amt: defAmt
+                    });
+                }
+            });
+        }
+    });
+
+    headOptions.forEach(function(ho) {
+        var opt = $('<option></option>').val(ho.name).text(ho.name);
+        opt.data('boys', ho.boys_amt);
+        opt.data('girls', ho.girls_amt);
+        opt.data('max', ho.max_amt);
+        headSelect.append(opt);
+    });
+
+    // Reset top inputs
+    var todayStr = new Date().toISOString().split('T')[0];
+    $('#bulk_collect_amount').val('').removeAttr('max').css('border-color', '#16a34a');
+    $('#bulk_head_info_hint').text('Choose fee head to collect.');
+    $('#bulk_amount_subhint').text('Applied to all selected students.');
+    $('#bulk_collect_date').val(todayStr);
+    $('#bulk_collect_mode').val('Cash');
+    $('#bulk_collect_ref').val('');
+
+    // Initialize all selected students with defaults
+    activeBulkStudentIds.forEach(function(sId) {
+        bulkStudentDetails[sId] = {
+            amount: 0,
+            date: todayStr,
+            payment_mode: 'Cash',
+            transaction_id: ''
+        };
+    });
+
+    renderBulkCollectStudentsTable();
+    updateBulkCollectSummary();
+
+    $('#modalBulkCollectFees').modal('show');
+}
+
+function onBulkCollectHeadChange() {
+    var sel = $('#bulk_collect_head option:selected');
+    var headName = sel.val();
+    if (!headName) {
+        $('#bulk_collect_amount').removeAttr('max').css('border-color', '#16a34a');
+        $('#bulk_head_info_hint').text('Choose fee head to collect.');
+        $('#bulk_amount_subhint').text('Applied to all selected students.');
+        onBulkAmountChange();
+        return;
+    }
+
+    var boysAmt = parseFloat(sel.data('boys')) || 0;
+    var girlsAmt = parseFloat(sel.data('girls')) || 0;
+    var maxAmt = parseFloat(sel.data('max')) || Math.max(boysAmt, girlsAmt);
+
+    if (maxAmt > 0) {
+        $('#bulk_collect_amount').attr('max', maxAmt).val(maxAmt).css('border-color', '#16a34a');
+        $('#bulk_head_info_hint').html(
+            '<span class="text-success font-weight-bold"><i class="fa fa-info-circle" style="margin-right: 7px;"></i> Standard Fee: ₹' + numberFormat(maxAmt) + ' (Max Allowed: ₹' + numberFormat(maxAmt) + ')</span>'
+        );
+        $('#bulk_amount_subhint').html('<span class="text-muted">Maximum allowed fee: <strong>₹' + numberFormat(maxAmt) + '</strong></span>');
+    } else {
+        $('#bulk_collect_amount').removeAttr('max').css('border-color', '#16a34a');
+        $('#bulk_head_info_hint').text('Enter the uniform fixed amount to collect for ' + headName + '.');
+        $('#bulk_amount_subhint').text('Applied to all selected students.');
+    }
+
+    // Apply amount across all students
+    onBulkAmountChange();
+}
+
+// Master / Bulk change listeners: apply changes across all students instantly
+function onBulkAmountChange() {
+    var val = $('#bulk_collect_amount').val();
+    var numVal = parseFloat(val) || 0;
+
+    var sel = $('#bulk_collect_head option:selected');
+    var maxAmt = parseFloat(sel.data('max')) || 0;
+
+    if (maxAmt > 0 && numVal > maxAmt) {
+        $('#bulk_head_info_hint').html(
+            '<span class="text-danger font-weight-bold"><i class="fa fa-exclamation-circle" style="margin-right: 7px;"></i> Amount (₹' + numberFormat(numVal) + ') cannot exceed maximum fee of ₹' + numberFormat(maxAmt) + '!</span>'
+        );
+        $('#bulk_amount_subhint').html('<span class="text-danger font-weight-bold">Exceeds max allowed ₹' + numberFormat(maxAmt) + '</span>');
+        $('#bulk_collect_amount').css('border-color', '#dc2626');
+    } else if (maxAmt > 0) {
+        $('#bulk_head_info_hint').html(
+            '<span class="text-success font-weight-bold"><i class="fa fa-info-circle" style="margin-right: 7px;"></i> Standard Fee: ₹' + numberFormat(maxAmt) + ' (Max Allowed: ₹' + numberFormat(maxAmt) + ')</span>'
+        );
+        $('#bulk_amount_subhint').html('<span class="text-muted">Maximum allowed fee: <strong>₹' + numberFormat(maxAmt) + '</strong></span>');
+        $('#bulk_collect_amount').css('border-color', '#16a34a');
+    }
+
+    // Broadcast value to table inputs and internal state
+    $('.bulk-student-amount-input').val(val).each(function() {
+        if (maxAmt > 0 && numVal > maxAmt) {
+            $(this).css('border-color', '#dc2626').css('color', '#dc2626');
+        } else {
+            $(this).css('border-color', '#cbd5e1').css('color', '#15803d');
+        }
+    });
+
+    activeBulkStudentIds.forEach(function(sId) {
+        if (!bulkStudentDetails[sId]) bulkStudentDetails[sId] = {};
+        bulkStudentDetails[sId].amount = numVal;
+    });
+
+    updateBulkCollectSummary();
+}
+
+function onBulkDateChange() {
+    var val = $('#bulk_collect_date').val();
+    $('.bulk-student-date-input').val(val);
+    activeBulkStudentIds.forEach(function(sId) {
+        if (!bulkStudentDetails[sId]) bulkStudentDetails[sId] = {};
+        bulkStudentDetails[sId].date = val;
+    });
+}
+
+function onBulkModeChange() {
+    var val = $('#bulk_collect_mode').val();
+    $('.bulk-student-mode-select').val(val);
+    activeBulkStudentIds.forEach(function(sId) {
+        if (!bulkStudentDetails[sId]) bulkStudentDetails[sId] = {};
+        bulkStudentDetails[sId].payment_mode = val;
+    });
+}
+
+function onBulkRefChange() {
+    var val = $('#bulk_collect_ref').val();
+    $('.bulk-student-ref-input').val(val);
+    activeBulkStudentIds.forEach(function(sId) {
+        if (!bulkStudentDetails[sId]) bulkStudentDetails[sId] = {};
+        bulkStudentDetails[sId].transaction_id = val;
+    });
+}
+
+// Render dynamic student table with editable fields
+function renderBulkCollectStudentsTable() {
+    var tbody = $('#bulkCollectStudentsTbody');
+    tbody.empty();
+
+    $('#bulkStudentsCountBadge').text(activeBulkStudentIds.length);
+    $('#lblBulkCollectSelectedCount').text(activeBulkStudentIds.length + ' Students Selected');
+
+    if (activeBulkStudentIds.length === 0) {
+        tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="fa fa-info-circle mr-1"></i>No students selected. Please close and select students.</td></tr>');
+        return;
+    }
+
+    var allStudents = (ledgerDataCache && ledgerDataCache.rows) ? ledgerDataCache.rows : [];
+    var stuMap = {};
+    allStudents.forEach(function(s) { stuMap[s.student_id] = s; });
+
+    var sel = $('#bulk_collect_head option:selected');
+    var maxAmt = parseFloat(sel.data('max')) || 0;
+    var defaultDate = $('#bulk_collect_date').val() || new Date().toISOString().split('T')[0];
+    var defaultMode = $('#bulk_collect_mode').val() || 'Cash';
+    var defaultRef = $('#bulk_collect_ref').val() || '';
+    var defaultAmt = parseFloat($('#bulk_collect_amount').val()) || 0;
+
+    var rowsHtml = [];
+
+    activeBulkStudentIds.forEach(function(sId, idx) {
+        var stu = stuMap[sId];
+        if (!stu) return;
+
+        if (!bulkStudentDetails[sId]) {
+            bulkStudentDetails[sId] = {
+                amount: defaultAmt,
+                date: defaultDate,
+                payment_mode: defaultMode,
+                transaction_id: defaultRef
+            };
+        }
+
+        var d = bulkStudentDetails[sId];
+        var sAmt = (d.amount !== undefined && d.amount !== null) ? d.amount : defaultAmt;
+        var sDate = d.date || defaultDate;
+        var sMode = d.payment_mode || defaultMode;
+        var sRef = d.transaction_id || '';
+
+        var isAmtExceeded = (maxAmt > 0 && sAmt > maxAmt);
+        var amtBorder = isAmtExceeded ? '#dc2626' : '#cbd5e1';
+        var amtColor = isAmtExceeded ? '#dc2626' : '#15803d';
+
+        var genderBadge = stu.is_girl 
+            ? '<span class="badge ml-1" style="background: #fce7f3; color: #be185d; font-size: 9px; padding: 1px 4px;">Girl</span>'
+            : '<span class="badge ml-1" style="background: #e0f2fe; color: #0369a1; font-size: 9px; padding: 1px 4px;">Boy</span>';
+
+        rowsHtml.push(
+            '<tr>' +
+                '<td class="text-center text-muted" style="font-size: 11px; vertical-align: middle;">' + (idx + 1) + '</td>' +
+                '<td class="font-weight-bold text-dark" style="font-size: 11px; vertical-align: middle;">' + escapeHtml(stu.roll_no) + '</td>' +
+                '<td style="font-size: 11.5px; vertical-align: middle;">' +
+                    '<span class="font-weight-bold text-dark">' + escapeHtml(stu.name) + '</span>' + genderBadge +
+                '</td>' +
+                '<td class="text-muted" style="font-size: 11px; vertical-align: middle;">' + escapeHtml(stu.father_name || '-') + '</td>' +
+                '<td style="width: 100px; padding: 2px 4px; vertical-align: middle;">' +
+                    '<input type="number" step="0.01" min="1" ' + (maxAmt > 0 ? ('max="' + maxAmt + '"') : '') + ' class="form-control form-control-sm text-right font-weight-bold bulk-student-amount-input" data-student-id="' + sId + '" value="' + (sAmt > 0 ? sAmt : '') + '" placeholder="0.00" style="height: 28px; font-size: 11.5px; padding: 2px 6px; border-color: ' + amtBorder + '; color: ' + amtColor + ';">' +
+                '</td>' +
+                '<td style="width: 130px; padding: 2px 4px; vertical-align: middle;">' +
+                    '<input type="date" class="form-control form-control-sm bulk-student-date-input" data-student-id="' + sId + '" value="' + escapeHtml(sDate) + '" style="height: 28px; font-size: 11px; padding: 2px 4px; border-color: #cbd5e1;">' +
+                '</td>' +
+                '<td style="width: 110px; padding: 2px 4px; vertical-align: middle;">' +
+                    '<select class="form-control form-control-sm font-weight-bold bulk-student-mode-select" data-student-id="' + sId + '" style="height: 28px; font-size: 11px; padding: 2px 4px; border-color: #cbd5e1;">' +
+                        '<option value="Cash"' + (sMode === 'Cash' ? ' selected' : '') + '>Cash</option>' +
+                        '<option value="UPI"' + (sMode === 'UPI' ? ' selected' : '') + '>UPI</option>' +
+                        '<option value="Bank Transfer"' + (sMode === 'Bank Transfer' ? ' selected' : '') + '>Bank Transfer</option>' +
+                        '<option value="Card"' + (sMode === 'Card' ? ' selected' : '') + '>Card</option>' +
+                        '<option value="Cheque"' + (sMode === 'Cheque' ? ' selected' : '') + '>Cheque</option>' +
+                    '</select>' +
+                '</td>' +
+                '<td style="width: 125px; padding: 2px 4px; vertical-align: middle;">' +
+                    '<input type="text" class="form-control form-control-sm bulk-student-ref-input" data-student-id="' + sId + '" value="' + escapeHtml(sRef) + '" placeholder="Optional" style="height: 28px; font-size: 11px; padding: 2px 6px; border-color: #cbd5e1;">' +
+                '</td>' +
+                '<td class="text-center" style="width: 42px; padding: 2px 4px; vertical-align: middle;">' +
+                    '<button type="button" class="btn btn-xs btn-outline-danger" onclick="promptExcludeStudent(' + sId + ')" title="Exclude this student from bulk collection" style="padding: 1px 7px; font-size: 12px; line-height: 1.2;">&times;</button>' +
+                '</td>' +
+            '</tr>'
+        );
+    });
+
+    tbody.html(rowsHtml.join(''));
+}
+
+// Delegated change handlers for per-student inputs
+$(document).on('input', '.bulk-student-amount-input', function() {
+    var sId = $(this).data('student-id');
+    var numVal = parseFloat($(this).val()) || 0;
+    if (bulkStudentDetails[sId]) {
+        bulkStudentDetails[sId].amount = numVal;
+    }
+
+    var sel = $('#bulk_collect_head option:selected');
+    var maxAmt = parseFloat(sel.data('max')) || 0;
+
+    if (maxAmt > 0 && numVal > maxAmt) {
+        $(this).css('border-color', '#dc2626').css('color', '#dc2626');
+    } else {
+        $(this).css('border-color', '#cbd5e1').css('color', '#15803d');
+    }
+
+    updateBulkCollectSummary();
+});
+
+$(document).on('change', '.bulk-student-date-input', function() {
+    var sId = $(this).data('student-id');
+    if (bulkStudentDetails[sId]) {
+        bulkStudentDetails[sId].date = $(this).val();
+    }
+});
+
+$(document).on('change', '.bulk-student-mode-select', function() {
+    var sId = $(this).data('student-id');
+    if (bulkStudentDetails[sId]) {
+        bulkStudentDetails[sId].payment_mode = $(this).val();
+    }
+});
+
+$(document).on('input', '.bulk-student-ref-input', function() {
+    var sId = $(this).data('student-id');
+    if (bulkStudentDetails[sId]) {
+        bulkStudentDetails[sId].transaction_id = $(this).val();
+    }
+});
+
+// Prompt confirmation before excluding a student
+function promptExcludeStudent(studentId) {
+    var allStudents = (ledgerDataCache && ledgerDataCache.rows) ? ledgerDataCache.rows : [];
+    var stu = allStudents.find(function(s) { return s.student_id == studentId; });
+    var stuName = stu ? (stu.name || 'Student') : 'Student';
+    var rollNo = stu ? (stu.roll_no || ('ID: ' + studentId)) : ('ID: ' + studentId);
+
+    showFeeActionConfirm({
+        title: '<i class="fa fa-user-times text-danger" style="margin-right: 7px;"></i> Exclude Student from Batch',
+        message: 'Are you sure you want to exclude <strong>' + escapeHtml(stuName) + '</strong> (Roll No: <strong>' + escapeHtml(rollNo) + '</strong>) from this bulk collection batch?',
+        subnote: 'This student will not be charged in this bulk collection session.',
+        type: 'danger',
+        btnText: 'Yes, Exclude',
+        onConfirm: function() {
+            activeBulkStudentIds = activeBulkStudentIds.filter(function(id) { return id != studentId; });
+            delete bulkStudentDetails[studentId];
+
+            renderBulkCollectStudentsTable();
+            updateBulkCollectSummary();
+
+            showCommonToast('info', stuName + ' excluded from this bulk batch.');
+
+            if (activeBulkStudentIds.length === 0) {
+                showCommonToast('warning', 'All students have been excluded from this batch.');
+            }
+        }
+    });
+}
+
+// Preserve modal-open class when confirmation modal closes over bulk modal
+$('#modalFeeActionConfirm').on('hidden.bs.modal', function () {
+    if ($('#modalBulkCollectFees').is(':visible') || $('#modalBulkCollectFees').hasClass('show')) {
+        $('body').addClass('modal-open');
+    }
+});
+
+function updateBulkCollectSummary() {
+    var sel = $('#bulk_collect_head option:selected');
+    var headName = sel.val() || '-';
+    var totalCount = activeBulkStudentIds.length;
+
+    var totalAmount = 0;
+    var allSame = true;
+    var firstAmt = null;
+
+    activeBulkStudentIds.forEach(function(sId) {
+        var d = bulkStudentDetails[sId];
+        var a = (d && d.amount !== undefined) ? (parseFloat(d.amount) || 0) : 0;
+        totalAmount += a;
+        if (firstAmt === null) {
+            firstAmt = a;
+        } else if (a !== firstAmt) {
+            allSame = false;
+        }
+    });
+
+    totalAmount = Math.round(totalAmount * 100) / 100;
+
+    var amtPerStuText = '₹0.00';
+    if (totalCount > 0) {
+        if (allSame && firstAmt !== null) {
+            amtPerStuText = '₹' + numberFormat(firstAmt);
+        } else {
+            amtPerStuText = 'Customized';
+        }
+    }
+
+    $('#bulkSummaryStudentCount').text(totalCount);
+    $('#bulkSummaryHeadName').text(headName);
+    $('#bulkSummaryAmountPerStu').text(amtPerStuText);
+    $('#bulkSummaryTotalAmount').text('₹' + numberFormat(totalAmount));
+}
+
+function submitBulkCollect(autoAssignConfirmed) {
+    var sel = $('#bulk_collect_head option:selected');
+    var headName = $.trim(sel.val());
+    if (!headName) {
+        showCommonToast('error', 'Please select a Fee Head to collect.');
+        $('#bulk_collect_head').focus();
+        return;
+    }
+
+    // Safety guard
+    if (isExcludedBulkHead(headName)) {
+        showCommonToast('error', 'Tuition Fees and Previous Dues/Fees cannot be collected in Bulk.');
+        return;
+    }
+
+    if (activeBulkStudentIds.length === 0) {
+        showCommonToast('error', 'No eligible students selected for this bulk collection.');
+        return;
+    }
+
+    var maxAmt = parseFloat(sel.data('max')) || 0;
+    var studentDetailsPayload = [];
+    var invalidStudentName = '';
+    var exceededStudentName = '';
+
+    var allStudents = (ledgerDataCache && ledgerDataCache.rows) ? ledgerDataCache.rows : [];
+    var stuMap = {};
+    allStudents.forEach(function(s) { stuMap[s.student_id] = s; });
+
+    // Client-side detection: Check for students without this head assigned
+    if (!autoAssignConfirmed) {
+        var unassignedList = [];
+        var normTarget = headName.toLowerCase().trim();
+        for (var u = 0; u < activeBulkStudentIds.length; u++) {
+            var checkSid = activeBulkStudentIds[u];
+            var stuCheck = stuMap[checkSid];
+            if (stuCheck) {
+                var hv = stuCheck.head_values ? stuCheck.head_values[headName] : null;
+                if (!hv && stuCheck.head_values) {
+                    for (var k in stuCheck.head_values) {
+                        if (k.toLowerCase().trim() === normTarget) {
+                            hv = stuCheck.head_values[k];
+                            break;
+                        }
+                    }
+                }
+                if (!hv || !hv.assigned) {
+                    unassignedList.push({
+                        student_id: checkSid,
+                        name: stuCheck.name || ('Student ID ' + checkSid),
+                        roll_no: stuCheck.roll_no || ('ID-' + checkSid),
+                        father_name: stuCheck.father_name || 'N/A',
+                        mobile: stuCheck.mobile || 'N/A',
+                        head_name: headName
+                    });
+                }
+            }
+        }
+
+        if (unassignedList.length > 0) {
+            showBulkUnassignedModal(unassignedList, headName);
+            return;
+        }
+    }
+
+    var topDate = $('#bulk_collect_date').val() || new Date().toISOString().split('T')[0];
+    var topMode = $('#bulk_collect_mode').val() || 'Cash';
+    var topRef = $('#bulk_collect_ref').val() || '';
+
+    for (var i = 0; i < activeBulkStudentIds.length; i++) {
+        var sId = activeBulkStudentIds[i];
+        var d = bulkStudentDetails[sId] || {};
+        var amt = (d.amount !== undefined && d.amount !== null) ? (parseFloat(d.amount) || 0) : 0;
+        var stuObj = stuMap[sId];
+        var sName = stuObj ? stuObj.name : ('ID ' + sId);
+
+        if (amt <= 0) {
+            invalidStudentName = sName;
+            break;
+        }
+
+        if (maxAmt > 0 && amt > maxAmt) {
+            exceededStudentName = sName + ' (₹' + numberFormat(amt) + ' > max ₹' + numberFormat(maxAmt) + ')';
+            break;
+        }
+
+        studentDetailsPayload.push({
+            student_id: sId,
+            amount: amt,
+            payment_date: d.date || topDate,
+            payment_mode: d.payment_mode || topMode,
+            transaction_id: (d.transaction_id !== undefined ? d.transaction_id : topRef)
+        });
+    }
+
+    if (invalidStudentName) {
+        showCommonToast('error', 'Please enter a valid amount greater than zero for ' + invalidStudentName + '.');
+        return;
+    }
+
+    if (exceededStudentName) {
+        showCommonToast('error', 'Amount exceeds the maximum fee for ' + exceededStudentName + '.');
+        return;
+    }
+
+    var btnSubmit = $('#btnSubmitBulkCollect');
+    var origHtml = btnSubmit.html();
+    btnSubmit.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Processing & Generating Receipts...');
+
+    // Use JSON body payload to prevent PHP max_input_vars limit with large student batches
+    var postPayload = {
+        _token: "{{ csrf_token() }}",
+        course_id: currentCourseId,
+        batch: currentBatch,
+        semester_no: currentSemester,
+        student_ids: activeBulkStudentIds,
+        head_name: headName,
+        amount_per_student: parseFloat($('#bulk_collect_amount').val()) || 0,
+        payment_date: topDate,
+        payment_mode: topMode,
+        transaction_id: topRef,
+        student_details: studentDetailsPayload,
+        auto_assign_confirmed: autoAssignConfirmed ? 1 : 0
+    };
+
+    $.ajax({
+        url: "{{ route('college.fees.bulk_collect_payment') }}",
+        type: "POST",
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': "{{ csrf_token() }}"
+        },
+        data: JSON.stringify(postPayload),
+        dataType: 'json',
+        success: function(res) {
+            btnSubmit.prop('disabled', false).html(origHtml);
+
+            if (res.status === 'success') {
+                $('#modalBulkCollectFees').modal('hide');
+
+                // 1. Open combined all-in-one PDF in a new tab immediately
+                if (res.pdf_url) {
+                    try {
+                        window.open(res.pdf_url, '_blank');
+                    } catch (e) {
+                        console.warn('Popup blocked, available via success modal link');
+                    }
+                }
+
+                // 2. Show Success Details Modal
+                $('#lblSuccessBulkCode').text(res.bulk_code || 'Bulk Batch');
+                $('#lblSuccessMessage').text(res.message || 'Bulk fee collection completed successfully!');
+                $('#lblSuccessHeadName').text(res.head_name || headName);
+                $('#lblSuccessStudentCount').text((res.receipt_count || activeBulkStudentIds.length) + ' Students');
+
+                var rRange = (res.first_receipt_no && res.last_receipt_no)
+                    ? (res.first_receipt_no + ' to ' + res.last_receipt_no)
+                    : (res.receipt_count + ' Receipts');
+                $('#lblSuccessReceiptRange').text(rRange);
+                $('#lblSuccessTotalAmount').text('₹' + numberFormat(res.total_amount || 0));
+                $('#lnkSuccessPdf').attr('href', res.pdf_url || '#');
+
+                $('#modalBulkCollectSuccess').modal('show');
+
+                // 3. Reload ledger matrix to reflect updated paid and due amounts
+                loadLedgerMatrix();
+
+            } else {
+                showCommonToast('error', res.message || 'Bulk fee collection failed.');
+            }
+        },
+        error: function(xhr) {
+            btnSubmit.prop('disabled', false).html(origHtml);
+
+            var errRes = xhr.responseJSON;
+            if (!errRes && xhr.responseText) {
+                try {
+                    var jsonStart = xhr.responseText.indexOf('{');
+                    if (jsonStart !== -1) {
+                        errRes = JSON.parse(xhr.responseText.substring(jsonStart));
+                    }
+                } catch(e) {
+                    console.error('Failed to parse error response', e);
+                }
+            }
+
+            if (errRes && errRes.error_type === 'HEAD_ALREADY_COLLECTED') {
+                showBulkConflictModal(errRes);
+            } else if (errRes && errRes.error_type === 'HEAD_NOT_ASSIGNED') {
+                showBulkUnassignedModal(errRes.unassigned_students || [], errRes.head_name || headName);
+            } else {
+                var msg = (errRes && errRes.message) ? errRes.message : 'Bulk fee collection failed. Please check inputs and retry.';
+                showCommonToast('error', msg);
+            }
+        }
+    });
+}
+
+var currentConflictStudents = [];
+
+function showBulkConflictModal(data) {
+    $('#lblConflictHeadName').text(data.head_name || 'Selected Fee Head');
+    currentConflictStudents = data.conflict_students || [];
+    $('#lblConflictCount').text(currentConflictStudents.length);
+    $('#lblConflictExcludeBtnCount').text(currentConflictStudents.length);
+
+    renderConflictStudentsTable();
+    $('#modalBulkCollectConflict').modal('show');
+}
+
+function renderConflictStudentsTable() {
+    var tbody = $('#tblConflictStudentsBody');
+    tbody.empty();
+
+    if (currentConflictStudents.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center py-3 text-success font-weight-bold"><i class="fa fa-check-circle mr-1"></i> All conflicting students have been excluded. You can now proceed.</td></tr>');
+        $('#btnExcludeAllConflicts').prop('disabled', true);
+        return;
+    }
+
+    $('#btnExcludeAllConflicts').prop('disabled', false);
+
+    currentConflictStudents.forEach(function(stu, idx) {
+        var tr = $('<tr></tr>');
+        tr.html(
+            '<td class="text-center text-muted" style="vertical-align: middle;">' + (idx + 1) + '</td>' +
+            '<td class="font-weight-bold text-danger" style="vertical-align: middle;">' + escapeHtml(stu.roll_no) + '</td>' +
+            '<td class="font-weight-bold text-dark" style="vertical-align: middle;">' + escapeHtml(stu.name) + '</td>' +
+            '<td class="text-muted" style="vertical-align: middle;">' + escapeHtml(stu.father_name || '-') + '</td>' +
+            '<td class="text-right font-weight-bold text-danger" style="vertical-align: middle;">₹' + numberFormat(stu.already_paid) + '</td>' +
+            '<td class="text-center" style="vertical-align: middle;">' +
+                '<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="excludeSingleConflictStudent(' + stu.student_id + ')" title="Exclude this student from batch" style="padding: 1px 6px; font-size: 11px;">' +
+                    '<i class="fa fa-times mr-1"></i> Exclude' +
+                '</button>' +
+            '</td>'
+        );
+        tbody.append(tr);
+    });
+}
+
+function excludeSingleConflictStudent(studentId) {
+    activeBulkStudentIds = activeBulkStudentIds.filter(function(id) { return id != studentId; });
+    delete bulkStudentDetails[studentId];
+
+    // Uncheck in main ledger table if exists
+    $('.chk-student-select[value="' + studentId + '"]').prop('checked', false).trigger('change');
+
+    var removedStu = currentConflictStudents.find(function(s) { return s.student_id == studentId; });
+    var sName = removedStu ? removedStu.name : ('Student ID ' + studentId);
+
+    currentConflictStudents = currentConflictStudents.filter(function(s) { return s.student_id != studentId; });
+    $('#lblConflictCount').text(currentConflictStudents.length);
+    $('#lblConflictExcludeBtnCount').text(currentConflictStudents.length);
+
+    renderConflictStudentsTable();
+    renderBulkCollectStudentsTable();
+    updateBulkCollectSummary();
+
+    showCommonToast('info', sName + ' excluded from this bulk batch.');
+
+    if (currentConflictStudents.length === 0) {
+        setTimeout(function() {
+            $('#modalBulkCollectConflict').modal('hide');
+            showCommonToast('success', 'All conflicting students excluded. Ready to collect fees!');
+        }, 350);
+    }
+}
+
+function excludeAllConflictStudents() {
+    if (currentConflictStudents.length === 0) return;
+
+    var count = currentConflictStudents.length;
+    var conflictIds = currentConflictStudents.map(function(s) { return parseInt(s.student_id); });
+
+    activeBulkStudentIds = activeBulkStudentIds.filter(function(id) {
+        return conflictIds.indexOf(parseInt(id)) === -1;
+    });
+
+    conflictIds.forEach(function(cId) {
+        delete bulkStudentDetails[cId];
+        $('.chk-student-select[value="' + cId + '"]').prop('checked', false).trigger('change');
+    });
+
+    currentConflictStudents = [];
+    $('#modalBulkCollectConflict').modal('hide');
+
+    renderBulkCollectStudentsTable();
+    updateBulkCollectSummary();
+
+    showCommonToast('success', 'Successfully excluded ' + count + ' conflicting student(s). Remaining students: ' + activeBulkStudentIds.length + '. You can now collect fees.');
+}
+
+var currentUnassignedStudents = [];
+var currentUnassignedHeadName = '';
+
+function showBulkUnassignedModal(unassignedStudents, headName) {
+    currentUnassignedHeadName = headName || 'Selected Fee Head';
+    currentUnassignedStudents = unassignedStudents || [];
+
+    $('#lblUnassignedHeadName').text(currentUnassignedHeadName);
+    $('#lblUnassignedCount').text(currentUnassignedStudents.length);
+    $('#lblUnassignedCountList').text(currentUnassignedStudents.length);
+    $('#lblUnassignedExcludeBtnCount').text(currentUnassignedStudents.length);
+    $('#lblUnassignedAllBtnCount').text(activeBulkStudentIds.length);
+
+    renderUnassignedStudentsTable();
+    $('#modalBulkUnassignedPrompt').modal('show');
+}
+
+function renderUnassignedStudentsTable() {
+    var tbody = $('#tblUnassignedStudentsBody');
+    tbody.empty();
+
+    if (currentUnassignedStudents.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center py-3 text-success font-weight-bold"><i class="fa fa-check-circle mr-1"></i> All unassigned students have been excluded. You can now proceed.</td></tr>');
+        $('#btnExcludeAllUnassigned').prop('disabled', true);
+        return;
+    }
+
+    $('#btnExcludeAllUnassigned').prop('disabled', false);
+
+    currentUnassignedStudents.forEach(function(stu, idx) {
+        var tr = $('<tr></tr>');
+        tr.html(
+            '<td class="text-center text-muted" style="vertical-align: middle;">' + (idx + 1) + '</td>' +
+            '<td class="font-weight-bold text-dark" style="vertical-align: middle;">' + escapeHtml(stu.roll_no) + '</td>' +
+            '<td class="font-weight-bold text-dark" style="vertical-align: middle;">' + escapeHtml(stu.name) + '</td>' +
+            '<td class="text-muted" style="vertical-align: middle;">' + escapeHtml(stu.father_name || '-') + '</td>' +
+            '<td class="text-center" style="vertical-align: middle;"><span class="badge badge-warning" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 10.5px;">Not Assigned</span></td>' +
+            '<td class="text-center" style="vertical-align: middle;">' +
+                '<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="excludeSingleUnassignedStudent(' + stu.student_id + ')" title="Exclude this student from batch" style="padding: 1px 6px; font-size: 11px;">' +
+                    '<i class="fa fa-times mr-1"></i> Exclude' +
+                '</button>' +
+            '</td>'
+        );
+        tbody.append(tr);
+    });
+}
+
+function excludeSingleUnassignedStudent(studentId) {
+    activeBulkStudentIds = activeBulkStudentIds.filter(function(id) { return id != studentId; });
+    delete bulkStudentDetails[studentId];
+
+    // Uncheck in main ledger table if exists
+    $('.chk-student-select[value="' + studentId + '"]').prop('checked', false).trigger('change');
+
+    var removedStu = currentUnassignedStudents.find(function(s) { return s.student_id == studentId; });
+    var sName = removedStu ? removedStu.name : ('Student ID ' + studentId);
+
+    currentUnassignedStudents = currentUnassignedStudents.filter(function(s) { return s.student_id != studentId; });
+    $('#lblUnassignedCount').text(currentUnassignedStudents.length);
+    $('#lblUnassignedCountList').text(currentUnassignedStudents.length);
+    $('#lblUnassignedExcludeBtnCount').text(currentUnassignedStudents.length);
+    $('#lblUnassignedAllBtnCount').text(activeBulkStudentIds.length);
+
+    renderUnassignedStudentsTable();
+    renderBulkCollectStudentsTable();
+    updateBulkCollectSummary();
+
+    showCommonToast('info', sName + ' excluded from this bulk batch.');
+
+    if (currentUnassignedStudents.length === 0) {
+        setTimeout(function() {
+            $('#modalBulkUnassignedPrompt').modal('hide');
+            showCommonToast('success', 'All unassigned students excluded. Ready to collect fees!');
+        }, 350);
+    }
+}
+
+function proceedBulkCollectExcludeUnassigned() {
+    if (currentUnassignedStudents.length === 0) return;
+
+    var count = currentUnassignedStudents.length;
+    var unassignedIds = currentUnassignedStudents.map(function(s) { return parseInt(s.student_id); });
+
+    activeBulkStudentIds = activeBulkStudentIds.filter(function(id) {
+        return unassignedIds.indexOf(parseInt(id)) === -1;
+    });
+
+    unassignedIds.forEach(function(uId) {
+        delete bulkStudentDetails[uId];
+        $('.chk-student-select[value="' + uId + '"]').prop('checked', false).trigger('change');
+    });
+
+    currentUnassignedStudents = [];
+    $('#modalBulkUnassignedPrompt').modal('hide');
+
+    renderBulkCollectStudentsTable();
+    updateBulkCollectSummary();
+
+    showCommonToast('success', 'Excluded ' + count + ' unassigned student(s). Continuing collection for ' + activeBulkStudentIds.length + ' student(s)...');
+
+    if (activeBulkStudentIds.length > 0) {
+        submitBulkCollect(false);
+    } else {
+        showCommonToast('warning', 'No students remaining after exclusion.');
+    }
+}
+
+function proceedBulkCollectAutoAssign() {
+    $('#modalBulkUnassignedPrompt').modal('hide');
+    showCommonToast('info', 'Auto-assigning fee head and processing bulk collection...');
+    submitBulkCollect(true);
+}
+
+function openBulkHistoryModal() {
+    var tbody = $('#tblBulkHistoryBody');
+    tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="fa fa-spinner fa-spin mr-1"></i> Loading past bulk collection batches...</td></tr>');
+    $('#modalBulkCollectionsHistory').modal('show');
+
+    $.ajax({
+        url: "{{ route('college.fees.bulk_collections_history') }}",
+        type: "GET",
+        data: {
+            course_id: currentCourseId,
+            batch: currentBatch,
+            semester_no: currentSemester
+        },
+        dataType: 'json',
+        success: function(res) {
+            tbody.empty();
+            var list = res.history || [];
+            if (list.length === 0) {
+                tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="fa fa-info-circle mr-1"></i> No past bulk collections recorded for this batch yet.</td></tr>');
+                return;
+            }
+
+            list.forEach(function(item) {
+                var tr = $('<tr></tr>');
+                tr.html(
+                    '<td class="font-weight-bold text-primary">' + escapeHtml(item.bulk_code) + '</td>' +
+                    '<td>' + escapeHtml(item.payment_date) + '</td>' +
+                    '<td class="font-weight-bold text-dark">' + escapeHtml(item.head_name) + '</td>' +
+                    '<td class="text-right font-weight-bold">₹' + numberFormat(item.amount_per_student) + '</td>' +
+                    '<td class="text-center font-weight-bold"><span class="badge badge-light border">' + item.total_students + '</span></td>' +
+                    '<td class="text-right font-weight-bold text-success">₹' + numberFormat(item.total_amount) + '</td>' +
+                    '<td><span class="badge badge-info">' + escapeHtml(item.payment_mode) + '</span></td>' +
+                    '<td class="text-muted" style="font-size: 11px;">' + escapeHtml(item.cashier_name) + '</td>' +
+                    '<td class="text-center">' +
+                        '<a href="' + item.pdf_url + '" target="_blank" class="btn btn-xs btn-outline-danger font-weight-bold" title="Open multi-receipt PDF">' +
+                            '<i class="fa fa-file-pdf-o mr-1"></i> View PDF' +
+                        '</a>' +
+                    '</td>'
+                );
+                tbody.append(tr);
+            });
+        },
+        error: function() {
+            tbody.html('<tr><td colspan="9" class="text-center py-4 text-danger"><i class="fa fa-exclamation-triangle mr-1"></i> Failed to load bulk collections history.</td></tr>');
+        }
+    });
+}
+
+// Preserve modal-open class when conflict, unassigned or history modals close over bulk modal
+$('#modalBulkCollectConflict, #modalBulkUnassignedPrompt, #modalBulkCollectionsHistory').on('hidden.bs.modal', function () {
+    if ($('#modalBulkCollectFees').is(':visible') || $('#modalBulkCollectFees').hasClass('show')) {
+        $('body').addClass('modal-open');
+    }
+});
 
 // Open Set / Edit Batch Standard Fees Modal (Semester Tuition Fee Only)
 

@@ -894,6 +894,10 @@ Route::match(['get', 'post'], 'registration_fees_ledger_view', 'registration\Reg
         Route::post('/apply-bulk-discount', 'CollegeFees\CollegeFeeController@applyBulkDiscount')->name('college.fees.apply_bulk_discount');
         Route::post('/save-batch-standard-fees', 'CollegeFees\CollegeFeeController@saveBatchStandardFees')->name('college.fees.save_batch_standard_fees');
         Route::post('/assign-heads-to-selected', 'CollegeFees\CollegeFeeController@assignHeadsToSelectedStudents')->name('college.fees.assign_heads_to_selected');
+        Route::post('/bulk-collect-payment', 'CollegeFees\CollegeFeeController@bulkCollectPayment')->name('college.fees.bulk_collect_payment');
+        Route::get('/bulk-receipt-pdf/{bulkBatchId}', 'CollegeFees\CollegeFeeController@streamBulkReceiptPdf')->name('college.fees.bulk_receipt_pdf');
+        Route::match(['get', 'post'], '/selected-receipts-pdf', 'CollegeFees\CollegeFeeController@streamSelectedReceiptsPdf')->name('college.fees.selected_receipts_pdf');
+        Route::get('/bulk-collections-history', 'CollegeFees\CollegeFeeController@getBulkCollectionsHistory')->name('college.fees.bulk_collections_history');
 
         Route::get('/student-ledger/{studentId}', 'CollegeFees\CollegeFeeController@getStudentLedger')->name('college.fees.student_ledger');
         Route::get('/get-student-collect-data', 'CollegeFees\CollegeFeeController@getStudentCollectData')->name('college.fees.get_student_collect_data');

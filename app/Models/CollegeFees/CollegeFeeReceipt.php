@@ -28,8 +28,14 @@ class CollegeFeeReceipt extends Model
         'amount_paid',
         'discount_given',
         'remark',
-        'cashier_id'
+        'cashier_id',
+        'bulk_batch_id'
     ];
+
+    public function bulkCollection()
+    {
+        return $this->belongsTo(CollegeFeeBulkCollection::class, 'bulk_batch_id');
+    }
 
     public function student()
     {
@@ -90,5 +96,41 @@ class CollegeFeeReceipt extends Model
         }
 
         return $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Get the next starting sequence integer for batch receipt generation.
+     */
+    public static function getStartingSequenceNumber($year = null)
+    {
+        $year = $year ?: date('Y');
+        $prefix = 'RCPT-' . $year . '-';
+
+        $existingReceiptNos = self::withTrashed()
+            ->where('receipt_no', 'LIKE', $prefix . '%')
+            ->pluck('receipt_no');
+
+        $maxSeq = 0;
+        foreach ($existingReceiptNos as $rNo) {
+            $suffix = substr($rNo, strlen($prefix));
+            if (is_numeric($suffix)) {
+                $seq = intval($suffix);
+                if ($seq > $maxSeq) {
+                    $maxSeq = $seq;
+                }
+            }
+        }
+
+        $maxId = self::withTrashed()->max('id') ?: 0;
+        if ($maxId > $maxSeq) {
+            $maxSeq = $maxId;
+        }
+
+        $nextSeq = $maxSeq + 1;
+        while (self::withTrashed()->where('receipt_no', $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT))->exists()) {
+            $nextSeq++;
+        }
+
+        return $nextSeq;
     }
 }

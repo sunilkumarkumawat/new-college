@@ -30,3 +30,5 @@ init_*.php
 inspect_*.php
 list_*.php
 save_*.php
+
+/storage/fonts/*
